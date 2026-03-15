@@ -1,0 +1,165 @@
+/* Graph View Layout */
+.graph {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+.graph__canvas-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.graph__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Controls bar at bottom */
+.graph__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.graph__controls-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Control buttons */
+.graph__btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+  padding: 0 var(--space-sm);
+}
+
+.graph__btn:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+}
+
+.graph__btn:active {
+  transform: scale(0.95);
+}
+
+.graph__btn.active {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.graph__btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* Scale selector */
+.graph__select {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.graph__select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* View switcher tab bar */
+.view-switcher {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-elevated);
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.view-switcher__tab {
+  flex: 1;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+  transition: color var(--transition-fast);
+}
+
+.view-switcher__tab svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.view-switcher__tab.active {
+  color: var(--color-accent);
+}
+
+.view-switcher__tab:hover {
+  color: var(--color-text-muted);
+}
+
+/* Adjust app padding for tab bar */
+.app {
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
+
+/* Current note mini-display in graph controls */
+.graph__current-note {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-dim);
+  min-width: 48px;
+  text-align: center;
+  transition: color var(--transition-fast);
+}
+
+.graph__current-note.detected {
+  color: var(--color-in-tune);
+}
+
+.graph__current-note .octave {
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,396 @@
+import { NOTE_NAMES } from '../utils/constants.js';
+import { getScaleNotes } from '../utils/scales.js';
+import { frequencyToMidi } from '../audio/note-math.js';
+
+const LABEL_WIDTH = 44;
+const MIN_MIDI = 36;  // C2
+const MAX_MIDI = 96;  // C8
+const SCROLL_SPEEDS = [0.5, 1, 1.5, 2, 3];
+const DEFAULT_SPEED_INDEX = 1;
+
+export class PitchGraph {
+  #canvas;
+  #ctx;
+  #dpr;
+  #width = 0;
+  #height = 0;
+  #rafId = null;
+  #active = false;
+
+  // View range (MIDI note numbers)
+  #midiLow = 48;   // C3
+  #midiHigh = 84;   // C6
+  #semitoneRange = 36;
+
+  // Scroll state
+  #scrollX = 0;
+  #pixelsPerMs = 0.08;
+  #speedIndex = DEFAULT_SPEED_INDEX;
+  #paused = false;
+  #lastFrameTime = 0;
+
+  // Data
+  #buffer = null;
+  #pitchData = [];
+
+  // Scale overlay
+  #scaleRoot = null;
+  #scaleKey = null;
+  #scaleNotes = null;
+
+  // Colors
+  static #BG = '#0d0d0d';
+  static #GRID_LINE = '#1f1f1f';
+  static #GRID_LINE_C = '#333';
+  static #LABEL_TEXT = '#666';
+  static #LABEL_TEXT_ACTIVE = '#f0f0f0';
+  static #SCALE_HIGHLIGHT = 'rgba(78, 205, 196, 0.04)';
+  static #PITCH_DOT = '#4ecdc4';
+  static #PITCH_DOT_OFF = '#ffe66d';
+  static #PITCH_LINE = 'rgba(78, 205, 196, 0.35)';
+  static #CURRENT_NOTE_BG = 'rgba(78, 205, 196, 0.08)';
+  static #PLAYHEAD = 'rgba(78, 205, 196, 0.3)';
+
+  constructor(canvas, buffer) {
+    this.#canvas = canvas;
+    this.#ctx = canvas.getContext('2d');
+    this.#buffer = buffer;
+    this.#resize();
+
+    this._resizeHandler = () => {
+      this.#resize();
+      if (!this.#active) this.#drawStatic();
+    };
+    window.addEventListener('resize', this._resizeHandler);
+  }
+
+  #resize() {
+    this.#dpr = window.devicePixelRatio || 1;
+    const rect = this.#canvas.getBoundingClientRect();
+    this.#width = rect.width;
+    this.#height = rect.height;
+    this.#canvas.width = this.#width * this.#dpr;
+    this.#canvas.height = this.#height * this.#dpr;
+    this.#ctx.setTransform(this.#dpr, 0, 0, this.#dpr, 0, 0);
+  }
+
+  start() {
+    if (this.#active) return;
+    this.#active = true;
+    this.#scrollX = 0;
+    this.#lastFrameTime = performance.now();
+    this.#animate();
+  }
+
+  stop() {
+    this.#active = false;
+    if (this.#rafId) {
+      cancelAnimationFrame(this.#rafId);
+      this.#rafId = null;
+    }
+  }
+
+  pause() {
+    this.#paused = true;
+  }
+
+  resume() {
+    if (this.#paused) {
+      this.#paused = false;
+      this.#lastFrameTime = performance.now();
+    }
+  }
+
+  get isPaused() {
+    return this.#paused;
+  }
+
+  togglePause() {
+    if (this.#paused) this.resume();
+    else this.pause();
+  }
+
+  setSpeed(index) {
+    this.#speedIndex = Math.max(0, Math.min(SCROLL_SPEEDS.length - 1, index));
+    this.#pixelsPerMs = 0.08 * SCROLL_SPEEDS[this.#speedIndex];
+  }
+
+  get speedIndex() {
+    return this.#speedIndex;
+  }
+
+  get speedLabel() {
+    return `${SCROLL_SPEEDS[this.#speedIndex]}x`;
+  }
+
+  setScale(rootName, scaleKey) {
+    if (rootName && scaleKey) {
+      this.#scaleRoot = rootName;
+      this.#scaleKey = scaleKey;
+      this.#scaleNotes = getScaleNotes(rootName, scaleKey);
+    } else {
+      this.#scaleRoot = null;
+      this.#scaleKey = null;
+      this.#scaleNotes = null;
+    }
+  }
+
+  setRange(lowMidi, highMidi) {
+    this.#midiLow = Math.max(MIN_MIDI, lowMidi);
+    this.#midiHigh = Math.min(MAX_MIDI, highMidi);
+    this.#semitoneRange = this.#midiHigh - this.#midiLow;
+  }
+
+  // Convert MIDI note to Y position on canvas
+  #midiToY(midi) {
+    const graphH = this.#height;
+    const ratio = (midi - this.#midiLow) / this.#semitoneRange;
+    return graphH - ratio * graphH;
+  }
+
+  #animate() {
+    if (!this.#active) return;
+
+    const now = performance.now();
+    if (!this.#paused) {
+      const dt = now - this.#lastFrameTime;
+      this.#scrollX += dt * this.#pixelsPerMs;
+    }
+    this.#lastFrameTime = now;
+
+    this.#draw();
+    this.#rafId = requestAnimationFrame(() => this.#animate());
+  }
+
+  #draw() {
+    const ctx = this.#ctx;
+    const w = this.#width;
+    const h = this.#height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = PitchGraph.#BG;
+    ctx.fillRect(0, 0, w, h);
+
+    const graphLeft = LABEL_WIDTH;
+    const graphRight = w - LABEL_WIDTH;
+    const graphW = graphRight - graphLeft;
+    const playheadX = graphRight - 60;
+
+    // Clipping region for graph area
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(graphLeft, 0, graphW, h);
+    ctx.clip();
+
+    // Draw grid lines and scale highlights
+    this.#drawGrid(ctx, graphLeft, graphRight, h);
+
+    // Draw pitch data
+    this.#drawPitch(ctx, graphLeft, playheadX, h);
+
+    ctx.restore();
+
+    // Draw labels on both sides
+    this.#drawLabels(ctx, 0, LABEL_WIDTH, h, 'right');
+    this.#drawLabels(ctx, graphRight, w, h, 'left');
+
+    // Draw playhead line
+    ctx.strokeStyle = PitchGraph.#PLAYHEAD;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(playheadX, 0);
+    ctx.lineTo(playheadX, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw separator lines between labels and graph
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(graphLeft, 0);
+    ctx.lineTo(graphLeft, h);
+    ctx.moveTo(graphRight, 0);
+    ctx.lineTo(graphRight, h);
+    ctx.stroke();
+  }
+
+  #drawGrid(ctx, left, right, h) {
+    const graphW = right - left;
+
+    for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
+      const y = this.#midiToY(midi);
+      const noteIndex = ((midi % 12) + 12) % 12;
+      const isC = noteIndex === 0;
+      const isE = noteIndex === 4;
+      const isB = noteIndex === 11;
+
+      // Scale highlight bands
+      if (this.#scaleNotes && this.#scaleNotes.has(noteIndex)) {
+        const yTop = this.#midiToY(midi + 0.5);
+        const yBot = this.#midiToY(midi - 0.5);
+        ctx.fillStyle = PitchGraph.#SCALE_HIGHLIGHT;
+        ctx.fillRect(left, yTop, graphW, yBot - yTop);
+      }
+
+      // Grid lines — C notes are bold, E/B are subtle divisions
+      if (isC) {
+        ctx.strokeStyle = PitchGraph.#GRID_LINE_C;
+        ctx.lineWidth = 1.5;
+      } else {
+        ctx.strokeStyle = PitchGraph.#GRID_LINE;
+        ctx.lineWidth = 0.5;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+    }
+  }
+
+  #drawLabels(ctx, areaLeft, areaRight, h, align) {
+    const areaW = areaRight - areaLeft;
+    const padding = 6;
+
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    // Background for label column
+    ctx.fillStyle = PitchGraph.#BG;
+    ctx.fillRect(areaLeft, 0, areaW, h);
+
+    // Get current detected note for highlighting
+    const bufData = this.#buffer?.data;
+    let currentMidi = null;
+    if (bufData && bufData.length > 0) {
+      const last = bufData[bufData.length - 1];
+      if (!last.silent) currentMidi = last.midi;
+    }
+
+    for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
+      const y = this.#midiToY(midi);
+      const noteIndex = ((midi % 12) + 12) % 12;
+      const octave = Math.floor(midi / 12) - 1;
+      const noteName = NOTE_NAMES[noteIndex];
+      const isC = noteIndex === 0;
+      const isNatural = !noteName.includes('#');
+      const isCurrent = currentMidi === midi;
+
+      // Only label naturals + C octave markers to avoid clutter
+      if (!isNatural && !isCurrent) continue;
+
+      // Current note highlight
+      if (isCurrent) {
+        const yTop = this.#midiToY(midi + 0.5);
+        const yBot = this.#midiToY(midi - 0.5);
+        ctx.fillStyle = PitchGraph.#CURRENT_NOTE_BG;
+        ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
+      }
+
+      // Label text
+      const label = isC ? `${noteName}${octave}` : noteName;
+      ctx.fillStyle = isCurrent ? PitchGraph.#LABEL_TEXT_ACTIVE
+        : isC ? '#999'
+        : PitchGraph.#LABEL_TEXT;
+      ctx.font = isCurrent ? 'bold 11px system-ui, sans-serif'
+        : isC ? 'bold 10px system-ui, sans-serif'
+        : '10px system-ui, sans-serif';
+
+      if (align === 'right') {
+        ctx.textAlign = 'right';
+        ctx.fillText(label, areaRight - padding, y);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.fillText(label, areaLeft + padding, y);
+      }
+    }
+  }
+
+  #drawPitch(ctx, graphLeft, playheadX, h) {
+    const data = this.#buffer?.data;
+    if (!data || data.length === 0) return;
+
+    const graphW = playheadX - graphLeft;
+    const now = this.#scrollX;
+
+    // Calculate time window visible on screen
+    const msPerPixel = 1 / this.#pixelsPerMs;
+    const visibleMs = graphW * msPerPixel;
+
+    // Find the latest data point time
+    const latestPoint = data[data.length - 1];
+    const latestTime = latestPoint.time;
+
+    // Draw from right (newest) to left (oldest)
+    let prevX = null;
+    let prevY = null;
+
+    for (let i = 0; i < data.length; i++) {
+      const point = data[i];
+      if (point.silent) {
+        prevX = null;
+        prevY = null;
+        continue;
+      }
+
+      // Map time to X position: latest data at playheadX, older data to the left
+      const age = latestTime - point.time;
+      const x = playheadX - age * this.#pixelsPerMs;
+
+      // Skip if off-screen
+      if (x < graphLeft - 10) continue;
+      if (x > playheadX + 10) continue;
+
+      // Map fractional MIDI to Y
+      const exactMidi = frequencyToMidi(point.frequency);
+      const y = this.#midiToY(exactMidi);
+
+      // Skip if outside vertical range
+      if (y < -10 || y > h + 10) {
+        prevX = null;
+        prevY = null;
+        continue;
+      }
+
+      // Draw connecting line
+      if (prevX !== null && prevY !== null) {
+        const dist = Math.abs(x - prevX);
+        if (dist < 50) {
+          ctx.strokeStyle = PitchGraph.#PITCH_LINE;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+      }
+
+      // Draw dot
+      const absCents = Math.abs(point.cents);
+      ctx.fillStyle = absCents <= 10 ? PitchGraph.#PITCH_DOT
+        : absCents <= 25 ? PitchGraph.#PITCH_DOT_OFF
+        : '#ff6b6b';
+
+      const dotSize = absCents <= 10 ? 3 : 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      prevX = x;
+      prevY = y;
+    }
+  }
+
+  #drawStatic() {
+    this.#draw();
+  }
+
+  destroy() {
+    this.stop();
+    window.removeEventListener('resize', this._resizeHandler);
+    this.#canvas = null;
+    this.#ctx = null;
+    this.#buffer = null;
+  }
+}
