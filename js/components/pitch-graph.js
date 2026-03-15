@@ -2,7 +2,7 @@ import { NOTE_NAMES } from '../utils/constants.js';
 import { getScaleNotes } from '../utils/scales.js';
 import { frequencyToMidi } from '../audio/note-math.js';
 
-const LABEL_WIDTH = 44;
+const LABEL_WIDTH = 52;
 const MIN_MIDI = 36;  // C2
 const MAX_MIDI = 96;  // C8
 const SCROLL_SPEEDS = [0.5, 1, 1.5, 2, 3];
@@ -23,15 +23,18 @@ export class PitchGraph {
   #semitoneRange = 36;
 
   // Scroll state
-  #scrollX = 0;
+  #scrollTimeMs = 0;      // virtual time in ms that the playhead represents
   #pixelsPerMs = 0.08;
   #speedIndex = DEFAULT_SPEED_INDEX;
   #paused = false;
   #lastFrameTime = 0;
+  #startWallTime = 0;     // wall-clock time when start() was called
+
+  // Scroll mode: false = continuous (shows gaps), true = compact (skips gaps)
+  #compact = false;
 
   // Data
   #buffer = null;
-  #pitchData = [];
 
   // Scale overlay
   #scaleRoot = null;
@@ -77,7 +80,8 @@ export class PitchGraph {
   start() {
     if (this.#active) return;
     this.#active = true;
-    this.#scrollX = 0;
+    this.#scrollTimeMs = 0;
+    this.#startWallTime = performance.now();
     this.#lastFrameTime = performance.now();
     this.#animate();
   }
@@ -123,6 +127,14 @@ export class PitchGraph {
     return `${SCROLL_SPEEDS[this.#speedIndex]}x`;
   }
 
+  get isCompact() {
+    return this.#compact;
+  }
+
+  toggleCompact() {
+    this.#compact = !this.#compact;
+  }
+
   setScale(rootName, scaleKey) {
     if (rootName && scaleKey) {
       this.#scaleRoot = rootName;
@@ -153,8 +165,20 @@ export class PitchGraph {
 
     const now = performance.now();
     if (!this.#paused) {
-      const dt = now - this.#lastFrameTime;
-      this.#scrollX += dt * this.#pixelsPerMs;
+      if (this.#compact) {
+        // Compact mode: only advance scroll when there's recent data
+        const data = this.#buffer?.data;
+        if (data && data.length > 0) {
+          const last = data[data.length - 1];
+          if (!last.silent) {
+            const dt = now - this.#lastFrameTime;
+            this.#scrollTimeMs += dt;
+          }
+        }
+      } else {
+        // Continuous mode: always scroll with wall clock
+        this.#scrollTimeMs = now - this.#startWallTime;
+      }
     }
     this.#lastFrameTime = now;
 
@@ -251,9 +275,9 @@ export class PitchGraph {
 
   #drawLabels(ctx, areaLeft, areaRight, h, align) {
     const areaW = areaRight - areaLeft;
-    const padding = 6;
+    const padding = 8;
 
-    ctx.font = '10px system-ui, sans-serif';
+    ctx.font = '11px system-ui, sans-serif';
     ctx.textBaseline = 'middle';
 
     // Background for label column
@@ -293,9 +317,9 @@ export class PitchGraph {
       ctx.fillStyle = isCurrent ? PitchGraph.#LABEL_TEXT_ACTIVE
         : isC ? '#999'
         : PitchGraph.#LABEL_TEXT;
-      ctx.font = isCurrent ? 'bold 11px system-ui, sans-serif'
-        : isC ? 'bold 10px system-ui, sans-serif'
-        : '10px system-ui, sans-serif';
+      ctx.font = isCurrent ? 'bold 12px system-ui, sans-serif'
+        : isC ? 'bold 11px system-ui, sans-serif'
+        : '11px system-ui, sans-serif';
 
       if (align === 'right') {
         ctx.textAlign = 'right';
@@ -311,18 +335,10 @@ export class PitchGraph {
     const data = this.#buffer?.data;
     if (!data || data.length === 0) return;
 
-    const graphW = playheadX - graphLeft;
-    const now = this.#scrollX;
+    // The playhead represents the current scroll time.
+    // Points are positioned by their time offset from the scroll time.
+    const currentTimeMs = this.#scrollTimeMs;
 
-    // Calculate time window visible on screen
-    const msPerPixel = 1 / this.#pixelsPerMs;
-    const visibleMs = graphW * msPerPixel;
-
-    // Find the latest data point time
-    const latestPoint = data[data.length - 1];
-    const latestTime = latestPoint.time;
-
-    // Draw from right (newest) to left (oldest)
     let prevX = null;
     let prevY = null;
 
@@ -334,8 +350,8 @@ export class PitchGraph {
         continue;
       }
 
-      // Map time to X position: latest data at playheadX, older data to the left
-      const age = latestTime - point.time;
+      // Map time to X: playhead = currentTimeMs, older = to the left
+      const age = currentTimeMs - point.time;
       const x = playheadX - age * this.#pixelsPerMs;
 
       // Skip if off-screen

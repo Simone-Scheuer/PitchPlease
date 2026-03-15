@@ -11,6 +11,7 @@ class GraphView {
   #micBtn;
   #pauseBtn;
   #speedBtn;
+  #compactBtn;
   #scaleRootSelect;
   #scaleTypeSelect;
   #currentNoteEl;
@@ -23,6 +24,7 @@ class GraphView {
     this.#micBtn = qs('#graph-mic-btn');
     this.#pauseBtn = qs('#graph-pause-btn');
     this.#speedBtn = qs('#graph-speed-btn');
+    this.#compactBtn = qs('#graph-compact-btn');
     this.#scaleRootSelect = qs('#scale-root');
     this.#scaleTypeSelect = qs('#scale-type');
     this.#currentNoteEl = qs('#graph-current-note');
@@ -30,6 +32,7 @@ class GraphView {
     this.#micBtn.addEventListener('click', () => this.#toggleMic());
     this.#pauseBtn.addEventListener('click', () => this.#togglePause());
     this.#speedBtn.addEventListener('click', () => this.#cycleSpeed());
+    this.#compactBtn.addEventListener('click', () => this.#toggleCompact());
     this.#scaleRootSelect.addEventListener('change', () => this.#updateScale());
     this.#scaleTypeSelect.addEventListener('change', () => this.#updateScale());
 
@@ -125,6 +128,7 @@ class GraphView {
     this.#active = false;
     this.#micBtn.classList.remove('active');
     this.#pauseBtn.classList.remove('active');
+    this.#compactBtn.classList.remove('active');
     this.#currentNoteEl.innerHTML = '--';
     this.#currentNoteEl.classList.remove('detected');
   }
@@ -138,6 +142,11 @@ class GraphView {
     const next = (this.#graph.speedIndex + 1) % 5;
     this.#graph.setSpeed(next);
     this.#speedBtn.textContent = this.#graph.speedLabel;
+  }
+
+  #toggleCompact() {
+    this.#graph.toggleCompact();
+    this.#compactBtn.classList.toggle('active', this.#graph.isCompact);
   }
 
   #onPitch(data) {

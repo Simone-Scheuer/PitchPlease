@@ -139,9 +139,9 @@
   color: var(--color-text-muted);
 }
 
-/* Adjust app padding for tab bar */
-.app {
-  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+/* Adjust views for tab bar height */
+.view {
+  bottom: calc(48px + env(safe-area-inset-bottom));
 }
 
 /* Current note mini-display in graph controls */
