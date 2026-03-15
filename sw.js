@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v2';
+const CACHE_NAME = 'pitchplease-v3';
 
 const STATIC_ASSETS = [
   './',
@@ -9,21 +9,27 @@ const STATIC_ASSETS = [
   './css/layout.css',
   './css/tuner.css',
   './css/graph.css',
+  './css/game.css',
   './js/app.js',
   './js/audio/mic.js',
   './js/audio/detector.js',
   './js/audio/note-math.js',
   './js/audio/pitch-buffer.js',
+  './js/audio/song-engine.js',
   './js/views/tuner-view.js',
   './js/views/graph-view.js',
+  './js/views/library-view.js',
+  './js/views/game-view.js',
   './js/components/needle.js',
   './js/components/note-display.js',
   './js/components/frequency-display.js',
   './js/components/pitch-graph.js',
+  './js/components/game-canvas.js',
   './js/utils/constants.js',
   './js/utils/dom.js',
   './js/utils/event-bus.js',
   './js/utils/scales.js',
+  './js/utils/song-data.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
 ];

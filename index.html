@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/tuner.css">
   <link rel="stylesheet" href="css/graph.css">
+  <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
   <div class="app" id="app">
@@ -94,6 +95,61 @@
       </div>
     </div>
 
+    <!-- Play View (Song Library) -->
+    <div class="view" id="play-view">
+      <div class="library">
+        <div class="library__header">
+          <div class="library__title">Songs</div>
+        </div>
+        <div class="library__list" id="library-list"></div>
+      </div>
+    </div>
+
+    <!-- Game View -->
+    <div class="view" id="game-view">
+      <div class="game">
+
+        <div class="game__topbar">
+          <div class="game__song-title" id="game-song-title">--</div>
+          <div class="game__live-score" id="game-live-score">0</div>
+        </div>
+
+        <div class="game__canvas-wrap">
+          <canvas class="game__canvas" id="game-canvas"></canvas>
+        </div>
+
+        <div class="game__controls">
+          <div class="game__controls-group">
+            <button class="game__btn" id="game-play-btn" aria-label="Play/Stop">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </button>
+            <button class="game__btn" id="game-tempo-btn" aria-label="Tempo">1x</button>
+          </div>
+          <div class="game__controls-group">
+            <select class="game__select" id="game-difficulty" aria-label="Difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Results overlay -->
+        <div class="results-overlay" id="results-overlay">
+          <div class="results__score">0</div>
+          <div class="results__label">--</div>
+          <div class="results__notes"></div>
+          <div class="results__actions">
+            <button class="results__btn results__btn--secondary" id="results-back-btn">Back</button>
+            <button class="results__btn results__btn--primary" id="results-retry-btn">Retry</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <!-- View Switcher -->
@@ -110,6 +166,12 @@
         <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
       </svg>
       Graph
+    </button>
+    <button class="view-switcher__tab" data-view="play-view" aria-label="Play">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+      </svg>
+      Play
     </button>
   </nav>
 

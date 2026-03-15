@@ -1,5 +1,8 @@
 import { tunerView } from './views/tuner-view.js';
 import { graphView } from './views/graph-view.js';
+import { libraryView } from './views/library-view.js';
+import { gameView } from './views/game-view.js';
+import { bus } from './utils/event-bus.js';
 import { qs, qsa } from './utils/dom.js';
 
 // Register service worker
@@ -19,11 +22,13 @@ function switchView(viewId) {
   const oldEl = qs(`#${activeViewId}`);
   if (oldEl) oldEl.classList.remove('active');
   if (activeViewId === 'graph-view') graphView.deactivate();
+  if (activeViewId === 'game-view') gameView.deactivate();
 
   // Activate new view
   const newEl = qs(`#${viewId}`);
   if (newEl) newEl.classList.add('active');
   if (viewId === 'graph-view') graphView.activate();
+  if (viewId === 'game-view') gameView.activate();
 
   activeViewId = viewId;
 
@@ -37,9 +42,22 @@ function switchView(viewId) {
 document.addEventListener('DOMContentLoaded', () => {
   tunerView.init();
   graphView.init();
+  libraryView.init();
+  gameView.init();
 
   // View switcher tabs
   for (const tab of qsa('.view-switcher__tab')) {
     tab.addEventListener('click', () => switchView(tab.dataset.view));
   }
+
+  // Song selection → load into game and switch view
+  bus.on('song:select', ({ song }) => {
+    gameView.loadSong(song);
+    switchView('game-view');
+  });
+
+  // Navigate event (e.g., back to library from results)
+  bus.on('navigate', ({ view }) => {
+    switchView(view);
+  });
 });
