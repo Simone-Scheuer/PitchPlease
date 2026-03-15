@@ -1,0 +1,73 @@
+html, body {
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* View container — each view is an absolutely positioned layer */
+.view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+}
+
+.view.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toast notifications */
+.toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-lg));
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  z-index: var(--z-toast);
+  opacity: 0;
+  transition: transform var(--transition-base), opacity var(--transition-base);
+  border: 1px solid var(--color-border);
+}
+
+.toast.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
