@@ -1,7 +1,10 @@
 ---
 id: REQ-026
 title: Flash-card renderer for reactive exercises
-status: pending
+status: completed
+claimed_at: 2026-03-16T01:11:00Z
+completed_at: 2026-03-16T01:15:00Z
+route: B
 created_at: 2026-03-16T01:00:00Z
 user_request: UR-010
 related: [REQ-023, REQ-024, REQ-025]
