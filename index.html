@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/tuner.css">
   <link rel="stylesheet" href="css/graph.css">
   <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/session.css">
 </head>
 <body>
   <div class="app" id="app">
@@ -141,6 +142,28 @@
 
         <!-- Song List -->
         <div class="library__panel hidden" id="song-list"></div>
+      </div>
+    </div>
+
+    <!-- Session View -->
+    <div id="session-view" class="view" hidden>
+      <div class="session-header">
+        <div class="session-progress"></div>
+        <div class="session-label"></div>
+      </div>
+      <canvas id="session-canvas"></canvas>
+      <div class="session-transition" hidden>
+        <div class="session-transition-text"></div>
+      </div>
+      <div class="session-controls">
+        <button class="session-btn" id="session-pause">&#x23F8;</button>
+        <button class="session-btn" id="session-skip">&#x23ED;</button>
+        <button class="session-btn session-btn-end" id="session-end">End</button>
+      </div>
+      <div class="session-summary" hidden>
+        <h2 class="session-summary-title">Session Complete</h2>
+        <div class="session-summary-stats"></div>
+        <button class="session-btn session-btn-primary" id="session-back">Back to Practice</button>
       </div>
     </div>
 

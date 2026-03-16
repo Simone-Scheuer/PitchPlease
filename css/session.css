@@ -1,0 +1,118 @@
+/* Session view fills the screen */
+#session-view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+/* Progress bar */
+.session-progress {
+  display: flex;
+  height: 4px;
+  background: var(--color-bg-elevated);
+}
+.session-progress-segment {
+  height: 100%;
+  transition: background var(--transition-base);
+}
+.session-progress-segment.active {
+  background: var(--color-accent);
+}
+.session-progress-segment.completed {
+  background: var(--color-accent);
+  opacity: 0.4;
+}
+.session-progress-segment.upcoming {
+  background: var(--color-bg-surface);
+}
+
+/* Exercise label */
+.session-label {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+/* Canvas fills available space */
+#session-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Transition overlay */
+.session-transition {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 13, 13, 0.85);
+  z-index: var(--z-overlay);
+}
+.session-transition-text {
+  font-size: var(--font-size-xl);
+  color: var(--color-text);
+  text-align: center;
+}
+
+/* Controls */
+.session-controls {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  justify-content: center;
+  background: var(--color-bg);
+}
+.session-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+.session-btn-end {
+  margin-left: auto;
+  color: var(--color-off);
+  border-color: var(--color-off);
+}
+.session-btn-primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Summary overlay */
+.session-summary {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  background: rgba(13, 13, 13, 0.95);
+  z-index: var(--z-overlay);
+  padding: var(--space-xl);
+}
+.session-summary-title {
+  font-size: var(--font-size-xl);
+  color: var(--color-accent);
+}
+.session-summary-stats {
+  color: var(--color-text-dim);
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* Hide tab bar during sessions */
+.tab-bar-hidden {
+  display: none !important;
+}
