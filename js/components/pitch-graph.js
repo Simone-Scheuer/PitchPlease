@@ -28,10 +28,15 @@ export class PitchGraph {
   #speedIndex = DEFAULT_SPEED_INDEX;
   #paused = false;
   #lastFrameTime = 0;
-  #startWallTime = 0;     // wall-clock time when start() was called
 
   // Scroll mode: false = continuous (shows gaps), true = compact (skips gaps)
   #compact = false;
+
+  // Auto-range: track detected pitch to adjust Y range
+  #autoRange = true;
+  #detectedMidiMin = 60;  // C4
+  #detectedMidiMax = 72;  // C5
+  #yOffset = 0;           // manual scroll offset in semitones
 
   // Data
   #buffer = null;
@@ -65,6 +70,15 @@ export class PitchGraph {
       if (!this.#active) this.#drawStatic();
     };
     window.addEventListener('resize', this._resizeHandler);
+
+    // Scroll to pan Y range
+    this._wheelHandler = (e) => {
+      e.preventDefault();
+      this.#yOffset += e.deltaY > 0 ? -2 : 2;
+      this.#yOffset = Math.max(-24, Math.min(24, this.#yOffset));
+      this.#updateRange();
+    };
+    this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
   }
 
   #resize() {
@@ -81,8 +95,11 @@ export class PitchGraph {
     if (this.#active) return;
     this.#active = true;
     this.#scrollTimeMs = 0;
-    this.#startWallTime = performance.now();
     this.#lastFrameTime = performance.now();
+    this.#detectedMidiMin = 60;
+    this.#detectedMidiMax = 72;
+    this.#yOffset = 0;
+    this.#updateRange();
     this.#animate();
   }
 
@@ -153,6 +170,42 @@ export class PitchGraph {
     this.#semitoneRange = this.#midiHigh - this.#midiLow;
   }
 
+  #updateRange() {
+    const padding = 4;
+    const low = this.#detectedMidiMin - padding + this.#yOffset;
+    const high = this.#detectedMidiMax + padding + this.#yOffset;
+    // Minimum 2 octave range
+    const range = high - low;
+    if (range < 24) {
+      const center = (low + high) / 2;
+      this.setRange(Math.round(center - 12), Math.round(center + 12));
+    } else {
+      this.setRange(Math.round(low), Math.round(high));
+    }
+  }
+
+  #updateAutoRange() {
+    const data = this.#buffer?.data;
+    if (!data || data.length === 0) return;
+
+    // Check recent data points for range
+    let changed = false;
+    const lookback = Math.min(data.length, 200);
+    for (let i = data.length - lookback; i < data.length; i++) {
+      const point = data[i];
+      if (point.silent) continue;
+      if (point.midi < this.#detectedMidiMin) {
+        this.#detectedMidiMin = point.midi;
+        changed = true;
+      }
+      if (point.midi > this.#detectedMidiMax) {
+        this.#detectedMidiMax = point.midi;
+        changed = true;
+      }
+    }
+    if (changed) this.#updateRange();
+  }
+
   // Convert MIDI note to Y position on canvas
   #midiToY(midi) {
     const graphH = this.#height;
@@ -164,23 +217,29 @@ export class PitchGraph {
     if (!this.#active) return;
 
     const now = performance.now();
+    const dt = now - this.#lastFrameTime;
+    this.#lastFrameTime = now;
+
     if (!this.#paused) {
       if (this.#compact) {
-        // Compact mode: only advance scroll when there's recent data
+        // Compact mode: only advance scroll when there's recent pitch data
         const data = this.#buffer?.data;
         if (data && data.length > 0) {
           const last = data[data.length - 1];
           if (!last.silent) {
-            const dt = now - this.#lastFrameTime;
             this.#scrollTimeMs += dt;
           }
         }
       } else {
-        // Continuous mode: always scroll with wall clock
-        this.#scrollTimeMs = now - this.#startWallTime;
+        // Continuous mode: always advance
+        this.#scrollTimeMs += dt;
+      }
+
+      // Auto-range: expand Y range based on detected pitch
+      if (this.#autoRange) {
+        this.#updateAutoRange();
       }
     }
-    this.#lastFrameTime = now;
 
     this.#draw();
     this.#rafId = requestAnimationFrame(() => this.#animate());
@@ -405,6 +464,7 @@ export class PitchGraph {
   destroy() {
     this.stop();
     window.removeEventListener('resize', this._resizeHandler);
+    this.#canvas.removeEventListener('wheel', this._wheelHandler);
     this.#canvas = null;
     this.#ctx = null;
     this.#buffer = null;
