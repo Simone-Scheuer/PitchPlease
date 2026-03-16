@@ -7,7 +7,11 @@
  *
  * Visual behavior:
  *   - Large note letter centered on canvas, octave number smaller beside it
- *   - Background subtly shifts as the player approaches the target pitch
+ *   - Proximity glow ring around the target note that grows and changes
+ *     color as the player approaches the correct pitch
+ *   - Player's current note shown in dim text below the target
+ *   - Direction indicator (arrow up/down or checkmark) between target and
+ *     player note so vocalists can see which way to slide
  *   - Green flash animation on successful match
  *   - Reaction timer in bottom-right corner
  *   - Score flash in center-bottom after match
@@ -35,9 +39,19 @@ const MATCH_FLASH_DURATION_MS = 300;
 const SCORE_FLASH_DURATION_MS = 500;
 const LOCKOUT_DURATION_MS = 200;
 
-// Background tint colors (low alpha overlays)
-const BG_TINT_CLOSE = 'rgba(78, 205, 196, 0.04)';
-const BG_TINT_IN_TUNE = 'rgba(78, 205, 196, 0.10)';
+// ---------------------------------------------------------------------------
+// Proximity ring thresholds (in cents)
+// ---------------------------------------------------------------------------
+
+const RING_FAR_THRESHOLD = 50;       // beyond this — no ring
+const RING_WARM_THRESHOLD = 25;      // 25-50 cents — dim red
+const RING_CLOSE_THRESHOLD = 10;     // 10-25 cents — yellow
+                                      // <10 cents — bright green, pulsing
+
+// Ring colors
+const RING_COLOR_FAR = { r: 255, g: 107, b: 107 };   // red (#ff6b6b)
+const RING_COLOR_WARM = { r: 255, g: 230, b: 109 };   // yellow (#ffe66d)
+const RING_COLOR_HIT = { r: 78, g: 205, b: 196 };     // green (#4ecdc4)
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -62,6 +76,7 @@ export function createFlashCardRenderer() {
 
   // --- Current frame data (from update) ---
   let currentTargetNote = null;
+  let currentPitchData = null;
   let currentCursor = 0;
   let currentNoteCount = 0;
   let currentElapsed = 0;
@@ -89,7 +104,7 @@ export function createFlashCardRenderer() {
    * Handles sharps (e.g., "F#3"), flats (e.g., "Bb4"), and plain notes ("A4").
    */
   function parseNoteName(noteStr) {
-    if (!noteStr || typeof noteStr !== 'string') return { name: '—', octave: '' };
+    if (!noteStr || typeof noteStr !== 'string') return { name: '\u2014', octave: '' };
 
     const match = noteStr.match(/^([A-Ga-g][#b]?)(\d+)?$/);
     if (!match) return { name: noteStr, octave: '' };
@@ -121,6 +136,32 @@ export function createFlashCardRenderer() {
     return null;
   }
 
+  /**
+   * Compute the signed cents distance from the player's pitch to the target.
+   * Positive means player is sharp (above target), negative means flat (below).
+   * Returns null if either pitch or target is unavailable.
+   */
+  function getSignedCentsDistance() {
+    if (!currentPitchData || !currentTargetNote) return null;
+    if (typeof currentPitchData.midi !== 'number') return null;
+    if (typeof currentTargetNote.midi !== 'number') return null;
+
+    // pitchData.midi is the rounded integer MIDI; cents is deviation from that
+    const playerCents = currentPitchData.midi * 100 + (currentPitchData.cents || 0);
+    const targetCents = currentTargetNote.midi * 100;
+    return playerCents - targetCents;
+  }
+
+  /**
+   * Build the player's current note string (e.g., "C#4") from pitchData.
+   */
+  function getPlayerNoteStr() {
+    if (!currentPitchData) return null;
+    const { note, octave } = currentPitchData;
+    if (!note) return null;
+    return `${note}${octave ?? ''}`;
+  }
+
   // ---------------------------------------------------------------------------
   // Drawing routines
   // ---------------------------------------------------------------------------
@@ -130,14 +171,20 @@ export function createFlashCardRenderer() {
 
     const now = performance.now();
 
-    // --- Background tint based on evaluator result ---
-    drawBackgroundTint(now);
-
     // --- Match flash overlay ---
     drawMatchFlash(now);
 
+    // --- Proximity glow ring ---
+    drawProximityRing(now);
+
     // --- Note display ---
     drawNoteCard();
+
+    // --- Direction indicator ---
+    drawDirectionIndicator();
+
+    // --- Player's current note ---
+    drawPlayerNote();
 
     // --- Reaction timer ---
     drawReactionTimer();
@@ -155,23 +202,75 @@ export function createFlashCardRenderer() {
   }
 
   /**
-   * Draw a subtle background tint based on how close the player is.
+   * Draw the proximity glow ring around the target note.
+   * Uses concentric circles with radial gradients for a soft aura effect.
    */
-  function drawBackgroundTint(now) {
-    if (!currentEvaluatorResult) return;
+  function drawProximityRing(now) {
+    if (!currentTargetNote || !currentEvaluatorResult) return;
 
-    // Don't show tint during lockout (just matched)
+    // Don't show during lockout (just matched)
     if (now < lockoutUntil) return;
 
-    const { inTune, close } = currentEvaluatorResult;
+    const signedCents = getSignedCentsDistance();
+    if (signedCents === null) return;
 
-    if (inTune) {
-      ctx.fillStyle = BG_TINT_IN_TUNE;
-      ctx.fillRect(0, 0, width, height);
-    } else if (close) {
-      ctx.fillStyle = BG_TINT_CLOSE;
-      ctx.fillRect(0, 0, width, height);
+    const absCents = Math.abs(signedCents);
+    if (absCents > RING_FAR_THRESHOLD) return;
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const baseSize = Math.min(width, height);
+
+    // Determine ring properties based on proximity
+    let color;
+    let ringRadius;
+    let ringAlpha;
+
+    if (absCents <= RING_CLOSE_THRESHOLD) {
+      // Very close: bright green, large, pulsing
+      color = RING_COLOR_HIT;
+      ringRadius = baseSize * 0.32;
+      // Pulse: oscillate alpha between 0.25 and 0.45
+      const pulse = Math.sin(now * 0.006) * 0.5 + 0.5; // 0-1
+      ringAlpha = 0.25 + pulse * 0.20;
+    } else if (absCents <= RING_WARM_THRESHOLD) {
+      // Close: yellow, medium
+      color = RING_COLOR_WARM;
+      // Lerp radius from small to medium as cents decrease from 25 to 10
+      const t = 1 - (absCents - RING_CLOSE_THRESHOLD) / (RING_WARM_THRESHOLD - RING_CLOSE_THRESHOLD);
+      ringRadius = baseSize * (0.20 + t * 0.08);
+      ringAlpha = 0.10 + t * 0.12;
+    } else {
+      // Getting closer: dim red, small
+      color = RING_COLOR_FAR;
+      // Lerp from nothing to small ring as cents decrease from 50 to 25
+      const t = 1 - (absCents - RING_WARM_THRESHOLD) / (RING_FAR_THRESHOLD - RING_WARM_THRESHOLD);
+      ringRadius = baseSize * (0.15 + t * 0.05);
+      ringAlpha = 0.04 + t * 0.06;
     }
+
+    // Draw concentric glow circles (3 layers for soft glow)
+    ctx.save();
+    for (let i = 3; i >= 1; i--) {
+      const layerRadius = ringRadius * (0.7 + i * 0.15);
+      const layerAlpha = ringAlpha * (1 - (i - 1) * 0.3);
+
+      if (layerAlpha <= 0) continue;
+
+      const gradient = ctx.createRadialGradient(
+        centerX, centerY, layerRadius * 0.5,
+        centerX, centerY, layerRadius,
+      );
+      gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+      gradient.addColorStop(0.5, `rgba(${color.r}, ${color.g}, ${color.b}, ${(layerAlpha * 0.6).toFixed(3)})`);
+      gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, layerRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   /**
@@ -199,7 +298,7 @@ export function createFlashCardRenderer() {
 
     if (!currentTargetNote) {
       // No target — show dash
-      drawCenteredText(ctx, '—', centerX, centerY, {
+      drawCenteredText(ctx, '\u2014', centerX, centerY, {
         fontSize: Math.min(width, height) * 0.35,
         color: COLORS.TEXT_DIM,
       });
@@ -208,7 +307,7 @@ export function createFlashCardRenderer() {
 
     const noteStr = getDisplayNote(currentTargetNote);
     if (!noteStr) {
-      drawCenteredText(ctx, '—', centerX, centerY, {
+      drawCenteredText(ctx, '\u2014', centerX, centerY, {
         fontSize: Math.min(width, height) * 0.35,
         color: COLORS.TEXT_DIM,
       });
@@ -258,6 +357,90 @@ export function createFlashCardRenderer() {
       ctx.fillText(octave, startX + noteMetrics.width + 2, octaveY);
       ctx.restore();
     }
+  }
+
+  /**
+   * Draw a direction indicator between the target note and the player's note.
+   * Shows an up arrow if the player is flat, a down arrow if sharp,
+   * or a checkmark if within 10 cents.
+   */
+  function drawDirectionIndicator() {
+    if (!currentTargetNote || !currentPitchData) return;
+
+    const signedCents = getSignedCentsDistance();
+    if (signedCents === null) return;
+
+    const absCents = Math.abs(signedCents);
+    const centerX = width / 2;
+    const baseFontSize = Math.min(width, height) * 0.35;
+    // Position below the target note, above the player note
+    const indicatorY = height / 2 + baseFontSize * 0.38;
+    const fontSize = Math.max(18, Math.min(width, height) * 0.07);
+
+    let symbol;
+    let color;
+
+    if (absCents <= RING_CLOSE_THRESHOLD) {
+      // In tune — checkmark
+      symbol = '\u2713';
+      color = COLORS.IN_TUNE;
+    } else if (signedCents < 0) {
+      // Player is flat — needs to go up
+      symbol = '\u2191';
+      color = absCents <= RING_WARM_THRESHOLD ? COLORS.CLOSE : COLORS.OFF;
+    } else {
+      // Player is sharp — needs to go down
+      symbol = '\u2193';
+      color = absCents <= RING_WARM_THRESHOLD ? COLORS.CLOSE : COLORS.OFF;
+    }
+
+    ctx.save();
+    ctx.font = `bold ${fontSize}px ${FONTS.FAMILY}`;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = absCents <= RING_CLOSE_THRESHOLD ? 0.9 : 0.6;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(symbol, centerX, indicatorY);
+    ctx.restore();
+  }
+
+  /**
+   * Draw the player's current note in dim text below the target and indicator.
+   */
+  function drawPlayerNote() {
+    if (!currentTargetNote || !currentPitchData) return;
+
+    const playerNoteStr = getPlayerNoteStr();
+    if (!playerNoteStr) return;
+
+    const centerX = width / 2;
+    const baseFontSize = Math.min(width, height) * 0.35;
+    // Position below the direction indicator
+    const playerNoteY = height / 2 + baseFontSize * 0.58;
+    const fontSize = Math.max(16, Math.min(width, height) * 0.065);
+
+    // Determine color based on proximity
+    const signedCents = getSignedCentsDistance();
+    let color = COLORS.TEXT_DIM;
+    if (signedCents !== null) {
+      const absCents = Math.abs(signedCents);
+      if (absCents <= RING_CLOSE_THRESHOLD) {
+        color = COLORS.IN_TUNE;
+      } else if (absCents <= RING_WARM_THRESHOLD) {
+        color = COLORS.CLOSE;
+      } else if (absCents <= RING_FAR_THRESHOLD) {
+        color = COLORS.OFF;
+      }
+    }
+
+    ctx.save();
+    ctx.font = `${fontSize}px ${FONTS.MONO}`;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(playerNoteStr, centerX, playerNoteY);
+    ctx.restore();
   }
 
   /**
@@ -361,6 +544,7 @@ export function createFlashCardRenderer() {
       active = false;
       countdownValue = null;
       currentTargetNote = null;
+      currentPitchData = null;
       currentCursor = 0;
       currentNoteCount = 0;
       currentElapsed = 0;
@@ -410,6 +594,7 @@ export function createFlashCardRenderer() {
       const now = performance.now();
 
       currentTargetNote = state.targetNote;
+      currentPitchData = state.pitchData;
       currentNoteCount = state.noteCount;
       currentElapsed = state.elapsed;
       currentEvaluatorResult = state.evaluatorResult;
@@ -476,6 +661,7 @@ export function createFlashCardRenderer() {
       }
 
       currentTargetNote = null;
+      currentPitchData = null;
       currentEvaluatorResult = null;
       lastScore = null;
 
@@ -498,6 +684,7 @@ export function createFlashCardRenderer() {
      */
     onLoopRestart() {
       currentTargetNote = null;
+      currentPitchData = null;
       currentCursor = 0;
       currentElapsed = 0;
       currentEvaluatorResult = null;
