@@ -5,6 +5,10 @@
  * deviation from the target note. The center line represents 0 cents
  * deviation; the trace oscillates above/below based on actual cents off.
  *
+ * Auto-detect mode: when no specific target note is configured, the
+ * renderer locks onto the first clear pitch the player produces, then
+ * re-locks if the player clearly changes notes (>200 cents for >500ms).
+ *
  * Designed for: long tones, drone match, centering exercises.
  *
  * Conforms to the RendererInterface defined in renderer-base.js.
@@ -34,6 +38,10 @@ const TRACE_LINE_WIDTH = 2;
 const GRID_LINE_WIDTH = 0.5;
 const CENTER_LINE_WIDTH = 1;
 
+// Auto-detect constants
+const RELOCK_CENTS_THRESHOLD = 200;  // cents away to consider a note change
+const RELOCK_TIME_MS = 500;          // ms the player must stay away to re-lock
+
 // Colors for trace segments (matching spec exactly)
 const TRACE_GREEN = '#4ecdc4';
 const TRACE_YELLOW = '#ffe66d';
@@ -57,7 +65,15 @@ export function createSeismographRenderer() {
   let dpr = 1;
 
   // --- Exercise data ---
-  let targetNote = null;   // { midi, note, octave, ... }
+  let targetNote = null;          // { midi, note, octave }
+  let hasExplicitTarget = false;  // true if exercise config provided a target
+  let exerciseDescription = '';   // instruction text from exercise config
+
+  // --- Auto-detect state ---
+  let autoDetected = false;       // true if target was auto-detected from player
+  let relockStartTime = 0;        // when the player started drifting away
+  let relockTracking = false;     // true while monitoring for re-lock
+  let relockCandidateMidi = 0;    // the MIDI note the player may be switching to
 
   // --- Runtime state ---
   let active = false;
@@ -82,12 +98,82 @@ export function createSeismographRenderer() {
   // ---------------------------------------------------------------------------
 
   /**
+   * Build a target note object from a rounded MIDI number.
+   */
+  function midiToTarget(midiInt) {
+    const noteIdx = ((midiInt % 12) + 12) % 12;
+    const octave = Math.floor(midiInt / 12) - 1;
+    return {
+      midi: midiInt,
+      note: NOTE_NAMES[noteIdx],
+      octave,
+    };
+  }
+
+  /**
    * Compute cents deviation from pitch data and target note.
+   *
+   * pitchData.midi is an integer (nearest semitone), pitchData.cents is the
+   * sub-semitone offset in cents.  target.midi is also an integer.
+   *
    * Returns null if either is missing.
    */
   function computeCents(pitchData, target) {
     if (!pitchData || !target || typeof pitchData.midi !== 'number') return null;
     return (pitchData.midi - target.midi) * 100 + (pitchData.cents || 0);
+  }
+
+  /**
+   * Auto-detect or re-lock the target note from incoming pitch data.
+   * Called on every pitch event when we are in auto-detect mode.
+   */
+  function autoDetectTarget(pitchData, now) {
+    if (!pitchData || typeof pitchData.midi !== 'number') return;
+
+    const snappedMidi = pitchData.midi;  // already integer from detector
+
+    // --- First detection: lock onto whatever the player is playing ---
+    if (!targetNote) {
+      targetNote = midiToTarget(snappedMidi);
+      autoDetected = true;
+      relockTracking = false;
+      return;
+    }
+
+    // --- Re-lock detection ---
+    const currentCentsOff = Math.abs(
+      (pitchData.midi - targetNote.midi) * 100 + (pitchData.cents || 0)
+    );
+
+    if (currentCentsOff > RELOCK_CENTS_THRESHOLD) {
+      // Player is far from current target
+      if (!relockTracking) {
+        // Start tracking a potential re-lock
+        relockTracking = true;
+        relockStartTime = now;
+        relockCandidateMidi = snappedMidi;
+      } else if (snappedMidi !== relockCandidateMidi) {
+        // Player changed again — restart tracking with new candidate
+        relockStartTime = now;
+        relockCandidateMidi = snappedMidi;
+      } else if (now - relockStartTime >= RELOCK_TIME_MS) {
+        // Player has been on the new note long enough — re-lock
+        targetNote = midiToTarget(snappedMidi);
+        autoDetected = true;
+        relockTracking = false;
+
+        // Clear the buffer so the trace starts fresh for the new note
+        buffer = [];
+        bufferIndex = 0;
+        bufferCount = 0;
+        streakActive = false;
+        streakDuration = 0;
+        streakStartTime = 0;
+      }
+    } else {
+      // Player is close to current target — cancel any re-lock tracking
+      relockTracking = false;
+    }
   }
 
   /**
@@ -105,13 +191,13 @@ export function createSeismographRenderer() {
    */
   function centsToY(cents) {
     const graphTop = 50;        // top margin for labels
-    const graphBottom = height - 20; // bottom margin
+    const graphBottom = height - 40; // bottom margin (extra room for instructions)
     const graphHeight = graphBottom - graphTop;
     const centerY = graphTop + graphHeight / 2;
 
     // Clamp to range
     const clamped = Math.max(-CENTS_RANGE, Math.min(CENTS_RANGE, cents));
-    // Invert: positive cents = above center = lower Y
+    // Invert: positive cents = sharp = above center = lower Y value
     return centerY - (clamped / CENTS_RANGE) * (graphHeight / 2);
   }
 
@@ -176,7 +262,7 @@ export function createSeismographRenderer() {
     clearCanvas(ctx, width, height);
 
     const graphTop = 50;
-    const graphBottom = height - 20;
+    const graphBottom = height - 40;
     const graphHeight = graphBottom - graphTop;
     const centerY = graphTop + graphHeight / 2;
     const phX = playheadX();
@@ -202,6 +288,9 @@ export function createSeismographRenderer() {
 
     // --- Steady streak counter (top-right) ---
     drawStreakCounter();
+
+    // --- Exercise instructions (bottom) ---
+    drawInstructions();
 
     // --- Countdown overlay ---
     if (countdownValue !== null) {
@@ -302,15 +391,27 @@ export function createSeismographRenderer() {
   }
 
   function drawTargetLabel() {
-    if (!targetNote) return;
+    if (!targetNote) {
+      // No target yet — show waiting message
+      ctx.save();
+      ctx.font = `bold 20px ${FONTS.FAMILY}`;
+      ctx.fillStyle = COLORS.TEXT_DIM;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Listening...', 12, 10);
+      ctx.restore();
+      return;
+    }
 
     const noteIdx = ((targetNote.midi % 12) + 12) % 12;
     const octave = Math.floor(targetNote.midi / 12) - 1;
     const noteName = targetNote.note ?? NOTE_NAMES[noteIdx];
-    const label = `${noteName}${octave}`;
+    const label = autoDetected
+      ? `Tracking: ${noteName}${octave}`
+      : `${noteName}${octave}`;
 
     ctx.save();
-    ctx.font = `bold 28px ${FONTS.FAMILY}`;
+    ctx.font = `bold ${autoDetected ? 20 : 28}px ${FONTS.FAMILY}`;
     ctx.fillStyle = COLORS.TEXT;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -330,10 +431,22 @@ export function createSeismographRenderer() {
     ctx.textBaseline = 'top';
     ctx.fillText(label, width - 12, 10);
 
-    // Small "steady" label above
+    // Small "steady" label below
     ctx.font = `10px ${FONTS.FAMILY}`;
     ctx.fillStyle = COLORS.TEXT_DIM;
     ctx.fillText('steady', width - 12, 34);
+    ctx.restore();
+  }
+
+  function drawInstructions() {
+    if (!exerciseDescription) return;
+
+    ctx.save();
+    ctx.font = `12px ${FONTS.FAMILY}`;
+    ctx.fillStyle = COLORS.TEXT_DIM;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(exerciseDescription, width / 2, height - 8);
     ctx.restore();
   }
 
@@ -347,6 +460,25 @@ export function createSeismographRenderer() {
     width = dims.width;
     height = dims.height;
     dpr = dims.dpr;
+  }
+
+  // ---------------------------------------------------------------------------
+  // State reset helper
+  // ---------------------------------------------------------------------------
+
+  function resetState() {
+    buffer = [];
+    bufferIndex = 0;
+    bufferCount = 0;
+    streakActive = false;
+    streakDuration = 0;
+    streakStartTime = 0;
+    countdownValue = null;
+    active = false;
+    autoDetected = false;
+    relockTracking = false;
+    relockStartTime = 0;
+    relockCandidateMidi = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -370,17 +502,26 @@ export function createSeismographRenderer() {
 
       // Extract target note from exercise config
       const notes = exerciseConfig.context?.notes ?? [];
-      targetNote = notes[0] ?? null;
+      if (notes.length > 0) {
+        targetNote = notes[0];
+        hasExplicitTarget = true;
+      } else {
+        targetNote = null;
+        hasExplicitTarget = false;
+      }
+
+      // Extract exercise description for instructions overlay
+      const desc = exerciseConfig.description ?? '';
+      if (desc) {
+        exerciseDescription = desc;
+      } else if (!hasExplicitTarget) {
+        exerciseDescription = 'Hold any note steady';
+      } else {
+        exerciseDescription = '';
+      }
 
       // Reset state
-      buffer = [];
-      bufferIndex = 0;
-      bufferCount = 0;
-      streakActive = false;
-      streakDuration = 0;
-      streakStartTime = 0;
-      countdownValue = null;
-      active = false;
+      resetState();
 
       // Listen for resize
       resizeHandler = () => handleResize();
@@ -399,11 +540,12 @@ export function createSeismographRenderer() {
       active = true;
       countdownValue = null;
 
-      // Re-read target if config provided
+      // Re-read target if config provided and has explicit notes
       if (config) {
         const notes = config.context?.notes ?? [];
         if (notes.length > 0) {
           targetNote = notes[0];
+          hasExplicitTarget = true;
         }
       }
     },
@@ -424,12 +566,20 @@ export function createSeismographRenderer() {
     update(state) {
       if (!ctx) return;
 
-      // Update target note if provided in state
-      if (state.targetNote) {
-        targetNote = state.targetNote;
-      }
-
       const now = performance.now();
+
+      // --- Target note management ---
+      if (hasExplicitTarget) {
+        // Use the runtime-provided target if the exercise has explicit notes
+        if (state.targetNote) {
+          targetNote = state.targetNote;
+        }
+      } else {
+        // Auto-detect mode: lock onto what the player is playing
+        if (state.pitchData) {
+          autoDetectTarget(state.pitchData, now);
+        }
+      }
 
       // Compute cents deviation
       const cents = computeCents(state.pitchData, targetNote);
@@ -477,6 +627,9 @@ export function createSeismographRenderer() {
       bufferIndex = 0;
       bufferCount = 0;
       targetNote = null;
+      hasExplicitTarget = false;
+      autoDetected = false;
+      exerciseDescription = '';
 
       canvas = null;
       ctx = null;
@@ -503,6 +656,13 @@ export function createSeismographRenderer() {
       streakDuration = 0;
       streakStartTime = 0;
       countdownValue = null;
+
+      // In auto-detect mode, reset the target so it re-locks
+      if (!hasExplicitTarget) {
+        targetNote = null;
+        autoDetected = false;
+        relockTracking = false;
+      }
 
       if (ctx) draw();
     },
