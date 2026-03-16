@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/graph.css">
   <link rel="stylesheet" href="css/game.css">
   <link rel="stylesheet" href="css/session.css">
+  <link rel="stylesheet" href="css/practice.css">
 </head>
 <body>
   <div class="app" id="app">
@@ -91,8 +92,40 @@
       </div>
     </div>
 
-    <!-- Play View (Practice + Songs) -->
-    <div class="view" id="play-view">
+    <!-- Practice View (Session Launcher) -->
+    <div id="practice-view" class="view" hidden>
+      <div class="practice-scroll">
+        <div class="practice-section practice-today">
+          <button class="practice-today-btn" id="practice-start-today">
+            <span class="practice-today-title">Today's Practice</span>
+            <span class="practice-today-sub">Morning Practice · 15 min</span>
+          </button>
+        </div>
+
+        <div class="practice-section">
+          <h3 class="practice-section-title">Sessions</h3>
+          <div class="practice-templates" id="practice-templates"></div>
+        </div>
+
+        <div class="practice-section">
+          <h3 class="practice-section-title">Quick Start</h3>
+          <div class="practice-quick-start" id="practice-quick-start">
+            <div class="practice-select-row">
+              <label>Root</label>
+              <select id="practice-root"></select>
+            </div>
+            <div class="practice-select-row">
+              <label>Scale</label>
+              <select id="practice-scale"></select>
+            </div>
+            <button class="practice-go-btn" id="practice-quick-go">Start Exercise</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Play View (Legacy Library — kept for now) -->
+    <div class="view" id="play-view" hidden>
       <div class="library">
         <div class="library__header">
           <div class="library__tabs">
@@ -107,8 +140,8 @@
             <div class="practice__row">
               <label class="practice__label">Scale</label>
               <div class="practice__controls-row">
-                <select class="practice__select" id="practice-root" aria-label="Root note"></select>
-                <select class="practice__select practice__select--wide" id="practice-scale" aria-label="Scale type"></select>
+                <select class="practice__select" id="library-practice-root" aria-label="Root note"></select>
+                <select class="practice__select practice__select--wide" id="library-practice-scale" aria-label="Scale type"></select>
               </div>
             </div>
 

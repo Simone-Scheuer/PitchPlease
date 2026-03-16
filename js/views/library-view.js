@@ -45,8 +45,8 @@ class LibraryView {
     }
 
     // Practice controls
-    this.#rootSelect = qs('#practice-root');
-    this.#scaleSelect = qs('#practice-scale');
+    this.#rootSelect = qs('#library-practice-root');
+    this.#scaleSelect = qs('#library-practice-scale');
     this.#octaveLowSelect = qs('#practice-octave-low');
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#durationSelect = qs('#practice-duration');

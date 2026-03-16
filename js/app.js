@@ -1,6 +1,7 @@
 import { tunerView } from './views/tuner-view.js';
 import { graphView } from './views/graph-view.js';
 import { libraryView } from './views/library-view.js';
+import { practiceView } from './views/practice-view.js';
 import { gameView } from './views/game-view.js';
 import { sessionView } from './views/session-view.js';
 import { bus } from './utils/event-bus.js';
@@ -17,26 +18,35 @@ if ('serviceWorker' in navigator) {
 let activeViewId = 'tuner-view';
 
 function switchView(viewId) {
-  if (viewId === activeViewId) return;
+  // Map play-view tab to practice-view
+  const resolvedId = viewId === 'play-view' ? 'practice-view' : viewId;
+
+  if (resolvedId === activeViewId) return;
 
   // Deactivate old view
   const oldEl = qs(`#${activeViewId}`);
   if (oldEl) oldEl.classList.remove('active');
   if (activeViewId === 'tuner-view') tunerView.deactivate();
   if (activeViewId === 'graph-view') graphView.deactivate();
+  if (activeViewId === 'practice-view') practiceView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
 
   // Activate new view
-  const newEl = qs(`#${viewId}`);
-  if (newEl) newEl.classList.add('active');
-  if (viewId === 'graph-view') graphView.activate();
-  if (viewId === 'game-view') gameView.activate();
+  if (resolvedId === 'practice-view') {
+    practiceView.activate();
+  } else {
+    const newEl = qs(`#${resolvedId}`);
+    if (newEl) newEl.classList.add('active');
+  }
+  if (resolvedId === 'graph-view') graphView.activate();
+  if (resolvedId === 'game-view') gameView.activate();
 
-  activeViewId = viewId;
+  activeViewId = resolvedId;
 
-  // Update tab active state
+  // Update tab active state (play-view tab maps to practice-view)
   for (const tab of qsa('.view-switcher__tab')) {
-    tab.classList.toggle('active', tab.dataset.view === viewId);
+    const tabTarget = tab.dataset.view === 'play-view' ? 'practice-view' : tab.dataset.view;
+    tab.classList.toggle('active', tabTarget === resolvedId);
   }
 }
 
@@ -45,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   tunerView.init();
   graphView.init();
   libraryView.init();
+  practiceView.init();
   gameView.init();
   sessionView.init();
 
@@ -71,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (oldEl) oldEl.classList.remove('active');
     if (activeViewId === 'tuner-view') tunerView.deactivate();
     if (activeViewId === 'graph-view') graphView.deactivate();
+    if (activeViewId === 'practice-view') practiceView.deactivate();
     if (activeViewId === 'game-view') gameView.deactivate();
 
     sessionView.activate(config);
