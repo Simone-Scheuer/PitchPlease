@@ -2,6 +2,7 @@ import { bus } from '../utils/event-bus.js';
 import { parseNoteString } from '../utils/song-data.js';
 
 const TOLERANCE = { easy: 50, medium: 25, hard: 15 };
+const LEAD_IN_MS = 2000;
 
 export class SongEngine {
   #song = null;
@@ -60,7 +61,7 @@ export class SongEngine {
 
   #buildTimings() {
     this.#noteTimings = [];
-    let t = 0;
+    let t = LEAD_IN_MS;
     for (let i = 0; i < this.#song.notes.length; i++) {
       const n = this.#song.notes[i];
       const parsed = parseNoteString(n.note);

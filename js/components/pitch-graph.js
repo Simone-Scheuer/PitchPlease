@@ -24,7 +24,8 @@ export class PitchGraph {
 
   // Scroll state
   #scrollTimeMs = 0;      // virtual time in ms that the playhead represents
-  #pixelsPerMs = 0.08;
+  #basePixelsPerMs = 0.08; // fixed rate for data rendering
+  #speedMultiplier = 1;    // affects scroll accumulation only
   #speedIndex = DEFAULT_SPEED_INDEX;
   #paused = false;
   #lastFrameTime = 0;
@@ -133,7 +134,7 @@ export class PitchGraph {
 
   setSpeed(index) {
     this.#speedIndex = Math.max(0, Math.min(SCROLL_SPEEDS.length - 1, index));
-    this.#pixelsPerMs = 0.08 * SCROLL_SPEEDS[this.#speedIndex];
+    this.#speedMultiplier = SCROLL_SPEEDS[this.#speedIndex];
   }
 
   get speedIndex() {
@@ -162,6 +163,8 @@ export class PitchGraph {
       this.#scaleKey = null;
       this.#scaleNotes = null;
     }
+    // Redraw immediately so scale shows without needing mic active
+    if (!this.#active) this.#drawStatic();
   }
 
   setRange(lowMidi, highMidi) {
@@ -221,18 +224,19 @@ export class PitchGraph {
     this.#lastFrameTime = now;
 
     if (!this.#paused) {
+      const scaledDt = dt * this.#speedMultiplier;
       if (this.#compact) {
         // Compact mode: only advance scroll when there's recent pitch data
         const data = this.#buffer?.data;
         if (data && data.length > 0) {
           const last = data[data.length - 1];
           if (!last.silent) {
-            this.#scrollTimeMs += dt;
+            this.#scrollTimeMs += scaledDt;
           }
         }
       } else {
         // Continuous mode: always advance
-        this.#scrollTimeMs += dt;
+        this.#scrollTimeMs += scaledDt;
       }
 
       // Auto-range: expand Y range based on detected pitch
@@ -411,7 +415,7 @@ export class PitchGraph {
 
       // Map time to X: playhead = currentTimeMs, older = to the left
       const age = currentTimeMs - point.time;
-      const x = playheadX - age * this.#pixelsPerMs;
+      const x = playheadX - age * this.#basePixelsPerMs;
 
       // Skip if off-screen
       if (x < graphLeft - 10) continue;

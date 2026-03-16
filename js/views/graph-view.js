@@ -135,6 +135,11 @@ class GraphView {
 
   #togglePause() {
     this.#graph.togglePause();
+    if (this.#graph.isPaused) {
+      pitchBuffer.pause();
+    } else {
+      pitchBuffer.resume();
+    }
     this.#pauseBtn.classList.toggle('active', this.#graph.isPaused);
   }
 
