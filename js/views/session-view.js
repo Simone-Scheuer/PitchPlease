@@ -91,8 +91,9 @@ class SessionView {
       bus.on('session:complete', (data) => this.#onComplete(data)),
     );
 
-    // Create and start runner
+    // Create and start runner (wait one frame for canvas to get layout dimensions)
     this.#runner = createSessionRunner(sessionConfig);
+    await new Promise(resolve => requestAnimationFrame(resolve));
     this.#runner.start(this.#canvasEl);
   }
 

@@ -52,6 +52,9 @@
   background: rgba(13, 13, 13, 0.85);
   z-index: var(--z-overlay);
 }
+.session-transition[hidden] {
+  display: none;
+}
 .session-transition-text {
   font-size: var(--font-size-xl);
   color: var(--color-text);
@@ -101,6 +104,9 @@
   background: rgba(13, 13, 13, 0.95);
   z-index: var(--z-overlay);
   padding: var(--space-xl);
+}
+.session-summary[hidden] {
+  display: none;
 }
 .session-summary-title {
   font-size: var(--font-size-xl);

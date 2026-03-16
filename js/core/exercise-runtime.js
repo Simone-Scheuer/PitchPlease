@@ -12,6 +12,7 @@
  */
 
 import { bus } from '../utils/event-bus.js';
+import { NOTE_NAMES } from '../utils/constants.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -78,14 +79,31 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   const timingMode = config.timing?.mode ?? 'player-driven';
   const hasNotes = notes.length > 0;
 
+  // For sustained/free exercises without explicit notes, derive a target
+  // from context.root so the evaluator and renderer have something to work with.
+  const fallbackTarget = deriveFallbackTarget(config);
+
+  function deriveFallbackTarget(cfg) {
+    const root = cfg.context?.root;
+    if (!root) return null;
+    const rootIndex = NOTE_NAMES.indexOf(root);
+    if (rootIndex === -1) return null;
+    const octave = cfg.context?.octaveRange?.[0] ?? 4;
+    const midi = (octave + 1) * 12 + rootIndex;
+    return { note: `${root}${octave}`, midi };
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
   function currentTarget() {
-    if (!hasNotes) return null;
-    if (cursor >= notes.length) return null;
-    return notes[cursor];
+    if (hasNotes) {
+      if (cursor >= notes.length) return null;
+      return notes[cursor];
+    }
+    // Sustained/free: use root note as target
+    return fallbackTarget;
   }
 
   function buildTickState() {
@@ -201,6 +219,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
 
   function completeExercise() {
     if (state === STATES.COMPLETE) return;
+
 
     clearFixedTempoTimer();
 

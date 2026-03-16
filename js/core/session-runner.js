@@ -164,19 +164,32 @@ export function createSessionRunner(sessionConfig) {
       return;
     }
 
+
     state = STATES.RUNNING;
     const exercise = block.exercise;
 
-    // Look up evaluator and renderer
-    currentEvaluator = lookupEvaluator(exercise);
-    currentRenderer = lookupRenderer(exercise);
+    try {
+      // Look up evaluator and renderer
+      currentEvaluator = lookupEvaluator(exercise);
+      currentRenderer = lookupRenderer(exercise);
 
-    // Create the exercise runtime
-    currentRuntime = createExerciseRuntime(exercise, currentEvaluator, currentRenderer);
+      // Create the exercise runtime
+      currentRuntime = createExerciseRuntime(exercise, currentEvaluator, currentRenderer);
 
-    // Initialize renderer with the canvas
-    if (currentRenderer && canvasEl) {
-      currentRenderer.init(canvasEl, exercise);
+      // Initialize renderer with the canvas
+      if (currentRenderer && canvasEl) {
+        currentRenderer.init(canvasEl, exercise);
+      }
+    } catch (err) {
+      console.error(`[session-runner] Failed to initialize block ${blockIndex}:`, err);
+      // Skip this block and try the next
+      blockIndex++;
+      if (blockIndex < blocks.length) {
+        startBlock();
+      } else {
+        completeSession();
+      }
+      return;
     }
 
     // Subscribe to exercise:complete for early completion
@@ -225,8 +238,9 @@ export function createSessionRunner(sessionConfig) {
   /**
    * Handle early exercise completion (exercise finishes before block timer).
    */
-  function onExerciseComplete() {
+  function onExerciseComplete(data) {
     // Only act if we are in the running state for this block
+
     if (state !== STATES.RUNNING) return;
     endCurrentBlock();
   }
@@ -308,6 +322,7 @@ export function createSessionRunner(sessionConfig) {
   // ---------------------------------------------------------------------------
 
   function completeSession() {
+
     state = STATES.COMPLETE;
 
     const totalDuration = Math.round(sessionElapsed());
@@ -364,6 +379,7 @@ export function createSessionRunner(sessionConfig) {
       sessionStartTime = performance.now();
       sessionPausedMs = 0;
       sessionPauseTime = 0;
+
 
       bus.emit('session:start', { sessionConfig });
 
