@@ -1,7 +1,7 @@
 import { bus } from '../utils/event-bus.js';
 import { parseNoteString } from '../utils/song-data.js';
 
-const TOLERANCE = { easy: 50, medium: 25, hard: 15 };
+const TOLERANCE = { easy: 60, medium: 40, hard: 20 };
 const LEAD_IN_MS = 2000;
 
 export class SongEngine {
@@ -203,11 +203,17 @@ export class SongEngine {
 
   #emitNoteComplete(index) {
     const s = this.#noteScores[index];
-    if (!s || s.totalFrames === 0) return;
+    if (!s || s.totalFrames === 0) {
+      bus.emit('song:note-complete', { noteIndex: index, score: 0 });
+      return;
+    }
     const holdPct = s.inTuneFrames / s.totalFrames;
     const avgCents = s.centsCount > 0 ? s.centsSum / s.centsCount : 999;
-    const accuracy = Math.max(0, 1 - avgCents / this.tolerance);
-    const score = Math.round(accuracy * holdPct * 100);
+    // Softer accuracy curve — square root gives more credit for being close
+    const rawAccuracy = Math.max(0, 1 - avgCents / (this.tolerance * 1.5));
+    const accuracy = Math.sqrt(rawAccuracy);
+    // Blend hold and accuracy, weighted toward accuracy (70/30)
+    const score = Math.round((accuracy * 0.7 + holdPct * 0.3) * 100);
     bus.emit('song:note-complete', { noteIndex: index, score });
   }
 
@@ -251,12 +257,8 @@ export class SongEngine {
   };
 
   #onSilence = () => {
-    if (!this.#running || this.#paused) return;
-    const activeNote = this.#getActiveNote();
-    if (!activeNote) return;
-
-    const score = this.#noteScores[activeNote.index];
-    if (score) score.totalFrames++;
+    // Don't count silence against the player — only pitch frames count
+    // This makes scoring more forgiving for breath pauses between notes
   };
 
   #computeFinalScores() {
@@ -264,8 +266,9 @@ export class SongEngine {
       const s = this.#noteScores[i];
       const holdPct = s.totalFrames > 0 ? s.inTuneFrames / s.totalFrames : 0;
       const avgCents = s.centsCount > 0 ? s.centsSum / s.centsCount : 999;
-      const accuracy = Math.max(0, 1 - avgCents / this.tolerance);
-      const noteScore = Math.round(accuracy * holdPct * 100);
+      const rawAccuracy = Math.max(0, 1 - avgCents / (this.tolerance * 1.5));
+      const accuracy = Math.sqrt(rawAccuracy);
+      const noteScore = Math.round((accuracy * 0.7 + holdPct * 0.3) * 100);
 
       return {
         noteStr: timing.noteStr,

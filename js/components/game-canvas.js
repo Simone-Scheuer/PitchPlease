@@ -102,6 +102,14 @@ export class GameCanvas {
     this.#elapsed = ms;
   }
 
+  setScrollSpeed(pxPerMs) {
+    this.#pixelsPerMs = pxPerMs;
+  }
+
+  get scrollSpeed() {
+    return this.#pixelsPerMs;
+  }
+
   #midiToY(midi) {
     const ratio = (midi - this.#midiLow) / this.#semitoneRange;
     return this.#height - ratio * this.#height;
@@ -109,6 +117,7 @@ export class GameCanvas {
 
   // Convert song time (ms) to X position.
   // The play zone is a fixed X position. Notes scroll right-to-left toward it.
+  // scrollSpeed affects how fast bars approach but NOT their visual width.
   #timeToX(timeMs) {
     const graphLeft = LABEL_WIDTH;
     const graphW = this.#width - LABEL_WIDTH * 2;

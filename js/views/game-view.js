@@ -214,14 +214,12 @@ class GameView {
   }
 
   #cycleTempo() {
-    const scales = [1, 0.75, 0.5];
-    const labels = ['1x', '0.75x', '0.5x'];
-    const current = songEngine.tempoScale;
-    const idx = scales.indexOf(current);
-    const next = (idx + 1) % scales.length;
-    songEngine.setTempoScale(scales[next]);
+    const speeds = [0.15, 0.1, 0.07, 0.2];
+    const labels = ['1x', '0.7x', '0.5x', '1.3x'];
+    const currentIdx = speeds.indexOf(this.#canvas.scrollSpeed) ?? 0;
+    const next = ((currentIdx === -1 ? 0 : currentIdx) + 1) % speeds.length;
+    this.#canvas.setScrollSpeed(speeds[next]);
     this.#tempoBtn.textContent = labels[next];
-    this.#reloadCanvas();
   }
 
   #onTick(data) {
@@ -233,7 +231,9 @@ class GameView {
     if (data.inTune) {
       this.#scoreSum += 100;
     } else if (data.close) {
-      this.#scoreSum += 50;
+      this.#scoreSum += 75;
+    } else {
+      this.#scoreSum += 25; // some credit for at least making sound
     }
     this.#liveScore = Math.round(this.#scoreSum / this.#scoreFrames);
     this.#liveScoreEl.textContent = this.#liveScore;
@@ -241,6 +241,7 @@ class GameView {
 
   #onSongEnd(data) {
     if (this.#loopMode) {
+      // Seamless loop — don't stop canvas, just show score and restart
       this.#handleLoopEnd(data.scores);
     } else {
       this.#playBtn.classList.remove('active');
@@ -250,21 +251,26 @@ class GameView {
   }
 
   #handleLoopEnd(scores) {
-    // Show brief popup score
+    // Show brief popup score — canvas keeps scrolling, no freeze
     this.#loopScoreEl.textContent = scores.overall;
     this.#loopScoreEl.className = 'game__loop-score visible';
     if (scores.overall >= 80) this.#loopScoreEl.classList.add('great');
     else if (scores.overall >= 50) this.#loopScoreEl.classList.add('good');
     else this.#loopScoreEl.classList.add('poor');
 
-    // After gap, restart the song (no countdown on loops)
+    // Reset score for next iteration
+    this.#resetScore();
+    // Reload canvas to clear note feedback/scores but keep it running
+    this.#reloadCanvas();
+
+    // Fade out the score popup after display time
     this.#loopTimer = setTimeout(() => {
       this.#loopScoreEl.classList.remove('visible');
-      this.#resetScore();
-      this.#reloadCanvas();
-      this.#canvas.start();
-      songEngine.start();
-    }, LOOP_GAP_MS);
+      this.#loopTimer = null;
+    }, LOOP_SCORE_DISPLAY_MS);
+
+    // Song engine restarts immediately (lead-in gap provides breathing room)
+    songEngine.start();
   }
 
   #showResults(scores) {
