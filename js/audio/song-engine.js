@@ -21,6 +21,9 @@ export class SongEngine {
   #loopStart = -1;
   #loopEnd = -1;
 
+  // Track previous active note to detect transitions
+  #prevActiveIndex = -1;
+
   // rAF
   #rafId = null;
   #lastFrameTime = 0;
@@ -113,6 +116,7 @@ export class SongEngine {
     this.#paused = false;
     this.#elapsed = 0;
     this.#cursor = this.#loopStart >= 0 ? this.#loopStart : 0;
+    this.#prevActiveIndex = -1;
     this.#initScores();
     this.#startTime = performance.now();
     this.#lastFrameTime = this.#startTime;
@@ -156,6 +160,14 @@ export class SongEngine {
 
     // Find current note
     const activeNote = this.#getActiveNote();
+    const activeIndex = activeNote ? activeNote.index : -1;
+
+    // Detect note transition — emit score for completed note
+    if (this.#prevActiveIndex >= 0 && this.#prevActiveIndex !== activeIndex) {
+      this.#emitNoteComplete(this.#prevActiveIndex);
+    }
+    this.#prevActiveIndex = activeIndex;
+
     if (activeNote) {
       this.#cursor = activeNote.index;
     }
@@ -186,6 +198,16 @@ export class SongEngine {
     });
 
     this.#rafId = requestAnimationFrame(() => this.#tick());
+  }
+
+  #emitNoteComplete(index) {
+    const s = this.#noteScores[index];
+    if (!s || s.totalFrames === 0) return;
+    const holdPct = s.inTuneFrames / s.totalFrames;
+    const avgCents = s.centsCount > 0 ? s.centsSum / s.centsCount : 999;
+    const accuracy = Math.max(0, 1 - avgCents / this.tolerance);
+    const score = Math.round(accuracy * holdPct * 100);
+    bus.emit('song:note-complete', { noteIndex: index, score });
   }
 
   #getActiveNote() {

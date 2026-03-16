@@ -27,6 +27,7 @@ export class GameCanvas {
 
   // Per-note feedback state
   #noteFeedback = new Map(); // noteIndex → { absCents, inTune, close }
+  #noteScores = new Map();   // noteIndex → score (0-100), set when note completes
 
   // Player pitch trail
   #pitchTrail = [];
@@ -55,6 +56,7 @@ export class GameCanvas {
     window.addEventListener('resize', this._resizeHandler);
 
     bus.on('song:note-feedback', this.#onFeedback);
+    bus.on('song:note-complete', this.#onNoteComplete);
     bus.on('pitch', this.#onPitch);
     bus.on('silence', this.#onSilence);
   }
@@ -76,6 +78,7 @@ export class GameCanvas {
     this.#semitoneRange = this.#midiHigh - this.#midiLow;
     this.#totalDurationMs = totalDuration;
     this.#noteFeedback.clear();
+    this.#noteScores.clear();
     this.#pitchTrail = [];
   }
 
@@ -115,6 +118,10 @@ export class GameCanvas {
 
   #onFeedback = (data) => {
     this.#noteFeedback.set(data.noteIndex, data);
+  };
+
+  #onNoteComplete = (data) => {
+    this.#noteScores.set(data.noteIndex, data.score);
   };
 
   #onPitch = (data) => {
@@ -272,6 +279,39 @@ export class GameCanvas {
         ctx.textBaseline = 'top';
         ctx.fillText(t.lyric, x1 + barW / 2, yBot + 4);
       }
+
+      // Score badge on completed notes
+      const noteScore = this.#noteScores.get(t.index);
+      if (noteScore !== undefined) {
+        const badgeX = x1 + barW / 2;
+        const badgeY = yTop - 2;
+        const badgeR = 11;
+
+        // Badge circle
+        let badgeBg, badgeText;
+        if (noteScore >= 80) {
+          badgeBg = '#4ecdc4';
+          badgeText = '#0d0d0d';
+        } else if (noteScore >= 50) {
+          badgeBg = '#ffe66d';
+          badgeText = '#0d0d0d';
+        } else {
+          badgeBg = '#ff6b6b';
+          badgeText = '#fff';
+        }
+
+        ctx.fillStyle = badgeBg;
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Score text
+        ctx.fillStyle = badgeText;
+        ctx.font = 'bold 9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(noteScore, badgeX, badgeY);
+      }
     }
   }
 
@@ -356,6 +396,7 @@ export class GameCanvas {
     this.stop();
     window.removeEventListener('resize', this._resizeHandler);
     bus.off('song:note-feedback', this.#onFeedback);
+    bus.off('song:note-complete', this.#onNoteComplete);
     bus.off('pitch', this.#onPitch);
     bus.off('silence', this.#onSilence);
     this.#canvas = null;

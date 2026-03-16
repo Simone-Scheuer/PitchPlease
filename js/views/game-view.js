@@ -6,15 +6,20 @@ import { qs, showToast } from '../utils/dom.js';
 import { GameCanvas } from '../components/game-canvas.js';
 import { songMidiRange } from '../utils/song-data.js';
 
+const COUNTDOWN_SECS = 3;
+
 class GameView {
   #canvas;
   #songTitleEl;
   #liveScoreEl;
   #playBtn;
+  #restartBtn;
   #tempoBtn;
   #difficultySelect;
   #resultsOverlay;
+  #countdownEl;
   #micActive = false;
+  #countdownTimer = null;
 
   // Live score tracking
   #liveScore = 0;
@@ -26,11 +31,14 @@ class GameView {
     this.#songTitleEl = qs('#game-song-title');
     this.#liveScoreEl = qs('#game-live-score');
     this.#playBtn = qs('#game-play-btn');
+    this.#restartBtn = qs('#game-restart-btn');
     this.#tempoBtn = qs('#game-tempo-btn');
     this.#difficultySelect = qs('#game-difficulty');
     this.#resultsOverlay = qs('#results-overlay');
+    this.#countdownEl = qs('#game-countdown');
 
     this.#playBtn.addEventListener('click', () => this.#togglePlay());
+    this.#restartBtn.addEventListener('click', () => this.#restart());
     this.#tempoBtn.addEventListener('click', () => this.#cycleTempo());
     this.#difficultySelect.addEventListener('change', () => {
       songEngine.setDifficulty(this.#difficultySelect.value);
@@ -81,21 +89,47 @@ class GameView {
     if (songEngine.isRunning) {
       this.#stopAll();
     } else {
-      await this.#startPlaying();
+      await this.#startWithCountdown();
     }
   }
 
-  async #startPlaying() {
+  async #restart() {
+    this.#stopAll();
+    this.#resultsOverlay.classList.remove('visible');
+    this.#liveScoreEl.textContent = '0';
+    this.#liveScore = 0;
+    this.#scoreFrames = 0;
+    this.#scoreSum = 0;
+    // Re-load the canvas to reset feedback state
+    if (songEngine.song) {
+      const [midiLow, midiHigh] = songMidiRange(songEngine.song);
+      this.#canvas.loadSong(
+        songEngine.noteTimings,
+        midiLow,
+        midiHigh,
+        songEngine.totalDuration
+      );
+    }
+    await this.#startWithCountdown();
+  }
+
+  async #startWithCountdown() {
     try {
       if (!this.#micActive) {
         await mic.start();
         detector.start();
         this.#micActive = true;
       }
-      this.#canvas.start();
-      songEngine.start();
+
+      // Show countdown
       this.#playBtn.classList.add('active');
       this.#resultsOverlay.classList.remove('visible');
+      this.#canvas.start();
+
+      await this.#countdown();
+
+      // Start the song engine after countdown
+      songEngine.start();
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         showToast('Microphone access denied.');
@@ -105,16 +139,35 @@ class GameView {
     }
   }
 
+  #countdown() {
+    return new Promise((resolve) => {
+      let remaining = COUNTDOWN_SECS;
+      this.#countdownEl.textContent = remaining;
+      this.#countdownEl.classList.add('visible');
+
+      this.#countdownTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(this.#countdownTimer);
+          this.#countdownTimer = null;
+          this.#countdownEl.classList.remove('visible');
+          resolve();
+        } else {
+          this.#countdownEl.textContent = remaining;
+        }
+      }, 1000);
+    });
+  }
+
   #stopAll() {
+    if (this.#countdownTimer) {
+      clearInterval(this.#countdownTimer);
+      this.#countdownTimer = null;
+      this.#countdownEl.classList.remove('visible');
+    }
     songEngine.stop();
     this.#canvas.stop();
     this.#playBtn.classList.remove('active');
-  }
-
-  #stopMic() {
-    detector.stop();
-    mic.stop();
-    this.#micActive = false;
   }
 
   #cycleTempo() {
@@ -126,7 +179,6 @@ class GameView {
     songEngine.setTempoScale(scales[next]);
     this.#tempoBtn.textContent = labels[next];
 
-    // Reload timings into canvas
     if (songEngine.song) {
       const [midiLow, midiHigh] = songMidiRange(songEngine.song);
       this.#canvas.loadSong(
@@ -162,7 +214,6 @@ class GameView {
   #showResults(scores) {
     const overlay = this.#resultsOverlay;
 
-    // Overall score
     const scoreEl = qs('.results__score', overlay);
     scoreEl.textContent = scores.overall;
     scoreEl.className = 'results__score';
@@ -170,7 +221,6 @@ class GameView {
     else if (scores.overall >= 50) scoreEl.classList.add('good');
     else scoreEl.classList.add('poor');
 
-    // Label
     const labelEl = qs('.results__label', overlay);
     if (scores.overall >= 90) labelEl.textContent = 'Perfect!';
     else if (scores.overall >= 80) labelEl.textContent = 'Great job!';
@@ -178,7 +228,6 @@ class GameView {
     else if (scores.overall >= 40) labelEl.textContent = 'Keep practicing';
     else labelEl.textContent = 'Try again';
 
-    // Per-note breakdown
     const notesContainer = qs('.results__notes', overlay);
     notesContainer.innerHTML = '';
 
@@ -215,7 +264,7 @@ class GameView {
 
   #retry() {
     this.#resultsOverlay.classList.remove('visible');
-    this.#startPlaying();
+    this.#restart();
   }
 
   #backToLibrary() {
