@@ -7,8 +7,8 @@ import { GameCanvas } from '../components/game-canvas.js';
 import { songMidiRange } from '../utils/song-data.js';
 
 const COUNTDOWN_SECS = 3;
-const LOOP_GAP_MS = 3000;
-const LOOP_SCORE_DISPLAY_MS = 2000;
+const DEFAULT_LOOP_GAP_MS = 5000;
+const LOOP_SCORE_DISPLAY_MS = 2500;
 
 class GameView {
   #canvas;

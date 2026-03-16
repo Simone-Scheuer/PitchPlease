@@ -2,12 +2,13 @@ import { bus } from '../utils/event-bus.js';
 import { qs, qsa } from '../utils/dom.js';
 import { STARTER_SONGS, songDuration } from '../utils/song-data.js';
 import { SCALE_LABELS, ROOT_NAMES } from '../utils/scales.js';
-import { generateExercise, PATTERNS, DURATION_PRESETS } from '../utils/exercise-generator.js';
+import { generateExercise, PATTERNS, DURATION_PRESETS, GAP_PRESETS } from '../utils/exercise-generator.js';
 import { store } from '../utils/store.js';
 
 const DEFAULTS = {
   root: 'C',
   scale: 'major',
+  loopGap: 'medium',
   octaveLow: 3,
   octaveHigh: 5,
   duration: 'long',
@@ -27,6 +28,7 @@ class LibraryView {
   #octaveHighSelect;
   #durationSelect;
   #patternSelect;
+  #loopGapSelect;
   #startBtn;
 
   init() {
@@ -48,6 +50,7 @@ class LibraryView {
     this.#octaveLowSelect = qs('#practice-octave-low');
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#durationSelect = qs('#practice-duration');
+    this.#loopGapSelect = qs('#practice-loop-gap');
     this.#patternSelect = qs('#practice-pattern');
     this.#startBtn = qs('#practice-start-btn');
 
@@ -62,6 +65,7 @@ class LibraryView {
     this.#octaveHighSelect.addEventListener('change', onChange);
     this.#durationSelect.addEventListener('change', onChange);
     this.#patternSelect.addEventListener('change', onChange);
+    this.#loopGapSelect.addEventListener('change', onChange);
 
     this.#startBtn.addEventListener('click', () => this.#startPractice());
 
@@ -125,6 +129,14 @@ class LibraryView {
       opt.textContent = p.label;
       this.#patternSelect.appendChild(opt);
     }
+
+    // Loop gap
+    for (const g of GAP_PRESETS) {
+      const opt = document.createElement('option');
+      opt.value = g.key;
+      opt.textContent = g.label;
+      this.#loopGapSelect.appendChild(opt);
+    }
   }
 
   #applySettings() {
@@ -134,6 +146,7 @@ class LibraryView {
     this.#octaveHighSelect.value = this.#settings.octaveHigh;
     this.#durationSelect.value = this.#settings.duration;
     this.#patternSelect.value = this.#settings.pattern;
+    this.#loopGapSelect.value = this.#settings.loopGap || 'medium';
   }
 
   #saveSettings() {
@@ -144,6 +157,7 @@ class LibraryView {
       octaveHigh: parseInt(this.#octaveHighSelect.value, 10),
       duration: this.#durationSelect.value,
       pattern: this.#patternSelect.value,
+      loopGap: this.#loopGapSelect.value,
     };
     store.set('practice-settings', this.#settings);
   }
@@ -159,6 +173,7 @@ class LibraryView {
       noteDuration: durationMs,
       noteGap: 300,
       pattern: this.#settings.pattern,
+      loopGapMs: GAP_PRESETS.find(g => g.key === this.#settings.loopGap)?.ms ?? 5000,
     });
     bus.emit('song:select', { song: exercise, practiceSettings: this.#settings });
   }

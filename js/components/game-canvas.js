@@ -349,9 +349,12 @@ export class GameCanvas {
         continue;
       }
 
-      // Connecting line
+      // Connecting line — tinted by accuracy
       if (prevX !== null && Math.abs(x - prevX) < 40) {
-        ctx.strokeStyle = 'rgba(240, 240, 240, 0.25)';
+        const lineAbsCents = Math.abs(p.cents || 0);
+        ctx.strokeStyle = lineAbsCents <= 10 ? 'rgba(78, 205, 196, 0.35)'
+          : lineAbsCents <= 25 ? 'rgba(255, 230, 109, 0.3)'
+          : 'rgba(255, 107, 107, 0.25)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(prevX, prevY);
@@ -359,8 +362,11 @@ export class GameCanvas {
         ctx.stroke();
       }
 
-      // Dot
-      ctx.fillStyle = GameCanvas.#PITCH_DOT;
+      // Dot — colored by accuracy
+      const absCents = Math.abs(p.cents || 0);
+      ctx.fillStyle = absCents <= 10 ? '#4ecdc4'
+        : absCents <= 25 ? '#ffe66d'
+        : '#ff6b6b';
       ctx.beginPath();
       ctx.arc(x, y, 2.5, 0, Math.PI * 2);
       ctx.fill();

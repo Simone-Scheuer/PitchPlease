@@ -34,6 +34,9 @@ const STATIC_ASSETS = [
   './js/utils/store.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
+  './assets/icons/icon-192-maskable.png',
+  './assets/icons/icon-512-maskable.png',
+  './assets/icons/apple-touch-icon.png',
 ];
 
 const CDN_HOSTS = ['esm.sh'];

@@ -60,6 +60,10 @@ class TunerView {
     }
   }
 
+  deactivate() {
+    if (this.#active) this.#stop();
+  }
+
   #stop() {
     detector.stop();
     mic.stop();

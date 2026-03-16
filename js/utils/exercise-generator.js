@@ -88,6 +88,7 @@ export function generateExercise({
   noteDuration = 1000,
   noteGap = 300,
   pattern = 'ascending',
+  loopGapMs = 5000,
 } = {}) {
   const midiNotes = getScaleMidiNotes(root, scale, octaveLow, octaveHigh);
   const orderedNotes = applyPattern(midiNotes, pattern);
@@ -123,7 +124,8 @@ export function generateExercise({
       ...n,
       duration: n.duration + noteGap, // include gap in duration for spacing
     })),
-    generated: true, // flag so we know it's dynamic
+    generated: true,
+    loopGapMs,
   };
 }
 
@@ -139,4 +141,10 @@ export const DURATION_PRESETS = [
   { key: 'medium', label: 'Medium', ms: 800 },
   { key: 'long', label: 'Long', ms: 1200 },
   { key: 'very-long', label: 'Very Long', ms: 2000 },
+];
+
+export const GAP_PRESETS = [
+  { key: 'short', label: 'Short (3s)', ms: 3000 },
+  { key: 'medium', label: 'Medium (5s)', ms: 5000 },
+  { key: 'long', label: 'Long (8s)', ms: 8000 },
 ];

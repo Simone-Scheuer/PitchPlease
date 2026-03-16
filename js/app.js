@@ -21,6 +21,7 @@ function switchView(viewId) {
   // Deactivate old view
   const oldEl = qs(`#${activeViewId}`);
   if (oldEl) oldEl.classList.remove('active');
+  if (activeViewId === 'tuner-view') tunerView.deactivate();
   if (activeViewId === 'graph-view') graphView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
 
