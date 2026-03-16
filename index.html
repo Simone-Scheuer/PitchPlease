@@ -90,13 +90,52 @@
       </div>
     </div>
 
-    <!-- Play View (Song Library) -->
+    <!-- Play View (Practice + Songs) -->
     <div class="view" id="play-view">
       <div class="library">
         <div class="library__header">
-          <div class="library__title">Songs</div>
+          <div class="library__tabs">
+            <button class="library__tab active" data-tab="practice">Practice</button>
+            <button class="library__tab" data-tab="songs">Songs</button>
+          </div>
         </div>
-        <div class="library__list" id="library-list"></div>
+
+        <!-- Practice Configurator -->
+        <div class="library__panel" id="practice-panel">
+          <div class="practice">
+            <div class="practice__row">
+              <label class="practice__label">Scale</label>
+              <div class="practice__controls-row">
+                <select class="practice__select" id="practice-root" aria-label="Root note"></select>
+                <select class="practice__select practice__select--wide" id="practice-scale" aria-label="Scale type"></select>
+              </div>
+            </div>
+
+            <div class="practice__row">
+              <label class="practice__label">Octave Range</label>
+              <div class="practice__controls-row">
+                <select class="practice__select" id="practice-octave-low" aria-label="Low octave"></select>
+                <span class="practice__separator">to</span>
+                <select class="practice__select" id="practice-octave-high" aria-label="High octave"></select>
+              </div>
+            </div>
+
+            <div class="practice__row">
+              <label class="practice__label">Note Duration</label>
+              <select class="practice__select practice__select--wide" id="practice-duration" aria-label="Note duration"></select>
+            </div>
+
+            <div class="practice__row">
+              <label class="practice__label">Pattern</label>
+              <select class="practice__select practice__select--wide" id="practice-pattern" aria-label="Pattern"></select>
+            </div>
+
+            <button class="practice__start-btn" id="practice-start-btn">Start Practice</button>
+          </div>
+        </div>
+
+        <!-- Song List -->
+        <div class="library__panel hidden" id="song-list"></div>
       </div>
     </div>
 
