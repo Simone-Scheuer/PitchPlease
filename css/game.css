@@ -40,6 +40,30 @@
   opacity: 1;
 }
 
+/* Loop score popup */
+.game__loop-score {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  font-size: clamp(4rem, 15vw, 7rem);
+  font-weight: 700;
+  z-index: var(--z-overlay);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+.game__loop-score.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.game__loop-score.great { color: var(--color-in-tune); }
+.game__loop-score.good { color: var(--color-close); }
+.game__loop-score.poor { color: var(--color-off); }
+
 /* Game top bar (song info + score) */
 .game__topbar {
   display: flex;

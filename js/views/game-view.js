@@ -7,19 +7,27 @@ import { GameCanvas } from '../components/game-canvas.js';
 import { songMidiRange } from '../utils/song-data.js';
 
 const COUNTDOWN_SECS = 3;
+const LOOP_GAP_MS = 3000;
+const LOOP_SCORE_DISPLAY_MS = 2000;
 
 class GameView {
   #canvas;
   #songTitleEl;
   #liveScoreEl;
   #playBtn;
+  #pauseBtn;
   #restartBtn;
+  #loopBtn;
   #tempoBtn;
   #difficultySelect;
   #resultsOverlay;
   #countdownEl;
+  #loopScoreEl;
   #micActive = false;
   #countdownTimer = null;
+  #loopTimer = null;
+  #loopMode = true;
+  #songPaused = false;
 
   // Live score tracking
   #liveScore = 0;
@@ -31,14 +39,19 @@ class GameView {
     this.#songTitleEl = qs('#game-song-title');
     this.#liveScoreEl = qs('#game-live-score');
     this.#playBtn = qs('#game-play-btn');
+    this.#pauseBtn = qs('#game-pause-btn');
     this.#restartBtn = qs('#game-restart-btn');
+    this.#loopBtn = qs('#game-loop-btn');
     this.#tempoBtn = qs('#game-tempo-btn');
     this.#difficultySelect = qs('#game-difficulty');
     this.#resultsOverlay = qs('#results-overlay');
     this.#countdownEl = qs('#game-countdown');
+    this.#loopScoreEl = qs('#game-loop-score');
 
     this.#playBtn.addEventListener('click', () => this.#togglePlay());
+    this.#pauseBtn.addEventListener('click', () => this.#togglePause());
     this.#restartBtn.addEventListener('click', () => this.#restart());
+    this.#loopBtn.addEventListener('click', () => this.#toggleLoop());
     this.#tempoBtn.addEventListener('click', () => this.#cycleTempo());
     this.#difficultySelect.addEventListener('change', () => {
       songEngine.setDifficulty(this.#difficultySelect.value);
@@ -51,6 +64,9 @@ class GameView {
     bus.on('song:tick', (data) => this.#onTick(data));
     bus.on('song:end', (data) => this.#onSongEnd(data));
     bus.on('song:note-feedback', (data) => this.#onNoteFeedback(data));
+
+    // Set initial loop button state
+    this.#loopBtn.classList.add('active');
   }
 
   activate() {
@@ -70,46 +86,66 @@ class GameView {
   #onSongLoaded() {
     const song = songEngine.song;
     this.#songTitleEl.textContent = song.title;
-    this.#liveScoreEl.textContent = '0';
+    this.#resetScore();
+    this.#reloadCanvas();
+    this.#resultsOverlay.classList.remove('visible');
+  }
+
+  #resetScore() {
     this.#liveScore = 0;
     this.#scoreFrames = 0;
     this.#scoreSum = 0;
+    this.#liveScoreEl.textContent = '0';
+  }
 
-    const [midiLow, midiHigh] = songMidiRange(song);
+  #reloadCanvas() {
+    if (!songEngine.song) return;
+    const [midiLow, midiHigh] = songMidiRange(songEngine.song);
     this.#canvas.loadSong(
       songEngine.noteTimings,
       midiLow,
       midiHigh,
       songEngine.totalDuration
     );
-    this.#resultsOverlay.classList.remove('visible');
   }
 
   async #togglePlay() {
-    if (songEngine.isRunning) {
+    if (songEngine.isRunning || this.#songPaused) {
       this.#stopAll();
     } else {
       await this.#startWithCountdown();
     }
   }
 
+  #togglePause() {
+    if (!songEngine.isRunning && !this.#songPaused) return;
+
+    if (this.#songPaused) {
+      // Resume
+      songEngine.resume();
+      this.#canvas.start();
+      this.#songPaused = false;
+      this.#pauseBtn.classList.remove('active');
+    } else {
+      // Pause
+      songEngine.pause();
+      this.#canvas.stop();
+      this.#songPaused = true;
+      this.#pauseBtn.classList.add('active');
+    }
+  }
+
+  #toggleLoop() {
+    this.#loopMode = !this.#loopMode;
+    this.#loopBtn.classList.toggle('active', this.#loopMode);
+  }
+
   async #restart() {
     this.#stopAll();
     this.#resultsOverlay.classList.remove('visible');
-    this.#liveScoreEl.textContent = '0';
-    this.#liveScore = 0;
-    this.#scoreFrames = 0;
-    this.#scoreSum = 0;
-    // Re-load the canvas to reset feedback state
-    if (songEngine.song) {
-      const [midiLow, midiHigh] = songMidiRange(songEngine.song);
-      this.#canvas.loadSong(
-        songEngine.noteTimings,
-        midiLow,
-        midiHigh,
-        songEngine.totalDuration
-      );
-    }
+    this.#loopScoreEl.classList.remove('visible');
+    this.#resetScore();
+    this.#reloadCanvas();
     await this.#startWithCountdown();
   }
 
@@ -121,14 +157,14 @@ class GameView {
         this.#micActive = true;
       }
 
-      // Show countdown
       this.#playBtn.classList.add('active');
+      this.#pauseBtn.classList.remove('active');
+      this.#songPaused = false;
       this.#resultsOverlay.classList.remove('visible');
       this.#canvas.start();
 
       await this.#countdown();
 
-      // Start the song engine after countdown
       songEngine.start();
     } catch (err) {
       if (err.name === 'NotAllowedError') {
@@ -165,9 +201,16 @@ class GameView {
       this.#countdownTimer = null;
       this.#countdownEl.classList.remove('visible');
     }
+    if (this.#loopTimer) {
+      clearTimeout(this.#loopTimer);
+      this.#loopTimer = null;
+    }
     songEngine.stop();
     this.#canvas.stop();
     this.#playBtn.classList.remove('active');
+    this.#pauseBtn.classList.remove('active');
+    this.#songPaused = false;
+    this.#loopScoreEl.classList.remove('visible');
   }
 
   #cycleTempo() {
@@ -178,16 +221,7 @@ class GameView {
     const next = (idx + 1) % scales.length;
     songEngine.setTempoScale(scales[next]);
     this.#tempoBtn.textContent = labels[next];
-
-    if (songEngine.song) {
-      const [midiLow, midiHigh] = songMidiRange(songEngine.song);
-      this.#canvas.loadSong(
-        songEngine.noteTimings,
-        midiLow,
-        midiHigh,
-        songEngine.totalDuration
-      );
-    }
+    this.#reloadCanvas();
   }
 
   #onTick(data) {
@@ -206,9 +240,31 @@ class GameView {
   }
 
   #onSongEnd(data) {
-    this.#playBtn.classList.remove('active');
-    this.#canvas.stop();
-    this.#showResults(data.scores);
+    if (this.#loopMode) {
+      this.#handleLoopEnd(data.scores);
+    } else {
+      this.#playBtn.classList.remove('active');
+      this.#canvas.stop();
+      this.#showResults(data.scores);
+    }
+  }
+
+  #handleLoopEnd(scores) {
+    // Show brief popup score
+    this.#loopScoreEl.textContent = scores.overall;
+    this.#loopScoreEl.className = 'game__loop-score visible';
+    if (scores.overall >= 80) this.#loopScoreEl.classList.add('great');
+    else if (scores.overall >= 50) this.#loopScoreEl.classList.add('good');
+    else this.#loopScoreEl.classList.add('poor');
+
+    // After gap, restart the song (no countdown on loops)
+    this.#loopTimer = setTimeout(() => {
+      this.#loopScoreEl.classList.remove('visible');
+      this.#resetScore();
+      this.#reloadCanvas();
+      this.#canvas.start();
+      songEngine.start();
+    }, LOOP_GAP_MS);
   }
 
   #showResults(scores) {

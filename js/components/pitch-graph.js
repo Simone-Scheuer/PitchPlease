@@ -27,7 +27,6 @@ export class PitchGraph {
   #basePixelsPerMs = 0.08; // fixed rate for data rendering
   #speedMultiplier = 1;    // affects scroll accumulation only
   #speedIndex = DEFAULT_SPEED_INDEX;
-  #paused = false;
   #lastFrameTime = 0;
 
   // Scroll mode: false = continuous (shows gaps), true = compact (skips gaps)
@@ -68,7 +67,7 @@ export class PitchGraph {
 
     this._resizeHandler = () => {
       this.#resize();
-      if (!this.#active) this.#drawStatic();
+      if (!this.#active) this.drawStatic();
     };
     window.addEventListener('resize', this._resizeHandler);
 
@@ -112,24 +111,12 @@ export class PitchGraph {
     }
   }
 
-  pause() {
-    this.#paused = true;
-  }
-
-  resume() {
-    if (this.#paused) {
-      this.#paused = false;
-      this.#lastFrameTime = performance.now();
+  // Stop animation loop but preserve state (for tab switching)
+  stopRendering() {
+    if (this.#rafId) {
+      cancelAnimationFrame(this.#rafId);
+      this.#rafId = null;
     }
-  }
-
-  get isPaused() {
-    return this.#paused;
-  }
-
-  togglePause() {
-    if (this.#paused) this.resume();
-    else this.pause();
   }
 
   setSpeed(index) {
@@ -164,7 +151,7 @@ export class PitchGraph {
       this.#scaleNotes = null;
     }
     // Redraw immediately so scale shows without needing mic active
-    if (!this.#active) this.#drawStatic();
+    if (!this.#active) this.drawStatic();
   }
 
   setRange(lowMidi, highMidi) {
@@ -223,26 +210,24 @@ export class PitchGraph {
     const dt = now - this.#lastFrameTime;
     this.#lastFrameTime = now;
 
-    if (!this.#paused) {
-      const scaledDt = dt * this.#speedMultiplier;
-      if (this.#compact) {
-        // Compact mode: only advance scroll when there's recent pitch data
-        const data = this.#buffer?.data;
-        if (data && data.length > 0) {
-          const last = data[data.length - 1];
-          if (!last.silent) {
-            this.#scrollTimeMs += scaledDt;
-          }
+    const scaledDt = dt * this.#speedMultiplier;
+    if (this.#compact) {
+      // Compact mode: only advance scroll when there's recent pitch data
+      const data = this.#buffer?.data;
+      if (data && data.length > 0) {
+        const last = data[data.length - 1];
+        if (!last.silent) {
+          this.#scrollTimeMs += scaledDt;
         }
-      } else {
-        // Continuous mode: always advance
-        this.#scrollTimeMs += scaledDt;
       }
+    } else {
+      // Continuous mode: always advance
+      this.#scrollTimeMs += scaledDt;
+    }
 
-      // Auto-range: expand Y range based on detected pitch
-      if (this.#autoRange) {
-        this.#updateAutoRange();
-      }
+    // Auto-range: expand Y range based on detected pitch
+    if (this.#autoRange) {
+      this.#updateAutoRange();
     }
 
     this.#draw();
@@ -461,7 +446,7 @@ export class PitchGraph {
     }
   }
 
-  #drawStatic() {
+  drawStatic() {
     this.#draw();
   }
 

@@ -9,7 +9,6 @@ import { SCALE_LABELS, ROOT_NAMES } from '../utils/scales.js';
 class GraphView {
   #graph;
   #micBtn;
-  #pauseBtn;
   #speedBtn;
   #compactBtn;
   #scaleRootSelect;
@@ -22,44 +21,42 @@ class GraphView {
     this.#graph = new PitchGraph(canvas, pitchBuffer);
 
     this.#micBtn = qs('#graph-mic-btn');
-    this.#pauseBtn = qs('#graph-pause-btn');
     this.#speedBtn = qs('#graph-speed-btn');
     this.#compactBtn = qs('#graph-compact-btn');
     this.#scaleRootSelect = qs('#scale-root');
     this.#scaleTypeSelect = qs('#scale-type');
     this.#currentNoteEl = qs('#graph-current-note');
 
-    this.#micBtn.addEventListener('click', () => this.#toggleMic());
-    this.#pauseBtn.addEventListener('click', () => this.#togglePause());
+    this.#micBtn.addEventListener('click', () => this.#toggle());
     this.#speedBtn.addEventListener('click', () => this.#cycleSpeed());
     this.#compactBtn.addEventListener('click', () => this.#toggleCompact());
     this.#scaleRootSelect.addEventListener('change', () => this.#updateScale());
     this.#scaleTypeSelect.addEventListener('change', () => this.#updateScale());
 
-    // Populate scale selects
     this.#populateScaleSelects();
 
     bus.on('pitch', (data) => this.#onPitch(data));
     bus.on('silence', () => this.#onSilence());
 
-    // Set initial speed label
     this.#speedBtn.textContent = this.#graph.speedLabel;
   }
 
   activate() {
-    // If mic is already running (from tuner), start the graph
+    // Always draw the grid/scale immediately when switching to graph tab
+    this.#graph.drawStatic();
+
+    // If recording was active, resume the animation loop
     if (this.#active) {
       this.#graph.start();
     }
   }
 
   deactivate() {
-    // Keep graph data but pause rendering
-    this.#graph.stop();
+    // Stop animation but keep mic/buffer running if active
+    this.#graph.stopRendering();
   }
 
   #populateScaleSelects() {
-    // Root selector
     const noneOpt = document.createElement('option');
     noneOpt.value = '';
     noneOpt.textContent = 'Off';
@@ -72,7 +69,6 @@ class GraphView {
       this.#scaleRootSelect.appendChild(opt);
     }
 
-    // Scale type selector
     for (const [key, label] of Object.entries(SCALE_LABELS)) {
       const opt = document.createElement('option');
       opt.value = key;
@@ -91,15 +87,15 @@ class GraphView {
     }
   }
 
-  async #toggleMic() {
+  async #toggle() {
     if (this.#active) {
-      this.#stopMic();
+      this.#stopAll();
     } else {
-      await this.#startMic();
+      await this.#startAll();
     }
   }
 
-  async #startMic() {
+  async #startAll() {
     try {
       this.#micBtn.classList.remove('error');
       await mic.start();
@@ -120,27 +116,18 @@ class GraphView {
     }
   }
 
-  #stopMic() {
+  #stopAll() {
     detector.stop();
     mic.stop();
     pitchBuffer.stop();
     this.#graph.stop();
     this.#active = false;
     this.#micBtn.classList.remove('active');
-    this.#pauseBtn.classList.remove('active');
     this.#compactBtn.classList.remove('active');
     this.#currentNoteEl.innerHTML = '--';
     this.#currentNoteEl.classList.remove('detected');
-  }
-
-  #togglePause() {
-    this.#graph.togglePause();
-    if (this.#graph.isPaused) {
-      pitchBuffer.pause();
-    } else {
-      pitchBuffer.resume();
-    }
-    this.#pauseBtn.classList.toggle('active', this.#graph.isPaused);
+    // Redraw static grid so it doesn't go blank
+    this.#graph.drawStatic();
   }
 
   #cycleSpeed() {
