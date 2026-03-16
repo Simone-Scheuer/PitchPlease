@@ -115,12 +115,14 @@ function buildFreePlayExercise(root, scale, opts = {}) {
  * Daily Warm-Up (5 min)
  * Quick activation before practice or performance.
  */
-function dailyWarmUp(root = 'C', scale = 'major') {
+function dailyWarmUp(root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
   const blocks = [
     {
       exercise: buildSustainedExercise('long-tone', root, scale, {
         label: 'Long Tone',
         description: 'Hold a comfortable note, focus on stability',
+        octaveRange: oRange,
       }),
       duration: 90_000,
       label: 'Settle In',
@@ -130,7 +132,7 @@ function dailyWarmUp(root = 'C', scale = 'major') {
       exercise: createSequenceExercise({
         root, scale,
         pattern: 'ascending',
-        octaveLow: 3, octaveHigh: 5,
+        octaveLow, octaveHigh,
       }),
       duration: 90_000,
       label: 'Scale Work',
@@ -140,6 +142,7 @@ function dailyWarmUp(root = 'C', scale = 'major') {
       exercise: buildReactiveExercise('random-note', root, scale, {
         label: 'Random Note Reflex',
         description: 'Find each note as it appears',
+        octaveRange: oRange,
       }),
       duration: 60_000,
       label: 'Quick Reflex',
@@ -149,6 +152,7 @@ function dailyWarmUp(root = 'C', scale = 'major') {
       exercise: buildFreePlayExercise(root, scale, {
         label: 'Free Play',
         description: 'Play whatever you like',
+        octaveRange: oRange,
       }),
       duration: 60_000,
       label: 'Cool Down',
@@ -171,12 +175,14 @@ function dailyWarmUp(root = 'C', scale = 'major') {
  * Morning Practice (15 min)
  * Balanced daily session — the default recommendation.
  */
-function morningPractice(root = 'C', scale = 'major') {
+function morningPractice(root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
   const blocks = [
     {
       exercise: buildSustainedExercise('drone-match', root, scale, {
         label: 'Drone Match',
         description: `Match the ${root} drone tone`,
+        octaveRange: oRange,
       }),
       duration: 120_000,
       label: 'Drone Match',
@@ -186,6 +192,7 @@ function morningPractice(root = 'C', scale = 'major') {
       exercise: buildSustainedExercise('long-tone-cycle', root, scale, {
         label: 'Long Tone Cycle',
         description: 'Walk through scale degrees, hold each steady',
+        octaveRange: oRange,
       }),
       duration: 120_000,
       label: 'Long Tones',
@@ -195,7 +202,7 @@ function morningPractice(root = 'C', scale = 'major') {
       exercise: createSequenceExercise({
         root, scale,
         pattern: 'thirds',
-        octaveLow: 3, octaveHigh: 5,
+        octaveLow, octaveHigh,
       }),
       duration: 180_000,
       label: 'Scale Patterns',
@@ -205,7 +212,7 @@ function morningPractice(root = 'C', scale = 'major') {
       exercise: createSequenceExercise({
         root, scale,
         pattern: 'up-and-back',
-        octaveLow: 3, octaveHigh: 5,
+        octaveLow, octaveHigh,
         skills: ['pitchAccuracy', 'earTraining'],
       }),
       duration: 180_000,
@@ -216,6 +223,7 @@ function morningPractice(root = 'C', scale = 'major') {
       exercise: buildReactiveExercise('random-note', root, scale, {
         label: 'Random Note Reflex',
         description: `Find notes from ${root} ${scale}`,
+        octaveRange: oRange,
       }),
       duration: 120_000,
       label: 'Note Reflex',
@@ -225,6 +233,7 @@ function morningPractice(root = 'C', scale = 'major') {
       exercise: buildFreePlayExercise(root, scale, {
         label: 'Drone Jam',
         description: `Improvise freely in ${root} ${scale}`,
+        octaveRange: oRange,
       }),
       duration: 180_000,
       label: 'Drone Jam',
@@ -247,12 +256,14 @@ function morningPractice(root = 'C', scale = 'major') {
  * Quick Burst (5 min)
  * Focused micro-session. Middle exercise targets scale fluency.
  */
-function quickBurst(root = 'C', scale = 'major') {
+function quickBurst(root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
   const blocks = [
     {
       exercise: buildSustainedExercise('long-tone', root, scale, {
         label: 'Long Tone',
         description: 'One note, settle in',
+        octaveRange: oRange,
       }),
       duration: 60_000,
       label: 'Settle In',
@@ -262,7 +273,7 @@ function quickBurst(root = 'C', scale = 'major') {
       exercise: createSequenceExercise({
         root, scale,
         pattern: 'ascending',
-        octaveLow: 3, octaveHigh: 5,
+        octaveLow, octaveHigh,
         timing: { mode: 'auto-tempo', tempoBpm: 60, noteDuration: 1000 },
         skills: ['scaleFluency', 'pitchAccuracy'],
       }),
@@ -274,6 +285,7 @@ function quickBurst(root = 'C', scale = 'major') {
       exercise: buildFreePlayExercise(root, scale, {
         label: 'Free Play',
         description: 'Cool down',
+        octaveRange: oRange,
       }),
       duration: 60_000,
       label: 'Cool Down',
@@ -296,37 +308,39 @@ function quickBurst(root = 'C', scale = 'major') {
  * Scale Fluency Builder (15 min)
  * Getting fluid in a specific scale.
  */
-function scaleFluencyBuilder(root = 'C', scale = 'major') {
+function scaleFluencyBuilder(root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
   const blocks = [
     {
       exercise: buildSustainedExercise('settle', root, scale, {
         label: 'Scale Explorer',
         description: `Get to know ${root} ${scale}`,
+        octaveRange: oRange,
       }),
       duration: 120_000,
       label: 'Explore',
       phase: 'activate',
     },
     {
-      exercise: createSequenceExercise({ root, scale, pattern: 'ascending' }),
+      exercise: createSequenceExercise({ root, scale, pattern: 'ascending', octaveLow, octaveHigh }),
       duration: 120_000,
       label: 'Ascending',
       phase: 'develop',
     },
     {
-      exercise: createSequenceExercise({ root, scale, pattern: 'thirds' }),
+      exercise: createSequenceExercise({ root, scale, pattern: 'thirds', octaveLow, octaveHigh }),
       duration: 120_000,
       label: 'Thirds',
       phase: 'develop',
     },
     {
-      exercise: createSequenceExercise({ root, scale, pattern: 'fourths' }),
+      exercise: createSequenceExercise({ root, scale, pattern: 'fourths', octaveLow, octaveHigh }),
       duration: 120_000,
       label: 'Fourths',
       phase: 'develop',
     },
     {
-      exercise: buildReactiveExercise('random', root, scale),
+      exercise: buildReactiveExercise('random', root, scale, { octaveRange: oRange }),
       duration: 120_000,
       label: 'Random Notes',
       phase: 'challenge',
@@ -334,6 +348,7 @@ function scaleFluencyBuilder(root = 'C', scale = 'major') {
     {
       exercise: createSequenceExercise({
         root, scale, pattern: 'ascending',
+        octaveLow, octaveHigh,
         timing: { mode: 'auto-tempo', tempoBpm: 60, noteDuration: 1000 },
       }),
       duration: 180_000,
@@ -344,6 +359,7 @@ function scaleFluencyBuilder(root = 'C', scale = 'major') {
       exercise: buildFreePlayExercise(root, scale, {
         label: 'Drone Jam',
         description: `Improvise in ${root} ${scale}`,
+        octaveRange: oRange,
       }),
       duration: 120_000,
       label: 'Drone Jam',
@@ -389,10 +405,12 @@ export const SESSION_TEMPLATES = Object.freeze([
  * @param {string} templateId - One of the template IDs
  * @param {string} [root='C'] - Root note
  * @param {string} [scale='major'] - Scale key
+ * @param {number} [octaveLow=3] - Lowest octave
+ * @param {number} [octaveHigh=5] - Highest octave
  * @returns {SessionConfig|null}
  */
-export function getTemplate(templateId, root = 'C', scale = 'major') {
+export function getTemplate(templateId, root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
   const factory = TEMPLATE_FACTORIES[templateId];
   if (!factory) return null;
-  return factory(root, scale);
+  return factory(root, scale, octaveLow, octaveHigh);
 }

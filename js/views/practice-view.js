@@ -10,6 +10,8 @@ const QUICK_START_KEY = 'quick-start';
 const DEFAULTS = {
   root: 'C',
   scale: 'major',
+  octaveLow: 3,
+  octaveHigh: 5,
 };
 
 class PracticeView {
@@ -18,6 +20,8 @@ class PracticeView {
   #templatesEl;
   #rootSelect;
   #scaleSelect;
+  #octaveLowSelect;
+  #octaveHighSelect;
   #goBtn;
   #settings;
 
@@ -27,18 +31,23 @@ class PracticeView {
     this.#templatesEl = qs('#practice-templates');
     this.#rootSelect = qs('#practice-root');
     this.#scaleSelect = qs('#practice-scale');
+    this.#octaveLowSelect = qs('#practice-octave-low');
+    this.#octaveHighSelect = qs('#practice-octave-high');
     this.#goBtn = qs('#practice-quick-go');
 
     this.#settings = store.get(QUICK_START_KEY) || { ...DEFAULTS };
 
     this.#populateRootSelect();
     this.#populateScaleSelect();
+    this.#populateOctaveSelects();
     this.#applySettings();
     this.#renderTemplates();
 
     // Wire event listeners
     this.#rootSelect.addEventListener('change', () => this.#saveSettings());
     this.#scaleSelect.addEventListener('change', () => this.#saveSettings());
+    this.#octaveLowSelect.addEventListener('change', () => this.#saveSettings());
+    this.#octaveHighSelect.addEventListener('change', () => this.#saveSettings());
     this.#todayBtn.addEventListener('click', () => this.#startToday());
     this.#goBtn.addEventListener('click', () => this.#startQuick());
   }
@@ -77,15 +86,37 @@ class PracticeView {
     }
   }
 
+  #populateOctaveSelects() {
+    for (const sel of [this.#octaveLowSelect, this.#octaveHighSelect]) {
+      sel.innerHTML = '';
+      for (let o = 1; o <= 7; o++) {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = `${o}`;
+        sel.appendChild(opt);
+      }
+    }
+  }
+
   #applySettings() {
     this.#rootSelect.value = this.#settings.root;
     this.#scaleSelect.value = this.#settings.scale;
+    this.#octaveLowSelect.value = this.#settings.octaveLow ?? DEFAULTS.octaveLow;
+    this.#octaveHighSelect.value = this.#settings.octaveHigh ?? DEFAULTS.octaveHigh;
   }
 
   #saveSettings() {
+    const octaveLow = parseInt(this.#octaveLowSelect.value, 10);
+    let octaveHigh = parseInt(this.#octaveHighSelect.value, 10);
+    if (octaveHigh < octaveLow) {
+      octaveHigh = octaveLow;
+      this.#octaveHighSelect.value = octaveHigh;
+    }
     this.#settings = {
       root: this.#rootSelect.value,
       scale: this.#scaleSelect.value,
+      octaveLow,
+      octaveHigh,
     };
     store.set(QUICK_START_KEY, this.#settings);
   }
@@ -141,8 +172,8 @@ class PracticeView {
 
   #startToday() {
     this.#saveSettings();
-    const { root, scale } = this.#settings;
-    const config = getTemplate('morning-practice', root, scale);
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+    const config = getTemplate('morning-practice', root, scale, octaveLow, octaveHigh);
     if (config) {
       bus.emit('session:activate', { config });
     }
@@ -150,8 +181,8 @@ class PracticeView {
 
   #startTemplate(templateId) {
     this.#saveSettings();
-    const { root, scale } = this.#settings;
-    const config = getTemplate(templateId, root, scale);
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+    const config = getTemplate(templateId, root, scale, octaveLow, octaveHigh);
     if (config) {
       bus.emit('session:activate', { config });
     }
@@ -159,14 +190,14 @@ class PracticeView {
 
   #startQuick() {
     this.#saveSettings();
-    const { root, scale } = this.#settings;
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
 
     const exercise = createSequenceExercise({
       root,
       scale,
       pattern: 'ascending',
-      octaveLow: 3,
-      octaveHigh: 5,
+      octaveLow,
+      octaveHigh,
     });
 
     const config = {

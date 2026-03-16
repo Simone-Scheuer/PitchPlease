@@ -33,7 +33,7 @@ const BUFFER_SIZE = 600;         // ~10 seconds at 60fps
 const CENTS_RANGE = 50;          // ±50 cents Y-axis range
 const PLAYHEAD_MARGIN = 60;      // px from right edge where playhead sits
 const GRID_CENTS = [10, 25];     // grid lines drawn at ±these values
-const STREAK_THRESHOLD = 5;      // cents — within this = "steady"
+const STREAK_THRESHOLD = 15;     // cents — within this = "steady" (includes yellow zone)
 const TRACE_LINE_WIDTH = 2;
 const GRID_LINE_WIDTH = 0.5;
 const CENTER_LINE_WIDTH = 1;
