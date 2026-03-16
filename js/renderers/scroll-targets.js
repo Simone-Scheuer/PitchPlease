@@ -83,6 +83,19 @@ export function createScrollTargetsRenderer() {
   // --- Per-note feedback ---
   let lastEvaluatorResult = null;
 
+  // --- Hold progress tracking (visual fill for active bar) ---
+  let holdProgress = 0;         // 0..1 fill ratio
+  let holdStartTimestamp = 0;   // performance.now() when in-tune streak began
+  let holdInTune = false;       // was the last frame in-tune?
+  let holdGraceStart = 0;       // timestamp when grace period began (out-of-tune)
+  let holdAccumulatedMs = 0;    // accumulated in-tune ms (survives short gaps)
+  let holdTargetMs = 300;       // holdMs from exercise config
+  const HOLD_GRACE_MS = 200;    // grace period before resetting progress
+  let holdFlashUntil = 0;       // timestamp until which to show bright flash
+
+  // --- Pulsing glow animation ---
+  let glowPhase = 0;           // 0..2*PI for sine-wave pulsing
+
   // --- Score badges: noteIndex → { score } ---
   let noteScores = new Map();
 
@@ -259,6 +272,80 @@ export function createScrollTargetsRenderer() {
   }
 
   // ---------------------------------------------------------------------------
+  // Hold progress tracking
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Update the visual hold progress based on the current evaluator result.
+   * Called every frame from update().
+   */
+  function updateHoldProgress(evaluatorResult) {
+    const now = performance.now();
+
+    if (evaluatorResult && evaluatorResult.inTune) {
+      // Player is in tune
+      if (!holdInTune) {
+        // Transition from out-of-tune to in-tune
+        if (holdGraceStart > 0 && (now - holdGraceStart) < HOLD_GRACE_MS) {
+          // Within grace period — resume from where we left off
+          holdGraceStart = 0;
+        } else {
+          // Grace expired or fresh start — but don't reset if grace was active
+          if (holdGraceStart > 0) {
+            // Grace expired, reset
+            holdAccumulatedMs = 0;
+            holdGraceStart = 0;
+          }
+        }
+        holdStartTimestamp = now;
+        holdInTune = true;
+      }
+
+      // Accumulate in-tune time
+      const streakMs = now - holdStartTimestamp;
+      const totalMs = holdAccumulatedMs + streakMs;
+      holdProgress = Math.min(1, totalMs / holdTargetMs);
+
+      // Check for advance (bar fully filled)
+      if (evaluatorResult.advance) {
+        holdProgress = 1;
+        holdFlashUntil = now + 150; // bright flash for 150ms
+      }
+    } else {
+      // Player is out of tune or silent
+      if (holdInTune) {
+        // Just went out of tune — bank accumulated time and start grace
+        holdAccumulatedMs += (now - holdStartTimestamp);
+        holdInTune = false;
+        holdGraceStart = now;
+      }
+
+      // During grace period, freeze progress (don't reset)
+      if (holdGraceStart > 0) {
+        if ((now - holdGraceStart) >= HOLD_GRACE_MS) {
+          // Grace period expired — reset
+          holdAccumulatedMs = 0;
+          holdProgress = 0;
+          holdGraceStart = 0;
+        }
+        // else: keep holdProgress frozen at its current value
+      }
+    }
+  }
+
+  /**
+   * Reset hold progress (when cursor advances to next note).
+   */
+  function resetHoldProgress() {
+    holdProgress = 0;
+    holdStartTimestamp = 0;
+    holdInTune = false;
+    holdGraceStart = 0;
+    holdAccumulatedMs = 0;
+    holdFlashUntil = 0;
+  }
+
+  // ---------------------------------------------------------------------------
   // Drawing routines
   // ---------------------------------------------------------------------------
 
@@ -415,6 +502,7 @@ export function createScrollTargetsRenderer() {
     const yBot = toY(note.midi - BAR_HALF_HEIGHT);
     const barH = yBot - yTop;
     const barW = x2 - x1;
+    const now = performance.now();
 
     // Determine bar color from evaluator feedback
     let fillColor = COLORS_ALPHA.BAR_DEFAULT;
@@ -424,10 +512,10 @@ export function createScrollTargetsRenderer() {
       const result = lastEvaluatorResult;
       if (result.inTune) {
         fillColor = COLORS_ALPHA.BAR_IN_TUNE;
-        borderColor = COLORS.IN_TUNE;
+        borderColor = COLORS.IN_TUNE;       // green border when in-tune
       } else if (result.close) {
         fillColor = COLORS_ALPHA.BAR_CLOSE;
-        borderColor = COLORS.CLOSE;
+        borderColor = COLORS.CLOSE;          // yellow border when close
       } else if (result.absCents !== undefined) {
         fillColor = COLORS_ALPHA.BAR_OFF;
         borderColor = COLORS.OFF;
@@ -440,19 +528,35 @@ export function createScrollTargetsRenderer() {
       ctx.globalAlpha = alpha;
     }
 
-    // Active note: subtle glow
+    // Active note: pulsing glow effect
     if (isActive) {
+      const pulseIntensity = 6 + 4 * Math.sin(glowPhase); // oscillates 2..10
       ctx.shadowColor = COLORS.ACCENT;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = pulseIntensity;
     }
 
     // Bar fill
     ctx.fillStyle = fillColor;
     ctx.fillRect(x1, yTop, barW, barH);
 
-    // Reset shadow before border
+    // Reset shadow before drawing overlay and border
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
+
+    // Hold progress fill overlay (only for active bar in player-driven mode)
+    if (isActive && holdProgress > 0 && timingMode === 'player-driven') {
+      const fillW = barW * holdProgress;
+
+      // Determine fill color: brighter during flash, otherwise accent at 0.3 opacity
+      if (holdFlashUntil > now) {
+        // Bright flash when advance triggers
+        ctx.fillStyle = 'rgba(78, 205, 196, 0.55)';
+      } else {
+        ctx.fillStyle = 'rgba(78, 205, 196, 0.3)';
+      }
+
+      ctx.fillRect(x1, yTop, fillW, barH);
+    }
 
     // Bar border
     ctx.strokeStyle = borderColor;
@@ -672,6 +776,7 @@ export function createScrollTargetsRenderer() {
       notes = exerciseConfig.context?.notes ?? [];
       timingMode = exerciseConfig.timing?.mode ?? 'player-driven';
       noteDurationMs = exerciseConfig.timing?.noteDuration ?? 1000;
+      holdTargetMs = exerciseConfig.timing?.holdMs ?? 300;
 
       computeMidiRange(notes);
       initNoteStates();
@@ -684,6 +789,8 @@ export function createScrollTargetsRenderer() {
       cursor = 0;
       elapsed = 0;
       lastFrameTime = 0;
+      resetHoldProgress();
+      glowPhase = 0;
 
       // Listen for resize
       resizeHandler = () => handleResize();
@@ -708,6 +815,7 @@ export function createScrollTargetsRenderer() {
         notes = config.context?.notes ?? notes;
         timingMode = config.timing?.mode ?? timingMode;
         noteDurationMs = config.timing?.noteDuration ?? noteDurationMs;
+        holdTargetMs = config.timing?.holdMs ?? holdTargetMs;
         computeMidiRange(notes);
       }
 
@@ -733,6 +841,9 @@ export function createScrollTargetsRenderer() {
     update(state) {
       if (!ctx) return;
 
+      const now = performance.now();
+      const dt = lastFrameTime > 0 ? now - lastFrameTime : 16;
+
       elapsed = state.elapsed;
       lastEvaluatorResult = state.evaluatorResult;
 
@@ -747,6 +858,9 @@ export function createScrollTargetsRenderer() {
         }
       }
 
+      // Reset hold progress when the cursor advances to a new note
+      const prevCursor = cursor;
+
       // Update visual states based on cursor movement.
       // Note scores are injected externally via setNoteScore() since this
       // renderer doesn't subscribe to bus events.
@@ -756,10 +870,23 @@ export function createScrollTargetsRenderer() {
         cursor = state.cursor;
       }
 
+      // Detect cursor advancement and reset hold progress
+      if (cursor !== prevCursor) {
+        resetHoldProgress();
+      }
+
+      // Update hold progress for the active bar (player-driven mode)
+      if (timingMode === 'player-driven') {
+        updateHoldProgress(state.evaluatorResult);
+      }
+
+      // Advance glow pulse animation (~2 second cycle)
+      glowPhase += (dt / 1000) * Math.PI; // full cycle in ~2s
+
       // Draw the frame
       draw();
 
-      lastFrameTime = performance.now();
+      lastFrameTime = now;
     },
 
     /**
@@ -788,6 +915,8 @@ export function createScrollTargetsRenderer() {
       noteMatchTime = [];
       waitingSince = [];
       notes = [];
+      resetHoldProgress();
+      glowPhase = 0;
 
       canvas = null;
       ctx = null;
@@ -813,6 +942,8 @@ export function createScrollTargetsRenderer() {
       cursor = 0;
       elapsed = 0;
       countdownValue = null;
+      resetHoldProgress();
+      glowPhase = 0;
 
       initNoteStates();
 
