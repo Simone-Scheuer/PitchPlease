@@ -3,6 +3,7 @@ import { getScaleNotes } from '../utils/scales.js';
 import { frequencyToMidi } from '../audio/note-math.js';
 import { mic } from '../audio/mic.js';
 import { playNote } from '../audio/synth.js';
+import { bus } from '../utils/event-bus.js';
 
 const LABEL_WIDTH = 52;
 const MIN_MIDI = 36;  // C2
@@ -53,6 +54,17 @@ export class PitchGraph {
   #tappedMidi = null;     // Currently highlighted (tapped) MIDI note
   #tapFlashTimer = null;  // Timer to clear the tap highlight
 
+  // Noise filter: confirmation buffer to reject single-frame spikes
+  #pendingPoint = null;   // Most recent unconfirmed pitch reading
+  #confirmCount = 0;      // Consecutive similar readings count
+  #filteredData = [];     // Confirmed pitch points for rendering
+  #filterStartTime = 0;   // Start time for relative timestamps in filtered data
+
+  // Noise filter: required consecutive similar readings before a point is confirmed
+  static #CONFIRM_THRESHOLD = 2;
+  // Noise filter: maximum MIDI distance to consider readings "similar" (1 semitone)
+  static #SIMILAR_THRESHOLD = 1.0;
+
   // Colors
   static #BG = '#0d0d0d';
   static #GRID_LINE = '#1f1f1f';
@@ -91,6 +103,12 @@ export class PitchGraph {
     this._clickHandler = (e) => this.#handleLabelClick(e);
     this.#canvas.addEventListener('click', this._clickHandler);
 
+    // Noise filter: subscribe to pitch/silence events
+    this._filterPitchHandler = (data) => this.#filterPitch(data);
+    this._filterSilenceHandler = () => this.#filterSilence();
+    bus.on('pitch', this._filterPitchHandler);
+    bus.on('silence', this._filterSilenceHandler);
+
     // Cursor hint: pointer when hovering over label areas
     this._mousemoveHandler = (e) => {
       const rect = this.#canvas.getBoundingClientRect();
@@ -99,6 +117,66 @@ export class PitchGraph {
       this.#canvas.style.cursor = inLabelArea ? 'pointer' : '';
     };
     this.#canvas.addEventListener('mousemove', this._mousemoveHandler);
+  }
+
+  #filterPitch(data) {
+    if (!this.#active) return;
+
+    const newMidi = data.midi;
+    const relativeTime = performance.now() - this.#filterStartTime;
+
+    if (this.#pendingPoint && Math.abs(newMidi - this.#pendingPoint.midi) < PitchGraph.#SIMILAR_THRESHOLD) {
+      // Similar to pending — increment confirmation
+      this.#confirmCount++;
+      if (this.#confirmCount >= PitchGraph.#CONFIRM_THRESHOLD) {
+        // Confirmed — add pending point to filtered data
+        this.#filteredData.push(this.#pendingPoint);
+        // Trim to prevent unbounded growth (match PitchBuffer MAX_SIZE)
+        if (this.#filteredData.length > 4096) {
+          this.#filteredData.shift();
+        }
+        // Current reading starts the next confirmation chain
+        this.#pendingPoint = {
+          midi: newMidi,
+          time: relativeTime,
+          frequency: data.frequency,
+          cents: data.cents,
+          clarity: data.clarity,
+          silent: false,
+        };
+        this.#confirmCount = 1;
+      }
+    } else {
+      // Different from pending — start new pending
+      this.#pendingPoint = {
+        midi: newMidi,
+        time: relativeTime,
+        frequency: data.frequency,
+        cents: data.cents,
+        clarity: data.clarity,
+        silent: false,
+      };
+      this.#confirmCount = 1;
+    }
+  }
+
+  #filterSilence() {
+    if (!this.#active) return;
+
+    // Clear pending state so stale points don't bleed across silence gaps
+    this.#pendingPoint = null;
+    this.#confirmCount = 0;
+
+    // Add silence marker to filtered data (matching PitchBuffer behavior)
+    const last = this.#filteredData[this.#filteredData.length - 1];
+    if (last && last.silent) return;
+    this.#filteredData.push({
+      time: performance.now() - this.#filterStartTime,
+      silent: true,
+    });
+    if (this.#filteredData.length > 4096) {
+      this.#filteredData.shift();
+    }
   }
 
   async #handleLabelClick(e) {
@@ -158,6 +236,11 @@ export class PitchGraph {
     this.#detectedMidiMin = 60;
     this.#detectedMidiMax = 72;
     this.#yOffset = 0;
+    // Reset noise filter state
+    this.#pendingPoint = null;
+    this.#confirmCount = 0;
+    this.#filteredData = [];
+    this.#filterStartTime = performance.now();
     this.#updateRange();
     this.#animate();
   }
@@ -456,7 +539,7 @@ export class PitchGraph {
   }
 
   #drawPitch(ctx, graphLeft, playheadX, h) {
-    const data = this.#buffer?.data;
+    const data = this.#filteredData;
     if (!data || data.length === 0) return;
 
     // The playhead represents the current scroll time.
@@ -532,6 +615,8 @@ export class PitchGraph {
       clearTimeout(this.#tapFlashTimer);
       this.#tapFlashTimer = null;
     }
+    bus.off('pitch', this._filterPitchHandler);
+    bus.off('silence', this._filterSilenceHandler);
     window.removeEventListener('resize', this._resizeHandler);
     this.#canvas.removeEventListener('wheel', this._wheelHandler);
     this.#canvas.removeEventListener('click', this._clickHandler);
@@ -539,5 +624,7 @@ export class PitchGraph {
     this.#canvas = null;
     this.#ctx = null;
     this.#buffer = null;
+    this.#filteredData = [];
+    this.#pendingPoint = null;
   }
 }
