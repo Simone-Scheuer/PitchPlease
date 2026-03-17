@@ -164,6 +164,24 @@
   font-weight: 600;
 }
 
+/* Skip Note — secondary, less prominent */
+#session-skip-note {
+  font-size: 13px;
+  padding: 6px 12px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+#session-skip-note:hover {
+  opacity: 1;
+}
+#session-skip-note[hidden] {
+  display: none !important;
+}
+#session-skip-note.skip-note-flash {
+  opacity: 1;
+  background: var(--color-bg-surface);
+}
+
 /* Summary overlay */
 .session-summary {
   position: absolute;
@@ -257,5 +275,8 @@
   }
   .session-progress-segment {
     transition: background var(--transition-base);
+  }
+  #session-skip-note {
+    transition: none;
   }
 }

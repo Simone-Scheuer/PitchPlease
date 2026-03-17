@@ -156,6 +156,15 @@
               <label>Harp Key</label>
               <select id="practice-harp-key"></select>
             </div>
+            <div class="practice-select-row">
+              <label>Hold Duration</label>
+              <select id="practice-hold-duration">
+                <option value="300">Quick (0.3s)</option>
+                <option value="600" selected>Normal (0.6s)</option>
+                <option value="1000">Long (1s)</option>
+                <option value="2000">Very Long (2s)</option>
+              </select>
+            </div>
             <button class="practice-go-btn" id="practice-quick-go">Start Exercise</button>
           </div>
         </div>
@@ -252,6 +261,9 @@
         <button class="session-btn session-btn-pause" id="session-pause">
           <span class="session-btn-icon">&#x23F8;</span>
           <span class="session-btn-text">Pause</span>
+        </button>
+        <button class="session-btn session-btn-secondary" id="session-skip-note" title="Skip to next note" hidden>
+          <span class="session-btn-text">Skip Note</span>
         </button>
         <button class="session-btn session-btn-skip" id="session-skip">
           <span class="session-btn-icon">&#x23ED;</span>

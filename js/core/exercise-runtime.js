@@ -505,6 +505,23 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   unsubs.push(bus.on('pitch', onPitch));
   unsubs.push(bus.on('silence', onSilence));
 
+  // Per-note skip: external trigger to skip the current note
+  unsubs.push(bus.on('exercise:skip-note', () => {
+    if (state !== STATES.RUNNING || !hasNotes) return;
+    if (cursor >= notes.length) return;
+
+    // Mark the note as skipped in the evaluator (if supported)
+    evaluator?.markSkipped?.(cursor);
+
+    bus.emit('exercise:note-skipped', {
+      cursor,
+      noteCount: notes.length,
+      note: notes[cursor],
+    });
+
+    advanceNote();
+  }));
+
   // ---------------------------------------------------------------------------
   // Public interface
   // ---------------------------------------------------------------------------

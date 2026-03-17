@@ -78,6 +78,7 @@ export function createTargetAccuracyEvaluator(config = {}) {
 
   // --- Completed notes ---
   let completedNotes = [];
+  let skippedIndices = new Set();
   let currentTarget = null;
 
   // --- Helpers ---
@@ -228,13 +229,22 @@ export function createTargetAccuracyEvaluator(config = {}) {
     },
 
     /**
-     * Overall score: average of all completed note scores.
+     * Mark a note index as skipped. Skipped notes are excluded from scoring.
+     * @param {number} noteIndex
+     */
+    markSkipped(noteIndex) {
+      skippedIndices.add(noteIndex);
+    },
+
+    /**
+     * Overall score: average of all completed note scores (excluding skipped).
      * @returns {number} 0-100
      */
     getScore() {
-      if (completedNotes.length === 0) return 0;
-      const sum = completedNotes.reduce((acc, n) => acc + n.score, 0);
-      return Math.round(sum / completedNotes.length);
+      const scored = completedNotes.filter((_, i) => !skippedIndices.has(i));
+      if (scored.length === 0) return 0;
+      const sum = scored.reduce((acc, n) => acc + n.score, 0);
+      return Math.round(sum / scored.length);
     },
 
     /**
@@ -250,22 +260,27 @@ export function createTargetAccuracyEvaluator(config = {}) {
      * @returns {Object}
      */
     getMeasurements() {
-      const scores = completedNotes;
-      const notesHit = scores.filter(n => n.score > 0).length;
+      const scores = completedNotes.map((n, i) => ({
+        ...n,
+        skipped: skippedIndices.has(i),
+      }));
+      const played = scores.filter(n => !n.skipped);
+      const notesHit = played.filter(n => n.score > 0).length;
 
       return {
-        'cents-avg': scores.length > 0
-          ? Math.round(scores.reduce((s, n) => s + n.avgCents, 0) / scores.length)
+        'cents-avg': played.length > 0
+          ? Math.round(played.reduce((s, n) => s + n.avgCents, 0) / played.length)
           : 0,
-        'notes-hit-pct': scores.length > 0
-          ? Math.round((notesHit / scores.length) * 100)
+        'notes-hit-pct': played.length > 0
+          ? Math.round((notesHit / played.length) * 100)
           : 0,
-        'time-to-hit-ms': scores.length > 0
+        'notes-skipped': skippedIndices.size,
+        'time-to-hit-ms': played.length > 0
           ? Math.round(
-              scores
+              played
                 .filter(n => n.timeToHitMs >= 0)
                 .reduce((s, n) => s + n.timeToHitMs, 0)
-              / Math.max(1, scores.filter(n => n.timeToHitMs >= 0).length)
+              / Math.max(1, played.filter(n => n.timeToHitMs >= 0).length)
             )
           : 0,
         perNote: scores,
@@ -278,6 +293,7 @@ export function createTargetAccuracyEvaluator(config = {}) {
     reset() {
       resetCurrentNote();
       completedNotes = [];
+      skippedIndices = new Set();
       currentTarget = null;
     },
   };

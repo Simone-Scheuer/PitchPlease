@@ -25,6 +25,7 @@ class SessionView {
   #pauseBtn;
   #pauseIconEl;
   #pauseTextEl;
+  #skipNoteBtn;
   #skipBtn;
   #endBtn;
   #summaryEl;
@@ -54,6 +55,7 @@ class SessionView {
     this.#pauseBtn = qs('#session-pause');
     this.#pauseIconEl = this.#pauseBtn.querySelector('.session-btn-icon');
     this.#pauseTextEl = this.#pauseBtn.querySelector('.session-btn-text');
+    this.#skipNoteBtn = qs('#session-skip-note');
     this.#skipBtn = qs('#session-skip');
     this.#endBtn = qs('#session-end');
     this.#summaryEl = qs('.session-summary');
@@ -64,6 +66,7 @@ class SessionView {
     this.#tabBar = qs('.view-switcher');
 
     this.#pauseBtn.addEventListener('click', () => this.#togglePause());
+    this.#skipNoteBtn.addEventListener('click', () => this.#skipNote());
     this.#skipBtn.addEventListener('click', () => this.#skip());
     this.#endBtn.addEventListener('click', () => this.#end());
     this.#backBtn.addEventListener('click', () => this.#backToPractice());
@@ -109,6 +112,7 @@ class SessionView {
       bus.on('session:block-end', (data) => this.#onBlockEnd(data)),
       bus.on('session:transition', (data) => this.#onTransition(data)),
       bus.on('session:complete', (data) => this.#onComplete(data)),
+      bus.on('exercise:note-skipped', () => this.#flashSkipNote()),
     );
 
     // Create and start runner (wait one frame for canvas to get layout dimensions)
@@ -209,6 +213,10 @@ class SessionView {
       this.#labelEl.textContent = data.label ?? '';
     }
 
+    // Show skip-note button only for multi-note exercises
+    const hasNotes = (data.exercise?.context?.notes?.length ?? 0) > 1;
+    this.#skipNoteBtn.hidden = !hasNotes;
+
     // Fade out transition overlay
     this.#transitionEl.classList.remove('visible');
     // Hide after fade completes
@@ -216,6 +224,7 @@ class SessionView {
   }
 
   #onBlockEnd(data) {
+    this.#skipNoteBtn.hidden = true;
     this.#blockResults.push({
       blockIndex: data.blockIndex,
       label: data.label,
@@ -288,6 +297,17 @@ class SessionView {
       this.#pauseIconEl.innerHTML = '\u25B6';
       this.#pauseTextEl.textContent = 'Resume';
     }
+  }
+
+  #skipNote() {
+    bus.emit('exercise:skip-note');
+  }
+
+  #flashSkipNote() {
+    this.#skipNoteBtn.classList.add('skip-note-flash');
+    setTimeout(() => {
+      this.#skipNoteBtn.classList.remove('skip-note-flash');
+    }, 300);
   }
 
   #skip() {

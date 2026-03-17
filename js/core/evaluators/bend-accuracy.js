@@ -85,6 +85,7 @@ export function createBendAccuracyEvaluator(config = {}) {
 
   // --- Completed targets ---
   let completedTargets = [];
+  let skippedIndices = new Set();
   let currentTarget = null;
 
   // --- Helpers ---
@@ -258,7 +259,10 @@ export function createBendAccuracyEvaluator(config = {}) {
      * @returns {{ avgAccuracy: number, avgTimeToReach: number, avgHoldMs: number, targetsLocked: number, perNote: BendTargetResult[] }}
      */
     getMeasurements() {
-      const targets = [...completedTargets];
+      const targets = completedTargets.map((t, i) => ({
+        ...t,
+        skipped: skippedIndices.has(i),
+      }));
 
       // Include in-progress target
       if (currentTarget && totalFrames > 0) {
@@ -284,6 +288,7 @@ export function createBendAccuracyEvaluator(config = {}) {
           timeToReachMs,
           totalFrames,
           inTuneFrames,
+          skipped: false,
         });
       }
 
@@ -293,32 +298,48 @@ export function createBendAccuracyEvaluator(config = {}) {
           avgTimeToReach: 0,
           avgHoldMs: 0,
           targetsLocked: 0,
+          'notes-skipped': 0,
           perNote: [],
         };
       }
 
-      const avgAccuracy = Math.round(
-        targets.reduce((s, t) => s + t.avgCents, 0) / targets.length * 10
-      ) / 10;
+      const played = targets.filter(t => !t.skipped);
 
-      const reachedTargets = targets.filter(t => t.timeToReachMs >= 0);
+      const avgAccuracy = played.length > 0
+        ? Math.round(
+            played.reduce((s, t) => s + t.avgCents, 0) / played.length * 10
+          ) / 10
+        : 0;
+
+      const reachedTargets = played.filter(t => t.timeToReachMs >= 0);
       const avgTimeToReach = reachedTargets.length > 0
         ? Math.round(reachedTargets.reduce((s, t) => s + t.timeToReachMs, 0) / reachedTargets.length)
         : -1;
 
-      const avgHoldMs = Math.round(
-        targets.reduce((s, t) => s + t.holdMs, 0) / targets.length
-      );
+      const avgHoldMs = played.length > 0
+        ? Math.round(
+            played.reduce((s, t) => s + t.holdMs, 0) / played.length
+          )
+        : 0;
 
-      const targetsLocked = targets.filter(t => t.locked).length;
+      const targetsLocked = played.filter(t => t.locked).length;
 
       return {
         avgAccuracy,
         avgTimeToReach,
         avgHoldMs,
         targetsLocked,
+        'notes-skipped': skippedIndices.size,
         perNote: targets,
       };
+    },
+
+    /**
+     * Mark a note index as skipped. Skipped notes are excluded from scoring.
+     * @param {number} noteIndex
+     */
+    markSkipped(noteIndex) {
+      skippedIndices.add(noteIndex);
     },
 
     /**
@@ -330,10 +351,12 @@ export function createBendAccuracyEvaluator(config = {}) {
      */
     getScore() {
       const m = this.getMeasurements();
-      if (m.perNote.length === 0) return 0;
+      const played = m.perNote.filter(n => !n.skipped);
+      if (played.length === 0) return 0;
 
       // Lock percentage (0-1): how many targets did the player lock
-      const lockPct = m.targetsLocked / m.perNote.length;
+      const playedLocked = played.filter(n => n.locked).length;
+      const lockPct = playedLocked / played.length;
 
       // Accuracy score (0-1): lower cents = better, max 50 cents
       const accuracyRaw = Math.max(0, 1 - m.avgAccuracy / 50);
@@ -358,6 +381,7 @@ export function createBendAccuracyEvaluator(config = {}) {
     reset() {
       resetCurrentTarget();
       completedTargets = [];
+      skippedIndices = new Set();
       currentTarget = null;
     },
   };

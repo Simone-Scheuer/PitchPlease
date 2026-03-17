@@ -97,6 +97,7 @@ export function createStabilityEvaluator(config = {}) {
 
   // --- Completed notes ---
   let completedNotes = [];
+  let skippedIndices = new Set();
 
   // --- Session-wide stats ---
   let sessionMaxSteadyStreakMs = 0;
@@ -360,7 +361,10 @@ export function createStabilityEvaluator(config = {}) {
      */
     getMeasurements() {
       // Include current (unfinalized) note in aggregation
-      const allNotes = [...completedNotes];
+      const allNotes = completedNotes.map((n, i) => ({
+        ...n,
+        skipped: skippedIndices.has(i),
+      }));
 
       // If there is an in-progress note, include its stats too
       if (currentTarget && totalFrames > 0) {
@@ -385,6 +389,7 @@ export function createStabilityEvaluator(config = {}) {
             : 0,
           totalFrames,
           driftDirection: driftDirection(signedCentsSum, totalFrames),
+          skipped: false,
         });
       }
 
@@ -395,37 +400,39 @@ export function createStabilityEvaluator(config = {}) {
           timeLockedPct: 0,
           timeClosePct: 0,
           driftDirection: 'centered',
+          'notes-skipped': 0,
           perNote: [],
         };
       }
 
-      // Aggregate across all notes
-      const totalAllFrames = allNotes.reduce((s, n) => s + n.totalFrames, 0);
+      // Aggregate across played (non-skipped) notes
+      const played = allNotes.filter(n => !n.skipped);
+      const totalAllFrames = played.reduce((s, n) => s + n.totalFrames, 0);
       const weightedDeviation = totalAllFrames > 0
-        ? allNotes.reduce((s, n) => s + n.avgDeviation * n.totalFrames, 0) / totalAllFrames
+        ? played.reduce((s, n) => s + n.avgDeviation * n.totalFrames, 0) / totalAllFrames
         : 0;
 
       const weightedLockedPct = totalAllFrames > 0
-        ? allNotes.reduce((s, n) => s + n.timeLockedPct * n.totalFrames, 0) / totalAllFrames
+        ? played.reduce((s, n) => s + n.timeLockedPct * n.totalFrames, 0) / totalAllFrames
         : 0;
 
       const weightedClosePct = totalAllFrames > 0
-        ? allNotes.reduce((s, n) => s + n.timeClosePct * n.totalFrames, 0) / totalAllFrames
+        ? played.reduce((s, n) => s + n.timeClosePct * n.totalFrames, 0) / totalAllFrames
         : 0;
 
       // Session-wide max steady streak
       const overallMaxSteady = Math.max(
         sessionMaxSteadyStreakMs,
-        ...allNotes.map(n => n.maxSteadyMs),
+        ...played.map(n => n.maxSteadyMs),
       );
 
-      // Overall drift direction (aggregate signed cents)
-      const sharpCount = allNotes.filter(n => n.driftDirection === 'sharp').length;
-      const flatCount = allNotes.filter(n => n.driftDirection === 'flat').length;
+      // Overall drift direction (aggregate signed cents from played notes)
+      const sharpCount = played.filter(n => n.driftDirection === 'sharp').length;
+      const flatCount = played.filter(n => n.driftDirection === 'flat').length;
       let overallDrift = 'centered';
-      if (sharpCount > flatCount && sharpCount > allNotes.length * 0.4) {
+      if (sharpCount > flatCount && sharpCount > played.length * 0.4) {
         overallDrift = 'sharp';
-      } else if (flatCount > sharpCount && flatCount > allNotes.length * 0.4) {
+      } else if (flatCount > sharpCount && flatCount > played.length * 0.4) {
         overallDrift = 'flat';
       }
 
@@ -435,8 +442,17 @@ export function createStabilityEvaluator(config = {}) {
         timeLockedPct: Math.round(weightedLockedPct),
         timeClosePct: Math.round(weightedClosePct),
         driftDirection: overallDrift,
+        'notes-skipped': skippedIndices.size,
         perNote: allNotes,
       };
+    },
+
+    /**
+     * Mark a note index as skipped. Skipped notes are excluded from scoring.
+     * @param {number} noteIndex
+     */
+    markSkipped(noteIndex) {
+      skippedIndices.add(noteIndex);
     },
 
     /**
@@ -448,7 +464,8 @@ export function createStabilityEvaluator(config = {}) {
      */
     getScore() {
       const m = this.getMeasurements();
-      if (m.perNote.length === 0) return 0;
+      const played = m.perNote.filter(n => !n.skipped);
+      if (played.length === 0) return 0;
 
       // Primary score: percentage of time within the generous close threshold
       // This makes up 70% of the score
@@ -477,6 +494,7 @@ export function createStabilityEvaluator(config = {}) {
       resetCurrentNote();
 
       completedNotes = [];
+      skippedIndices = new Set();
       sessionMaxSteadyStreakMs = 0;
     },
   };
