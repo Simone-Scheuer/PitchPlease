@@ -21,6 +21,26 @@ class Mic {
     return this.#audioCtx;
   }
 
+  /**
+   * Ensure an AudioContext exists without requesting microphone access.
+   * Used for synth-only playback (e.g. tap-to-play note labels).
+   * If a context already exists (from mic.start()), this is a no-op.
+   */
+  async ensureAudioContext() {
+    if (this.#audioCtx) {
+      if (this.#audioCtx.state === 'suspended') {
+        await this.#audioCtx.resume();
+      }
+      return this.#audioCtx;
+    }
+
+    this.#audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.#audioCtx.state === 'suspended') {
+      await this.#audioCtx.resume();
+    }
+    return this.#audioCtx;
+  }
+
   async start() {
     this.#stream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -30,7 +50,10 @@ class Mic {
       },
     });
 
-    this.#audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Reuse existing AudioContext (e.g. from ensureAudioContext()) or create new
+    if (!this.#audioCtx) {
+      this.#audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
 
     // Resume context if suspended (iOS requirement)
     if (this.#audioCtx.state === 'suspended') {

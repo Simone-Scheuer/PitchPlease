@@ -1,6 +1,8 @@
 import { NOTE_NAMES } from '../utils/constants.js';
 import { getScaleNotes } from '../utils/scales.js';
 import { frequencyToMidi } from '../audio/note-math.js';
+import { mic } from '../audio/mic.js';
+import { playNote } from '../audio/synth.js';
 
 const LABEL_WIDTH = 52;
 const MIN_MIDI = 36;  // C2
@@ -46,6 +48,11 @@ export class PitchGraph {
   #scaleKey = null;
   #scaleNotes = null;
 
+  // Tap-to-play: stored label positions for hit detection
+  #labelHitTargets = [];  // Array of { midi, y, areaLeft, areaRight }
+  #tappedMidi = null;     // Currently highlighted (tapped) MIDI note
+  #tapFlashTimer = null;  // Timer to clear the tap highlight
+
   // Colors
   static #BG = '#0d0d0d';
   static #GRID_LINE = '#1f1f1f';
@@ -79,6 +86,58 @@ export class PitchGraph {
       this.#updateRange();
     };
     this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
+
+    // Tap-to-play: click on note labels to hear the note
+    this._clickHandler = (e) => this.#handleLabelClick(e);
+    this.#canvas.addEventListener('click', this._clickHandler);
+
+    // Cursor hint: pointer when hovering over label areas
+    this._mousemoveHandler = (e) => {
+      const rect = this.#canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const inLabelArea = x < LABEL_WIDTH || x > (this.#width - LABEL_WIDTH);
+      this.#canvas.style.cursor = inLabelArea ? 'pointer' : '';
+    };
+    this.#canvas.addEventListener('mousemove', this._mousemoveHandler);
+  }
+
+  async #handleLabelClick(e) {
+    const rect = this.#canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Check if click is in any label area
+    let closestTarget = null;
+    let closestDist = Infinity;
+
+    for (const target of this.#labelHitTargets) {
+      if (clickX < target.areaLeft || clickX > target.areaRight) continue;
+      const dist = Math.abs(clickY - target.y);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestTarget = target;
+      }
+    }
+
+    // Only trigger if click is reasonably close to a label (within half a semitone height)
+    const semitoneHeight = this.#height / this.#semitoneRange;
+    if (!closestTarget || closestDist > semitoneHeight * 0.6) return;
+
+    // Ensure AudioContext exists for synth playback
+    await mic.ensureAudioContext();
+
+    // Play the note
+    playNote(closestTarget.midi, 500, { voice: 'triangle', gain: 0.7 });
+
+    // Visual feedback: flash the tapped note label
+    if (this.#tapFlashTimer) clearTimeout(this.#tapFlashTimer);
+    this.#tappedMidi = closestTarget.midi;
+    if (!this.#active) this.drawStatic();
+    this.#tapFlashTimer = setTimeout(() => {
+      this.#tappedMidi = null;
+      if (!this.#active) this.drawStatic();
+      this.#tapFlashTimer = null;
+    }, 300);
   }
 
   #resize() {
@@ -248,6 +307,9 @@ export class PitchGraph {
     const graphW = graphRight - graphLeft;
     const playheadX = graphRight - 60;
 
+    // Clear hit targets before redrawing labels
+    this.#labelHitTargets = [];
+
     // Clipping region for graph area
     ctx.save();
     ctx.beginPath();
@@ -348,9 +410,21 @@ export class PitchGraph {
       const isC = noteIndex === 0;
       const isNatural = !noteName.includes('#');
       const isCurrent = currentMidi === midi;
+      const isTapped = this.#tappedMidi === midi;
 
       // Only label naturals + C octave markers to avoid clutter
       if (!isNatural && !isCurrent) continue;
+
+      // Store hit target for tap-to-play
+      this.#labelHitTargets.push({ midi, y, areaLeft, areaRight });
+
+      // Tap flash highlight
+      if (isTapped) {
+        const yTop = this.#midiToY(midi + 0.5);
+        const yBot = this.#midiToY(midi - 0.5);
+        ctx.fillStyle = 'rgba(78, 205, 196, 0.18)';
+        ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
+      }
 
       // Current note highlight
       if (isCurrent) {
@@ -362,10 +436,12 @@ export class PitchGraph {
 
       // Label text
       const label = isC ? `${noteName}${octave}` : noteName;
-      ctx.fillStyle = isCurrent ? PitchGraph.#LABEL_TEXT_ACTIVE
+      ctx.fillStyle = isTapped ? '#4ecdc4'
+        : isCurrent ? PitchGraph.#LABEL_TEXT_ACTIVE
         : isC ? '#999'
         : PitchGraph.#LABEL_TEXT;
-      ctx.font = isCurrent ? 'bold 12px system-ui, sans-serif'
+      ctx.font = isTapped ? 'bold 12px system-ui, sans-serif'
+        : isCurrent ? 'bold 12px system-ui, sans-serif'
         : isC ? 'bold 11px system-ui, sans-serif'
         : '11px system-ui, sans-serif';
 
@@ -452,8 +528,14 @@ export class PitchGraph {
 
   destroy() {
     this.stop();
+    if (this.#tapFlashTimer) {
+      clearTimeout(this.#tapFlashTimer);
+      this.#tapFlashTimer = null;
+    }
     window.removeEventListener('resize', this._resizeHandler);
     this.#canvas.removeEventListener('wheel', this._wheelHandler);
+    this.#canvas.removeEventListener('click', this._clickHandler);
+    this.#canvas.removeEventListener('mousemove', this._mousemoveHandler);
     this.#canvas = null;
     this.#ctx = null;
     this.#buffer = null;
