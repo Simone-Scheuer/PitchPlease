@@ -7,7 +7,7 @@
  * Pure data module — no DOM, no audio, no event bus.
  */
 
-import { createSequenceExercise, createEchoExercise, applyDefaults } from './exercise-schema.js';
+import { createSequenceExercise, createEchoExercise, applyDefaults, buildScaleMidiNotes, applyNotePattern, midiToNoteSpec } from './exercise-schema.js';
 import { getBendTargets, getHoleLayout } from '../utils/harmonica.js';
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ import { getBendTargets, getHoleLayout } from '../utils/harmonica.js';
 // ---------------------------------------------------------------------------
 
 export function buildSustainedExercise(name, root, scale, opts = {}) {
-  const exercise = applyDefaults({
+  const config = {
     id: `sustained-${name}-${root}-${scale}`,
     type: 'sustained',
     name: opts.label ?? name,
@@ -54,11 +54,28 @@ export function buildSustainedExercise(name, root, scale, opts = {}) {
     loop: false,
     measures: ['cents-avg', 'hold-steady-ms', 'steady-streak-ms'],
     skills: ['pitchStability', 'pitchAccuracy'],
-  });
+  };
 
-  // Add drone audio if requested
-  if (opts.drone) {
-    exercise.audio = {
+  // Pattern support: build note sequence for scale walking
+  if (opts.pattern && opts.pattern !== 'none') {
+    const midiNotes = buildScaleMidiNotes(root, scale, opts.octaveRange?.[0] ?? 4, opts.octaveRange?.[1] ?? 5);
+    const ordered = applyNotePattern(midiNotes, opts.pattern);
+    config.context.notes = ordered.map(midi => midiToNoteSpec(midi));
+    config.timing = { mode: 'player-driven', holdToAdvance: true, holdMs: opts.holdMs ?? 600 };
+  }
+
+  // Drone support — accepts string ('follow', 'root', 'off') or legacy object
+  if (typeof opts.drone === 'string') {
+    if (opts.drone === 'follow') {
+      // Drone follows notes — runtime reads from context.notes, no fixed note/octave
+      config.audio = { drone: { voice: opts.droneVoice ?? 'triangle', gain: opts.droneGain ?? 0.6 } };
+    } else if (opts.drone === 'root') {
+      config.audio = { drone: { note: root, octave: opts.octaveRange?.[0] ?? 3, voice: opts.droneVoice ?? 'triangle', gain: opts.droneGain ?? 0.7 } };
+    }
+    // drone === 'off' or other — no drone
+  } else if (opts.drone && typeof opts.drone === 'object') {
+    // Legacy object form: { voice, gain }
+    config.audio = {
       drone: {
         note: root,
         octave: opts.octaveRange?.[0] ?? 3,
@@ -68,7 +85,13 @@ export function buildSustainedExercise(name, root, scale, opts = {}) {
     };
   }
 
-  return exercise;
+  // Loop support
+  if (opts.loop === true) {
+    config.loop = true;
+    config.loopGapMs = opts.loopGapMs ?? 1500;
+  }
+
+  return applyDefaults(config);
 }
 
 export function buildReactiveExercise(name, root, scale, opts = {}) {
@@ -95,7 +118,7 @@ export function buildReactiveExercise(name, root, scale, opts = {}) {
     },
     evaluator: 'target-accuracy',
     renderer: 'flash-card',
-    timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 300 },
+    timing: { mode: 'player-driven', holdToAdvance: true, holdMs: opts.holdMs ?? 300 },
     loop: true,
     measures: ['reaction-ms', 'cents-avg', 'notes-hit-pct'],
     skills: ['reactionSpeed', 'scaleFluency'],

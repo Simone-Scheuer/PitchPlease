@@ -4,7 +4,7 @@ import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate, buildSustainedExercise, buildReactiveExercise, buildFreePlayExercise } from '../core/session-templates.js';
 import { createSequenceExercise, createEchoExercise, applyDefaults } from '../core/exercise-schema.js';
-import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey, getHoldDuration, setHoldDuration } from '../profile/profile.js';
+import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey, getHoldDuration, setHoldDuration, getExerciseOptions, setExerciseOptions } from '../profile/profile.js';
 import { HARMONICA_KEYS, getBendTargets } from '../utils/harmonica.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
 import { getHistory } from '../profile/history.js';
@@ -22,6 +22,26 @@ const STANDALONE_EXERCISES = [
   { id: 'bend-trainer', label: 'Bend Trainer',   desc: 'Practice harmonica bends',  builder: 'bend' },
   { id: 'pitch-trace',  label: 'Pitch Trace',    desc: 'Follow a pitch shape',      builder: 'trace' },
 ];
+
+/** Which options each exercise type exposes in its options panel. */
+const EXERCISE_OPTIONS_CONFIG = {
+  'long-tone':    [{ key: 'drone', label: 'Drone', choices: [['off','Off'], ['root','Root Note']] }],
+  'drone-match':  [
+    { key: 'pattern', label: 'Pattern', choices: [['ascending','Ascending'], ['descending','Descending'], ['up-and-back','Up & Back']] },
+    { key: 'drone', label: 'Drone', choices: [['follow','Follow Notes'], ['root','Root Only']] },
+    { key: 'loop', label: 'Loop', choices: [['true','On'], ['false','Off']] },
+  ],
+  'scale-runner': [
+    { key: 'pattern', label: 'Pattern', choices: [['ascending','Ascending'], ['descending','Descending'], ['up-and-back','Up & Back'], ['random','Random']] },
+    { key: 'drone', label: 'Drone', choices: [['off','Off'], ['root','Root'], ['follow','Follow Notes']] },
+    { key: 'loop', label: 'Loop', choices: [['true','On'], ['false','Off']] },
+  ],
+  'random-note':  [{ key: 'drone', label: 'Drone', choices: [['off','Off'], ['root','Root Note']] }],
+  'echo-mode':    [{ key: 'difficulty', label: 'Difficulty', choices: [['easy','Easy'], ['medium','Medium'], ['hard','Hard']] }],
+  'free-play':    [],
+  'bend-trainer': [{ key: 'drone', label: 'Drone', choices: [['off','Off'], ['root','Root Note']] }],
+  'pitch-trace':  [{ key: 'traceShape', label: 'Shape', choices: [['wave','Wave'], ['zigzag','Zigzag']] }],
+};
 
 const DEFAULTS = {
   root: 'C',
@@ -55,6 +75,8 @@ class PracticeView {
   #harpKeySelect;
   #holdDurationSelect;
   #exercisesEl;
+  #activeExerciseCard = null;
+  #activeOptionsPanel = null;
   #goBtn;
   #settings;
   #cachedSession = null;
@@ -440,7 +462,8 @@ class PracticeView {
     for (const ex of STANDALONE_EXERCISES) {
       const card = document.createElement('button');
       card.className = 'practice-exercise-card';
-      card.addEventListener('click', () => this.#startExercise(ex));
+      card.dataset.exerciseId = ex.id;
+      card.addEventListener('click', () => this.#toggleOptionsPanel(ex, card));
 
       const label = document.createElement('span');
       label.className = 'practice-exercise-label';
@@ -456,17 +479,113 @@ class PracticeView {
     }
   }
 
-  #startExercise(exerciseDef) {
+  #toggleOptionsPanel(exerciseDef, card) {
+    // Close existing panel if same card
+    if (this.#activeExerciseCard === card) {
+      this.#closeOptionsPanel();
+      return;
+    }
+    this.#closeOptionsPanel();
+
+    const optionsDef = EXERCISE_OPTIONS_CONFIG[exerciseDef.id] || [];
+    const saved = getExerciseOptions(exerciseDef.id);
+
+    // Mark card active
+    card.classList.add('active');
+    this.#activeExerciseCard = card;
+
+    // Build panel
+    const panel = document.createElement('div');
+    panel.className = 'exercise-options-panel open';
+
+    const grid = document.createElement('div');
+    grid.className = 'exercise-options-grid';
+
+    // Render option selects
+    for (const opt of optionsDef) {
+      const row = document.createElement('div');
+      row.className = 'exercise-option-row';
+
+      const lbl = document.createElement('label');
+      lbl.className = 'exercise-option-label';
+      lbl.textContent = opt.label;
+
+      const sel = document.createElement('select');
+      sel.className = 'exercise-option-select';
+      sel.dataset.optionKey = opt.key;
+
+      for (const [value, text] of opt.choices) {
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = text;
+        sel.appendChild(o);
+      }
+
+      // Apply saved value
+      const savedVal = saved[opt.key];
+      if (savedVal != null) sel.value = String(savedVal);
+
+      row.appendChild(lbl);
+      row.appendChild(sel);
+      grid.appendChild(row);
+    }
+
+    // Start button
+    const startBtn = document.createElement('button');
+    startBtn.className = 'exercise-start-btn';
+    startBtn.textContent = optionsDef.length > 0 ? 'Start' : `Start ${exerciseDef.label}`;
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.#launchExercise(exerciseDef, panel);
+    });
+
+    grid.appendChild(startBtn);
+    panel.appendChild(grid);
+
+    // Insert panel after the card in the grid
+    card.after(panel);
+    this.#activeOptionsPanel = panel;
+  }
+
+  #closeOptionsPanel() {
+    if (this.#activeOptionsPanel) {
+      this.#activeOptionsPanel.remove();
+      this.#activeOptionsPanel = null;
+    }
+    if (this.#activeExerciseCard) {
+      this.#activeExerciseCard.classList.remove('active');
+      this.#activeExerciseCard = null;
+    }
+  }
+
+  #launchExercise(exerciseDef, panel) {
     this.#saveSettings();
+
+    // Read options from panel selects
+    const opts = {};
+    for (const sel of panel.querySelectorAll('.exercise-option-select')) {
+      const key = sel.dataset.optionKey;
+      let val = sel.value;
+      // Coerce booleans
+      if (val === 'true') val = true;
+      else if (val === 'false') val = false;
+      opts[key] = val;
+    }
+
+    // Save to profile
+    setExerciseOptions(exerciseDef.id, opts);
+
     const { root, scale, octaveLow, octaveHigh } = this.#settings;
     const harpKey = getHarmonicaKey();
     const oRange = [octaveLow, octaveHigh];
 
     const exerciseConfig = this.#buildStandaloneExercise(
-      exerciseDef.id, root, scale, octaveLow, octaveHigh, harpKey, oRange,
+      exerciseDef.id, root, scale, octaveLow, octaveHigh, harpKey, oRange, opts,
     );
 
     if (!exerciseConfig) return;
+
+    this.#closeOptionsPanel();
 
     const sessionConfig = {
       id: `standalone-${exerciseDef.id}`,
@@ -485,31 +604,38 @@ class PracticeView {
     bus.emit('session:activate', { config: sessionConfig });
   }
 
-  #buildStandaloneExercise(id, root, scale, octaveLow, octaveHigh, harpKey, oRange) {
+  #buildStandaloneExercise(id, root, scale, octaveLow, octaveHigh, harpKey, oRange, opts = {}) {
+    const holdMs = getHoldDuration();
+
     switch (id) {
       case 'long-tone':
         return buildSustainedExercise('long-tone', root, scale, {
           label: 'Long Tone',
           description: 'Hold a comfortable note, focus on stability',
           octaveRange: oRange,
+          drone: opts.drone || 'off',
         });
 
       case 'drone-match':
         return buildSustainedExercise('drone-match', root, scale, {
           label: 'Drone Match',
-          description: `Match the ${root} drone tone`,
+          description: `Match the ${root} drone — ${opts.pattern || 'ascending'} scale`,
           octaveRange: oRange,
-          drone: { voice: 'triangle', gain: 0.7 },
+          drone: opts.drone || 'follow',
+          pattern: opts.pattern || 'ascending',
+          loop: opts.loop !== false,
+          holdMs,
         });
 
       case 'scale-runner':
         return createSequenceExercise({
           root,
           scale,
-          pattern: 'ascending',
+          pattern: opts.pattern || 'ascending',
           octaveLow,
           octaveHigh,
-          timing: { mode: 'player-driven', holdToAdvance: true, holdMs: getHoldDuration() },
+          drone: opts.drone || 'off',
+          timing: { mode: 'player-driven', holdToAdvance: true, holdMs },
         });
 
       case 'random-note':
@@ -517,13 +643,15 @@ class PracticeView {
           label: 'Random Note',
           description: `Find random notes from ${root} ${scale}`,
           octaveRange: oRange,
+          holdMs,
+          drone: opts.drone || 'off',
         });
 
       case 'echo-mode':
         return createEchoExercise({
           root,
           scale,
-          difficulty: 'easy',
+          difficulty: opts.difficulty || 'easy',
           phraseCount: 5,
           octaveLow,
           octaveHigh,
@@ -547,6 +675,10 @@ class PracticeView {
 
         if (bendNotes.length === 0) return null;
 
+        const bendDrone = opts.drone === 'root'
+          ? { note: root, octave: oRange[0], voice: 'triangle', gain: 0.6 }
+          : undefined;
+
         return applyDefaults({
           id: `bend-standalone-${harpKey}`,
           type: 'sustained',
@@ -562,6 +694,7 @@ class PracticeView {
           evaluator: 'bend-accuracy',
           renderer: 'bend-meter',
           timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 2000 },
+          audio: bendDrone ? { drone: bendDrone } : undefined,
           loop: true,
           measures: ['cents-avg', 'hold-steady-ms'],
           skills: ['pitchAccuracy', 'pitchStability'],
@@ -578,7 +711,7 @@ class PracticeView {
             scale,
             root,
             octaveRange: oRange,
-            traceShape: 'wave',
+            traceShape: opts.traceShape || 'wave',
           },
           evaluator: 'stability',
           renderer: 'pitch-trace',

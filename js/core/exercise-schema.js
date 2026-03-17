@@ -165,7 +165,7 @@ export const EXERCISE_DEFAULTS = Object.freeze({
   timing: Object.freeze({
     mode: 'player-driven',
     holdToAdvance: true,
-    holdMs: 300,
+    holdMs: 600,
   }),
   audio: Object.freeze({
     drone: null,
@@ -174,7 +174,7 @@ export const EXERCISE_DEFAULTS = Object.freeze({
   }),
   duration: null,
   loop: true,
-  loopGapMs: 3000,
+  loopGapMs: 1500,
   measures: [],
   skills: [],
 });
@@ -190,7 +190,7 @@ export const EXERCISE_DEFAULTS = Object.freeze({
  * @param {number} [opts.durationMs]
  * @returns {NoteSpec}
  */
-function midiToNoteSpec(midi, opts = {}) {
+export function midiToNoteSpec(midi, opts = {}) {
   const noteIndex = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
   const note = formatNote(NOTE_NAMES[noteIndex], octave);
@@ -208,7 +208,7 @@ function midiToNoteSpec(midi, opts = {}) {
  * @param {number} octaveHigh
  * @returns {number[]}
  */
-function buildScaleMidiNotes(root, scaleKey, octaveLow, octaveHigh) {
+export function buildScaleMidiNotes(root, scaleKey, octaveLow, octaveHigh) {
   const rootIndex = ROOT_NAMES.indexOf(root);
   if (rootIndex === -1) return [];
   const intervals = SCALE_INTERVALS[scaleKey];
@@ -236,7 +236,7 @@ function buildScaleMidiNotes(root, scaleKey, octaveLow, octaveHigh) {
  * @param {string} pattern - One of NOTE_PATTERNS
  * @returns {number[]}
  */
-function applyNotePattern(midiNotes, pattern) {
+export function applyNotePattern(midiNotes, pattern) {
   switch (pattern) {
     case 'descending':
       return [...midiNotes].reverse();
@@ -514,6 +514,7 @@ export function createSequenceExercise({
   pattern = 'ascending',
   timing,
   audio,
+  drone,
   loopGapMs,
   loop,
   evaluator = 'target-accuracy',
@@ -556,6 +557,16 @@ export function createSequenceExercise({
   if (audio) config.audio = audio;
   if (loopGapMs != null) config.loopGapMs = loopGapMs;
   if (loop != null) config.loop = loop;
+
+  // Drone support (only if no explicit audio override was given)
+  if (drone && !audio) {
+    if (drone === 'follow') {
+      // Drone follows notes — runtime reads from context.notes, no fixed note/octave
+      config.audio = { drone: { voice: 'triangle', gain: 0.6 } };
+    } else if (drone === 'root') {
+      config.audio = { drone: { note: root, octave: octaveLow, voice: 'triangle', gain: 0.7 } };
+    }
+  }
 
   return applyDefaults(config);
 }

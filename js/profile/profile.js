@@ -28,6 +28,16 @@ const DEFAULT_PROFILE = Object.freeze({
     favoriteScales: ['major', 'pentatonic_minor', 'blues'],
     octaveRange: [3, 5],         // user's comfortable range
     harmonicaKey: 'C',           // diatonic harp key
+    holdDuration: 600,           // ms to hold a note before advancing
+    exerciseOptions: Object.freeze({
+      'scale-runner': Object.freeze({ pattern: 'ascending', drone: 'off', loop: true }),
+      'drone-match':  Object.freeze({ pattern: 'ascending', drone: 'follow', loop: true }),
+      'long-tone':    Object.freeze({ drone: 'off' }),
+      'random-note':  Object.freeze({ drone: 'off' }),
+      'bend-trainer': Object.freeze({ drone: 'off' }),
+      'echo-mode':    Object.freeze({ difficulty: 'easy' }),
+      'pitch-trace':  Object.freeze({ traceShape: 'wave' }),
+    }),
   }),
   createdAt: null,
   updatedAt: null,
@@ -62,6 +72,9 @@ function buildProfile(overrides = {}) {
     }
     if (overrides.preferences.favoriteScales) {
       prefs.favoriteScales = [...overrides.preferences.favoriteScales];
+    }
+    if (overrides.preferences.exerciseOptions) {
+      prefs.exerciseOptions = { ...base.preferences.exerciseOptions, ...overrides.preferences.exerciseOptions };
     }
     base.preferences = prefs;
   }
@@ -139,6 +152,16 @@ export function updateProfile(updates) {
       if (value.favoriteScales) {
         profile.preferences.favoriteScales = [...value.favoriteScales];
       }
+      // Deep-merge exerciseOptions (per-exercise key merge)
+      if (value.exerciseOptions) {
+        const existing = profile.preferences.exerciseOptions ?? {};
+        const incoming = value.exerciseOptions;
+        const merged = { ...existing };
+        for (const [exId, opts] of Object.entries(incoming)) {
+          merged[exId] = { ...(existing[exId] ?? {}), ...opts };
+        }
+        profile.preferences.exerciseOptions = merged;
+      }
     } else if (key === 'instruments' && Array.isArray(value)) {
       profile.instruments = [...value];
     } else {
@@ -198,4 +221,46 @@ export function getHarmonicaKey() {
  */
 export function setHarmonicaKey(key) {
   updateProfile({ preferences: { harmonicaKey: key } });
+}
+
+/**
+ * Get exercise-specific options, merging saved values over defaults.
+ * @param {string} exerciseId - Exercise identifier (e.g. 'scale-runner', 'drone-match')
+ * @returns {Object} Merged options
+ */
+export function getExerciseOptions(exerciseId) {
+  const profile = getProfile();
+  const defaults = DEFAULT_PROFILE.preferences.exerciseOptions[exerciseId] || {};
+  const saved = profile?.preferences?.exerciseOptions?.[exerciseId] || {};
+  return { ...defaults, ...saved };
+}
+
+/**
+ * Set exercise-specific options (shallow-merged into existing options for that exercise).
+ * @param {string} exerciseId - Exercise identifier
+ * @param {Object} options - Options to merge
+ */
+export function setExerciseOptions(exerciseId, options) {
+  const profile = getProfile();
+  const current = profile?.preferences?.exerciseOptions || {};
+  updateProfile({
+    preferences: {
+      ...profile.preferences,
+      exerciseOptions: {
+        ...current,
+        [exerciseId]: { ...current[exerciseId], ...options },
+      },
+    },
+  });
+}
+
+/** @returns {number} Hold duration in ms */
+export function getHoldDuration() {
+  const profile = getProfile();
+  return profile?.preferences?.holdDuration ?? 600;
+}
+
+/** @param {number} ms - Hold duration in ms */
+export function setHoldDuration(ms) {
+  updateProfile({ preferences: { holdDuration: ms } });
 }

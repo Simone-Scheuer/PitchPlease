@@ -403,6 +403,119 @@
   color: var(--color-text-muted);
 }
 
+/* Active card state — when options panel is open */
+.practice-exercise-card.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-dim);
+}
+
+/* -------------------------------------------------------------------
+   Exercise Options Panel (expands below card)
+   ------------------------------------------------------------------- */
+
+.exercise-options-panel {
+  display: none;
+  grid-column: 1 / -1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-top: calc(-1 * var(--space-xs));
+  animation: optionsPanelOpen 0.15s ease-out;
+}
+
+.exercise-options-panel.open {
+  display: block;
+}
+
+@keyframes optionsPanelOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Options grid — 2 columns of option rows */
+.exercise-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+/* Single option row: label + select */
+.exercise-option-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exercise-option-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  color: var(--color-text);
+}
+
+.exercise-option-select {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  padding: var(--space-sm);
+  min-height: 36px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-sm) center;
+  padding-right: var(--space-xl);
+}
+
+.exercise-option-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* Start button inside options panel */
+.exercise-start-btn {
+  grid-column: 1 / -1;
+  margin-top: var(--space-sm);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  transition: opacity var(--transition-base);
+}
+
+.exercise-start-btn:hover {
+  opacity: 0.9;
+}
+
+.exercise-start-btn:active {
+  opacity: 0.8;
+}
+
+/* Stack options on very narrow screens */
+@media (max-width: 360px) {
+  .exercise-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-options-panel {
+    animation: none;
+  }
+}
+
 /* -------------------------------------------------------------------
    Quick Start
    ------------------------------------------------------------------- */
