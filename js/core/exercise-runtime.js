@@ -301,6 +301,15 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     // Keep renderer alive across loops — just signal restart
     renderer?.onLoopRestart?.();
 
+    // Restart drone on first note if following notes
+    if (droneHandle && config.audio?.drone && hasNotes && notes[0]?.midi != null) {
+      droneHandle.stop();
+      droneHandle = startSynthDrone(notes[0].midi, {
+        voice: config.audio.drone.voice ?? 'triangle',
+        gain: config.audio.drone.gain ?? 0.6,
+      });
+    }
+
     state = STATES.RUNNING;
     startTime = performance.now();
     totalPausedMs = 0;

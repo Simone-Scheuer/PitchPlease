@@ -255,8 +255,11 @@ export function createSessionRunner(sessionConfig) {
    */
   function onExerciseComplete(data) {
     // Only act if we are in the running state for this block
-
     if (state !== STATES.RUNNING) return;
+
+    // If the exercise is looping, don't end the block — let it continue
+    if (data?.willLoop) return;
+
     endCurrentBlock();
   }
 
