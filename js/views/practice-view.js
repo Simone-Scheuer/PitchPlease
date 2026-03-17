@@ -5,8 +5,10 @@ import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate } from '../core/session-templates.js';
 import { createSequenceExercise } from '../core/exercise-schema.js';
 import { ensureProfile, getOctaveRange, setOctaveRange } from '../profile/profile.js';
+import { generateSession, summarizeSession } from '../generation/session-generator.js';
 
 const QUICK_START_KEY = 'quick-start';
+const TODAY_SESSION_KEY = 'today-session';
 
 const DEFAULTS = {
   root: 'C',
@@ -15,10 +17,21 @@ const DEFAULTS = {
   octaveHigh: 5,
 };
 
+/**
+ * Get today's date as a string for cache key.
+ * @returns {string} e.g. "2026-03-17"
+ */
+function todayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 class PracticeView {
   #viewEl;
   #todayBtn;
   #todaySubEl;
+  #todayExercisesEl;
+  #shuffleBtn;
   #templatesEl;
   #rootSelect;
   #scaleSelect;
@@ -26,11 +39,14 @@ class PracticeView {
   #octaveHighSelect;
   #goBtn;
   #settings;
+  #cachedSession = null;
 
   init() {
     this.#viewEl = qs('#practice-view');
     this.#todayBtn = qs('#practice-start-today');
     this.#todaySubEl = qs('.practice-today-sub');
+    this.#todayExercisesEl = qs('.practice-today-exercises');
+    this.#shuffleBtn = qs('#practice-shuffle');
     this.#templatesEl = qs('#practice-templates');
     this.#rootSelect = qs('#practice-root');
     this.#scaleSelect = qs('#practice-scale');
@@ -55,6 +71,9 @@ class PracticeView {
     this.#applySettings();
     this.#renderTemplates();
 
+    // Load or generate today's session
+    this.#loadTodaySession();
+
     // Wire event listeners
     this.#rootSelect.addEventListener('change', () => this.#saveSettings());
     this.#scaleSelect.addEventListener('change', () => this.#saveSettings());
@@ -62,16 +81,155 @@ class PracticeView {
     this.#octaveHighSelect.addEventListener('change', () => this.#saveSettings());
     this.#todayBtn.addEventListener('click', () => this.#startToday());
     this.#goBtn.addEventListener('click', () => this.#startQuick());
+
+    if (this.#shuffleBtn) {
+      this.#shuffleBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // prevent today button click
+        this.#shuffleTodaySession();
+      });
+    }
   }
 
   activate() {
     this.#viewEl.hidden = false;
     this.#viewEl.classList.add('active');
+    // Refresh today's session preview on re-activation (in case history changed)
+    this.#loadTodaySession();
   }
 
   deactivate() {
     this.#viewEl.classList.remove('active');
     this.#viewEl.hidden = true;
+  }
+
+  // -------------------------------------------------------------------------
+  // Today's Session — generation, caching, preview
+  // -------------------------------------------------------------------------
+
+  /**
+   * Load today's cached session, or generate a new one.
+   */
+  #loadTodaySession() {
+    const dateStr = todayDateStr();
+    const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
+
+    // Try sessionStorage first (per-tab, survives reloads within the day)
+    const cached = this.#getSessionCache(cacheKey);
+    if (cached) {
+      this.#cachedSession = cached;
+      this.#updateTodayPreview();
+      return;
+    }
+
+    // Generate fresh session
+    this.#generateAndCacheSession(cacheKey);
+  }
+
+  /**
+   * Generate a new session and cache it.
+   * @param {string} cacheKey
+   */
+  #generateAndCacheSession(cacheKey) {
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+
+    const session = generateSession({
+      root,
+      scale,
+      octaveLow,
+      octaveHigh,
+    });
+
+    this.#cachedSession = session;
+    this.#setSessionCache(cacheKey, session);
+    this.#updateTodayPreview();
+  }
+
+  /**
+   * Shuffle: regenerate today's session (explicit user action).
+   */
+  #shuffleTodaySession() {
+    const dateStr = todayDateStr();
+    const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
+
+    // Clear cache and regenerate
+    this.#clearSessionCache(cacheKey);
+
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+    const session = generateSession({
+      root,
+      scale,
+      octaveLow,
+      octaveHigh,
+    });
+
+    this.#cachedSession = session;
+    this.#setSessionCache(cacheKey, session);
+    this.#updateTodayPreview();
+
+    // Brief visual feedback on the shuffle button
+    if (this.#shuffleBtn) {
+      this.#shuffleBtn.classList.add('practice-shuffle-spin');
+      setTimeout(() => {
+        this.#shuffleBtn.classList.remove('practice-shuffle-spin');
+      }, 400);
+    }
+  }
+
+  /**
+   * Update the Today's Practice card with session preview info.
+   */
+  #updateTodayPreview() {
+    if (!this.#cachedSession) {
+      this.#todaySubEl.textContent = 'Tap to generate';
+      if (this.#todayExercisesEl) {
+        this.#todayExercisesEl.innerHTML = '';
+      }
+      return;
+    }
+
+    const summary = summarizeSession(this.#cachedSession);
+    this.#todaySubEl.textContent = `${summary.name} \u00B7 ${summary.duration}`;
+
+    // Render exercise list preview
+    if (this.#todayExercisesEl) {
+      this.#todayExercisesEl.innerHTML = '';
+      for (const exerciseName of summary.exercises) {
+        const item = document.createElement('span');
+        item.className = 'practice-today-exercise-item';
+        item.textContent = exerciseName;
+        this.#todayExercisesEl.appendChild(item);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Session cache helpers (sessionStorage)
+  // -------------------------------------------------------------------------
+
+  #getSessionCache(key) {
+    try {
+      const raw = sessionStorage.getItem(`pp:${key}`);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  #setSessionCache(key, session) {
+    try {
+      sessionStorage.setItem(`pp:${key}`, JSON.stringify(session));
+    } catch {
+      // sessionStorage full or unavailable — ignore
+    }
+  }
+
+  #clearSessionCache(key) {
+    try {
+      sessionStorage.removeItem(`pp:${key}`);
+    } catch {
+      // ignore
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -115,13 +273,6 @@ class PracticeView {
     this.#scaleSelect.value = this.#settings.scale;
     this.#octaveLowSelect.value = this.#settings.octaveLow ?? DEFAULTS.octaveLow;
     this.#octaveHighSelect.value = this.#settings.octaveHigh ?? DEFAULTS.octaveHigh;
-    this.#updateTodaySubtitle();
-  }
-
-  #updateTodaySubtitle() {
-    const { root, scale } = this.#settings;
-    const scaleLabel = SCALE_LABELS[scale] ?? scale;
-    this.#todaySubEl.textContent = `Morning Practice \u00B7 ${root} ${scaleLabel} \u00B7 15 min`;
   }
 
   #saveSettings() {
@@ -138,10 +289,16 @@ class PracticeView {
       octaveHigh,
     };
     store.set(QUICK_START_KEY, this.#settings);
-    this.#updateTodaySubtitle();
 
     // Sync octave range to profile
     setOctaveRange(octaveLow, octaveHigh);
+
+    // Invalidate today's cached session when settings change —
+    // regenerate on next activation
+    const dateStr = todayDateStr();
+    const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
+    this.#clearSessionCache(cacheKey);
+    this.#generateAndCacheSession(cacheKey);
   }
 
   // -------------------------------------------------------------------------
@@ -195,11 +352,18 @@ class PracticeView {
 
   #startToday() {
     this.#saveSettings();
-    const { root, scale, octaveLow, octaveHigh } = this.#settings;
-    const config = getTemplate('morning-practice', root, scale, octaveLow, octaveHigh);
-    if (config) {
-      bus.emit('session:activate', { config });
+
+    // Use cached generated session
+    if (this.#cachedSession) {
+      bus.emit('session:activate', { config: this.#cachedSession });
+      return;
     }
+
+    // Fallback: generate now
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+    const config = generateSession({ root, scale, octaveLow, octaveHigh });
+    this.#cachedSession = config;
+    bus.emit('session:activate', { config });
   }
 
   #startTemplate(templateId) {

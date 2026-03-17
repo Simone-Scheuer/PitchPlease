@@ -36,15 +36,21 @@
 }
 
 /* -------------------------------------------------------------------
-   Today's Practice — hero button
+   Today's Practice — hero button with shuffle
    ------------------------------------------------------------------- */
+
+.practice-today-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-xs);
+}
 
 .practice-today-btn {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-xs);
-  width: 100%;
+  flex: 1;
   min-height: 80px;
   padding: var(--space-lg);
   background: linear-gradient(
@@ -53,7 +59,7 @@
     rgba(78, 205, 196, 0.04) 100%
   );
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
   cursor: pointer;
   transition: background var(--transition-base), border-color var(--transition-base);
   text-align: left;
@@ -83,6 +89,76 @@
 .practice-today-sub {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
+}
+
+/* Exercise list preview inside Today card */
+.practice-today-exercises {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.practice-today-exercises:empty {
+  display: none;
+}
+
+.practice-today-exercise-item {
+  font-size: var(--font-size-xs);
+  padding: 1px var(--space-sm);
+  background: rgba(78, 205, 196, 0.08);
+  color: var(--color-accent);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  white-space: nowrap;
+}
+
+/* Shuffle button */
+.practice-shuffle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  min-height: 80px;
+  padding: var(--space-sm);
+  background: linear-gradient(
+    135deg,
+    rgba(78, 205, 196, 0.08) 0%,
+    rgba(78, 205, 196, 0.02) 100%
+  );
+  border: 1px solid var(--color-accent);
+  border-left: none;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  cursor: pointer;
+  color: var(--color-accent);
+  transition: background var(--transition-base), color var(--transition-base);
+  font-family: var(--font-family);
+}
+
+.practice-shuffle-btn:hover,
+.practice-shuffle-btn:focus-visible {
+  background: linear-gradient(
+    135deg,
+    rgba(78, 205, 196, 0.18) 0%,
+    rgba(78, 205, 196, 0.06) 100%
+  );
+}
+
+.practice-shuffle-btn:active {
+  transform: scale(0.95);
+}
+
+.practice-shuffle-btn svg {
+  transition: transform var(--transition-base);
+}
+
+.practice-shuffle-spin svg {
+  animation: shuffle-spin 0.4s ease-out;
+}
+
+@keyframes shuffle-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(180deg); }
 }
 
 /* -------------------------------------------------------------------

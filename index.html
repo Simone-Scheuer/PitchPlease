@@ -96,10 +96,18 @@
     <div id="practice-view" class="view active">
       <div class="practice-scroll">
         <div class="practice-section practice-today">
-          <button class="practice-today-btn" id="practice-start-today">
-            <span class="practice-today-title">Today's Practice</span>
-            <span class="practice-today-sub">Morning Practice · 15 min</span>
-          </button>
+          <div class="practice-today-wrap">
+            <button class="practice-today-btn" id="practice-start-today">
+              <span class="practice-today-title">Today's Practice</span>
+              <span class="practice-today-sub">Generating...</span>
+              <span class="practice-today-exercises"></span>
+            </button>
+            <button class="practice-shuffle-btn" id="practice-shuffle" aria-label="Shuffle session">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+                <path fill="currentColor" d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="practice-section">

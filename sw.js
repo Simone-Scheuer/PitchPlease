@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v5';
+const CACHE_NAME = 'pitchplease-v6';
 
 const STATIC_ASSETS = [
   './',
@@ -10,6 +10,8 @@ const STATIC_ASSETS = [
   './css/tuner.css',
   './css/graph.css',
   './css/game.css',
+  './css/session.css',
+  './css/practice.css',
   './js/app.js',
   './js/audio/mic.js',
   './js/audio/detector.js',
@@ -20,11 +22,15 @@ const STATIC_ASSETS = [
   './js/views/graph-view.js',
   './js/views/library-view.js',
   './js/views/game-view.js',
+  './js/views/practice-view.js',
+  './js/views/session-view.js',
   './js/components/needle.js',
   './js/components/note-display.js',
   './js/components/frequency-display.js',
   './js/components/pitch-graph.js',
   './js/components/game-canvas.js',
+  './js/core/exercise-schema.js',
+  './js/core/session-templates.js',
   './js/utils/constants.js',
   './js/utils/dom.js',
   './js/utils/event-bus.js',
@@ -35,6 +41,8 @@ const STATIC_ASSETS = [
   './js/profile/profile.js',
   './js/profile/history.js',
   './js/profile/skill-model.js',
+  './js/generation/session-generator.js',
+  './js/generation/difficulty.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-192-maskable.png',

@@ -36,7 +36,7 @@ import { createSequenceExercise, createEchoExercise, applyDefaults } from './exe
 // Exercise config builders (internal helpers)
 // ---------------------------------------------------------------------------
 
-function buildSustainedExercise(name, root, scale, opts = {}) {
+export function buildSustainedExercise(name, root, scale, opts = {}) {
   const exercise = applyDefaults({
     id: `sustained-${name}-${root}-${scale}`,
     type: 'sustained',
@@ -70,7 +70,7 @@ function buildSustainedExercise(name, root, scale, opts = {}) {
   return exercise;
 }
 
-function buildReactiveExercise(name, root, scale, opts = {}) {
+export function buildReactiveExercise(name, root, scale, opts = {}) {
   // Build notes from scale for the pool
   const seq = createSequenceExercise({
     root,
@@ -101,7 +101,7 @@ function buildReactiveExercise(name, root, scale, opts = {}) {
   });
 }
 
-function buildFreePlayExercise(root, scale, opts = {}) {
+export function buildFreePlayExercise(root, scale, opts = {}) {
   const exercise = applyDefaults({
     id: `free-play-${root}-${scale}`,
     type: 'free',
