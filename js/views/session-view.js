@@ -38,6 +38,7 @@ class SessionView {
   #runner = null;
   #blockResults = [];
   #paused = false;
+  #keyHandler = null;
   #micStarted = false;
   #blocks = [];
 
@@ -70,11 +71,20 @@ class SessionView {
     this.#skipBtn.addEventListener('click', () => this.#skip());
     this.#endBtn.addEventListener('click', () => this.#end());
     this.#backBtn.addEventListener('click', () => this.#backToPractice());
+
+    // Keyboard: spacebar = skip note (when skip-note button is visible)
+    this.#keyHandler = (e) => {
+      if (e.code === 'Space' && !this.#skipNoteBtn.hidden) {
+        e.preventDefault();
+        this.#skipNote();
+      }
+    };
   }
 
   async activate(sessionConfig) {
     this.#blockResults = [];
     this.#paused = false;
+    document.addEventListener('keydown', this.#keyHandler);
     this.#blocks = sessionConfig.blocks ?? [];
 
     // Hide tab bar
@@ -137,6 +147,9 @@ class SessionView {
       mic.stop();
       this.#micStarted = false;
     }
+
+    // Remove keyboard listener
+    document.removeEventListener('keydown', this.#keyHandler);
 
     // Unsubscribe bus listeners
     for (const unsub of this.#unsubs) {

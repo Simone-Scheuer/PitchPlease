@@ -61,7 +61,11 @@ export function buildSustainedExercise(name, root, scale, opts = {}) {
     const midiNotes = buildScaleMidiNotes(root, scale, opts.octaveRange?.[0] ?? 4, opts.octaveRange?.[1] ?? 5);
     const ordered = applyNotePattern(midiNotes, opts.pattern);
     config.context.notes = ordered.map(midi => midiToNoteSpec(midi));
-    config.timing = { mode: 'player-driven', holdToAdvance: true, holdMs: opts.holdMs ?? 600 };
+    config.timing = {
+      mode: 'player-driven',
+      holdToAdvance: !opts.manualAdvance,
+      holdMs: opts.holdMs ?? 600,
+    };
   }
 
   // Drone support — accepts string ('follow', 'root', 'off') or legacy object

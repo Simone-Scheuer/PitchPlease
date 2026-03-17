@@ -330,8 +330,8 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     if (evaluator?.onPitch) {
       lastEvaluatorResult = evaluator.onPitch(pitchData, target);
 
-      // Player-driven advance
-      if (timingMode === 'player-driven' && lastEvaluatorResult?.advance && hasNotes) {
+      // Player-driven advance (skip if holdToAdvance is explicitly false — manual mode)
+      if (timingMode === 'player-driven' && config.timing?.holdToAdvance !== false && lastEvaluatorResult?.advance && hasNotes) {
         advanceNote();
       }
     }

@@ -624,6 +624,7 @@ class PracticeView {
           drone: opts.drone || 'follow',
           pattern: opts.pattern || 'ascending',
           loop: opts.loop !== false,
+          manualAdvance: true,
           holdMs,
         });
 
