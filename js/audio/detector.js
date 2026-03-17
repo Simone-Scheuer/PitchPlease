@@ -2,7 +2,10 @@ import { PitchDetector } from 'https://esm.sh/pitchy@4';
 import { mic } from './mic.js';
 import { frequencyToNoteData } from './note-math.js';
 import { bus } from '../utils/event-bus.js';
-import { CLARITY_THRESHOLD, MIN_FREQUENCY, MAX_FREQUENCY, FFT_SIZE } from '../utils/constants.js';
+import {
+  CLARITY_THRESHOLD, HIGH_FREQ_CLARITY_THRESHOLD, HIGH_FREQ_BOUNDARY,
+  MIN_FREQUENCY, MAX_FREQUENCY, FFT_SIZE,
+} from '../utils/constants.js';
 
 class PitchDetectorEngine {
   #detector = null;
@@ -22,8 +25,14 @@ class PitchDetectorEngine {
     if (samples) {
       const [frequency, clarity] = this.#detector.findPitch(samples, mic.sampleRate);
 
+      // High-frequency signals (whistles, high harmonica, soprano voice) have
+      // naturally lower clarity due to overtone energy — use a relaxed threshold.
+      const effectiveClarity = frequency > HIGH_FREQ_BOUNDARY
+        ? HIGH_FREQ_CLARITY_THRESHOLD
+        : CLARITY_THRESHOLD;
+
       if (
-        clarity >= CLARITY_THRESHOLD &&
+        clarity >= effectiveClarity &&
         frequency >= MIN_FREQUENCY &&
         frequency <= MAX_FREQUENCY
       ) {

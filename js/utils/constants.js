@@ -1,7 +1,9 @@
 export const FFT_SIZE = 2048;
-export const CLARITY_THRESHOLD = 0.9;
+export const CLARITY_THRESHOLD = 0.85;
+export const HIGH_FREQ_CLARITY_THRESHOLD = 0.6;
+export const HIGH_FREQ_BOUNDARY = 800;
 export const MIN_FREQUENCY = 60;
-export const MAX_FREQUENCY = 1500;
+export const MAX_FREQUENCY = 4200;
 export const A4_FREQUENCY = 440;
 export const SMOOTHING_FACTOR = 0.3;
 export const NOTE_DEBOUNCE_FRAMES = 3;

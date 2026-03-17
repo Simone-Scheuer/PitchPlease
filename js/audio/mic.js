@@ -62,7 +62,7 @@ class Mic {
 
     this.#analyser = this.#audioCtx.createAnalyser();
     this.#analyser.fftSize = FFT_SIZE;
-    this.#analyser.smoothingTimeConstant = 0.8;
+    this.#analyser.smoothingTimeConstant = 0.5;
 
     this.#source = this.#audioCtx.createMediaStreamSource(this.#stream);
     this.#source.connect(this.#analyser);
