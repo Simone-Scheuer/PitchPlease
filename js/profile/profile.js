@@ -27,6 +27,7 @@ const DEFAULT_PROFILE = Object.freeze({
     feedbackStyle: 'minimal',
     favoriteScales: ['major', 'pentatonic_minor', 'blues'],
     octaveRange: [3, 5],         // user's comfortable range
+    harmonicaKey: 'C',           // diatonic harp key
   }),
   createdAt: null,
   updatedAt: null,
@@ -176,4 +177,25 @@ export function setOctaveRange(low, high) {
   const safeLow = Math.max(1, Math.min(7, low));
   const safeHigh = Math.max(safeLow, Math.min(7, high));
   updateProfile({ preferences: { octaveRange: [safeLow, safeHigh] } });
+}
+
+/**
+ * Shortcut: get the user's harmonica key from profile.
+ * Returns 'C' if no profile exists or no key is set.
+ *
+ * @returns {string}
+ */
+export function getHarmonicaKey() {
+  const profile = store.get(PROFILE_KEY);
+  return profile?.preferences?.harmonicaKey ?? DEFAULT_PROFILE.preferences.harmonicaKey;
+}
+
+/**
+ * Shortcut: set the user's harmonica key in profile.
+ * Creates a default profile if none exists.
+ *
+ * @param {string} key - One of HARMONICA_KEYS (e.g. 'C', 'G', 'Bb')
+ */
+export function setHarmonicaKey(key) {
+  updateProfile({ preferences: { harmonicaKey: key } });
 }

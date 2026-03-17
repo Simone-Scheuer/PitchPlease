@@ -4,7 +4,8 @@ import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate } from '../core/session-templates.js';
 import { createSequenceExercise } from '../core/exercise-schema.js';
-import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange } from '../profile/profile.js';
+import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey } from '../profile/profile.js';
+import { HARMONICA_KEYS } from '../utils/harmonica.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
 import { getHistory } from '../profile/history.js';
 
@@ -40,6 +41,7 @@ class PracticeView {
   #scaleSelect;
   #octaveLowSelect;
   #octaveHighSelect;
+  #harpKeySelect;
   #goBtn;
   #settings;
   #cachedSession = null;
@@ -57,6 +59,7 @@ class PracticeView {
     this.#scaleSelect = qs('#practice-scale');
     this.#octaveLowSelect = qs('#practice-octave-low');
     this.#octaveHighSelect = qs('#practice-octave-high');
+    this.#harpKeySelect = qs('#practice-harp-key');
     this.#goBtn = qs('#practice-quick-go');
 
     // Check for first launch: no profile AND no history
@@ -86,6 +89,7 @@ class PracticeView {
     this.#populateRootSelect();
     this.#populateScaleSelect();
     this.#populateOctaveSelects();
+    this.#populateHarpKeySelect();
     this.#applySettings();
     this.#renderTemplates();
 
@@ -97,6 +101,9 @@ class PracticeView {
     this.#scaleSelect.addEventListener('change', () => this.#saveSettings());
     this.#octaveLowSelect.addEventListener('change', () => this.#saveSettings());
     this.#octaveHighSelect.addEventListener('change', () => this.#saveSettings());
+    if (this.#harpKeySelect) {
+      this.#harpKeySelect.addEventListener('change', () => this.#saveHarpKey());
+    }
     this.#todayBtn.addEventListener('click', () => this.#startToday());
     this.#goBtn.addEventListener('click', () => this.#startQuick());
 
@@ -286,11 +293,27 @@ class PracticeView {
     }
   }
 
+  #populateHarpKeySelect() {
+    if (!this.#harpKeySelect) return;
+    this.#harpKeySelect.innerHTML = '';
+    for (const key of HARMONICA_KEYS) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key;
+      this.#harpKeySelect.appendChild(opt);
+    }
+    // Set initial value from profile
+    this.#harpKeySelect.value = getHarmonicaKey();
+  }
+
   #applySettings() {
     this.#rootSelect.value = this.#settings.root;
     this.#scaleSelect.value = this.#settings.scale;
     this.#octaveLowSelect.value = this.#settings.octaveLow ?? DEFAULTS.octaveLow;
     this.#octaveHighSelect.value = this.#settings.octaveHigh ?? DEFAULTS.octaveHigh;
+    if (this.#harpKeySelect) {
+      this.#harpKeySelect.value = getHarmonicaKey();
+    }
   }
 
   #saveSettings() {
@@ -313,6 +336,18 @@ class PracticeView {
 
     // Invalidate today's cached session when settings change —
     // regenerate on next activation
+    const dateStr = todayDateStr();
+    const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
+    this.#clearSessionCache(cacheKey);
+    this.#generateAndCacheSession(cacheKey);
+  }
+
+  #saveHarpKey() {
+    if (!this.#harpKeySelect) return;
+    const key = this.#harpKeySelect.value;
+    setHarmonicaKey(key);
+
+    // Invalidate today's cached session (it may include harmonica exercises)
     const dateStr = todayDateStr();
     const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
     this.#clearSessionCache(cacheKey);
@@ -387,7 +422,8 @@ class PracticeView {
   #startTemplate(templateId) {
     this.#saveSettings();
     const { root, scale, octaveLow, octaveHigh } = this.#settings;
-    const config = getTemplate(templateId, root, scale, octaveLow, octaveHigh);
+    const harpKey = getHarmonicaKey();
+    const config = getTemplate(templateId, root, scale, octaveLow, octaveHigh, { harpKey });
     if (config) {
       bus.emit('session:activate', { config });
     }
