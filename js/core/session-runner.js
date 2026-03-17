@@ -13,6 +13,7 @@
 import { bus } from '../utils/event-bus.js';
 import { createExerciseRuntime } from './exercise-runtime.js';
 import { createTargetAccuracyEvaluator } from './evaluators/target-accuracy.js';
+import { createStabilityEvaluator } from './evaluators/stability.js';
 import { createScrollTargetsRenderer } from '../renderers/scroll-targets.js';
 import { createSeismographRenderer } from '../renderers/seismograph.js';
 import { createFlashCardRenderer } from '../renderers/flash-card.js';
@@ -42,7 +43,7 @@ const DEFAULT_COUNTDOWN = 3;
  */
 const EVALUATOR_REGISTRY = {
   'target-accuracy': (config) => createTargetAccuracyEvaluator(config),
-  'stability': () => createTargetAccuracyEvaluator({ tolerance: 15, holdMs: 500 }),
+  'stability': (config) => createStabilityEvaluator(config?.evaluatorOptions),
   'reaction-time': () => createTargetAccuracyEvaluator({ tolerance: 40, holdMs: 300 }),
   'none': () => null,
   // Phase 5 placeholders

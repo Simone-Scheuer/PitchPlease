@@ -180,8 +180,8 @@ export function createSeismographRenderer() {
    * Get the color for a given cents deviation.
    */
   function centsToTraceColor(absCents) {
-    if (absCents <= STREAK_THRESHOLD) return TRACE_GREEN;
-    if (absCents <= 15) return TRACE_YELLOW;
+    if (absCents <= 5) return TRACE_GREEN;      // in tune: +/-5 cents
+    if (absCents <= STREAK_THRESHOLD) return TRACE_YELLOW;  // close: +/-15 cents
     return TRACE_RED;
   }
 
