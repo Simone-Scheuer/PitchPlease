@@ -2,15 +2,26 @@ import { bus } from '../utils/event-bus.js';
 import { qs } from '../utils/dom.js';
 import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
-import { SESSION_TEMPLATES, getTemplate } from '../core/session-templates.js';
-import { createSequenceExercise } from '../core/exercise-schema.js';
+import { SESSION_TEMPLATES, getTemplate, buildSustainedExercise, buildReactiveExercise, buildFreePlayExercise } from '../core/session-templates.js';
+import { createSequenceExercise, createEchoExercise, applyDefaults } from '../core/exercise-schema.js';
 import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey } from '../profile/profile.js';
-import { HARMONICA_KEYS } from '../utils/harmonica.js';
+import { HARMONICA_KEYS, getBendTargets } from '../utils/harmonica.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
 import { getHistory } from '../profile/history.js';
 
 const QUICK_START_KEY = 'quick-start';
 const TODAY_SESSION_KEY = 'today-session';
+
+const STANDALONE_EXERCISES = [
+  { id: 'long-tone',    label: 'Long Tone',     desc: 'Hold notes steady',         builder: 'sustained' },
+  { id: 'drone-match',  label: 'Drone Match',    desc: 'Match a drone tone',        builder: 'sustained-drone' },
+  { id: 'scale-runner', label: 'Scale Runner',   desc: 'Play through a scale',      builder: 'sequence' },
+  { id: 'random-note',  label: 'Random Note',    desc: 'Find notes by ear',         builder: 'reactive' },
+  { id: 'echo-mode',    label: 'Echo Mode',      desc: 'Listen and repeat',         builder: 'echo' },
+  { id: 'free-play',    label: 'Free Play',      desc: 'Play freely with graph',    builder: 'free' },
+  { id: 'bend-trainer', label: 'Bend Trainer',   desc: 'Practice harmonica bends',  builder: 'bend' },
+  { id: 'pitch-trace',  label: 'Pitch Trace',    desc: 'Follow a pitch shape',      builder: 'trace' },
+];
 
 const DEFAULTS = {
   root: 'C',
@@ -42,6 +53,7 @@ class PracticeView {
   #octaveLowSelect;
   #octaveHighSelect;
   #harpKeySelect;
+  #exercisesEl;
   #goBtn;
   #settings;
   #cachedSession = null;
@@ -60,6 +72,7 @@ class PracticeView {
     this.#octaveLowSelect = qs('#practice-octave-low');
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#harpKeySelect = qs('#practice-harp-key');
+    this.#exercisesEl = qs('#practice-exercises');
     this.#goBtn = qs('#practice-quick-go');
 
     // Check for first launch: no profile AND no history
@@ -92,6 +105,7 @@ class PracticeView {
     this.#populateHarpKeySelect();
     this.#applySettings();
     this.#renderTemplates();
+    this.#renderExercises();
 
     // Load or generate today's session
     this.#loadTodaySession();
@@ -396,6 +410,169 @@ class PracticeView {
       card.appendChild(desc);
       card.appendChild(tagsEl);
       this.#templatesEl.appendChild(card);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Exercise cards
+  // -------------------------------------------------------------------------
+
+  #renderExercises() {
+    if (!this.#exercisesEl) return;
+    this.#exercisesEl.innerHTML = '';
+
+    for (const ex of STANDALONE_EXERCISES) {
+      const card = document.createElement('button');
+      card.className = 'practice-exercise-card';
+      card.addEventListener('click', () => this.#startExercise(ex));
+
+      const label = document.createElement('span');
+      label.className = 'practice-exercise-label';
+      label.textContent = ex.label;
+
+      const desc = document.createElement('span');
+      desc.className = 'practice-exercise-desc';
+      desc.textContent = ex.desc;
+
+      card.appendChild(label);
+      card.appendChild(desc);
+      this.#exercisesEl.appendChild(card);
+    }
+  }
+
+  #startExercise(exerciseDef) {
+    this.#saveSettings();
+    const { root, scale, octaveLow, octaveHigh } = this.#settings;
+    const harpKey = getHarmonicaKey();
+    const oRange = [octaveLow, octaveHigh];
+
+    const exerciseConfig = this.#buildStandaloneExercise(
+      exerciseDef.id, root, scale, octaveLow, octaveHigh, harpKey, oRange,
+    );
+
+    if (!exerciseConfig) return;
+
+    const sessionConfig = {
+      id: `standalone-${exerciseDef.id}`,
+      name: exerciseDef.label,
+      description: exerciseDef.desc,
+      blocks: [{
+        exercise: exerciseConfig,
+        duration: 300_000,
+        label: exerciseDef.label,
+        phase: 'play',
+      }],
+      transitions: 'none',
+      totalDuration: 300_000,
+    };
+
+    bus.emit('session:activate', { config: sessionConfig });
+  }
+
+  #buildStandaloneExercise(id, root, scale, octaveLow, octaveHigh, harpKey, oRange) {
+    switch (id) {
+      case 'long-tone':
+        return buildSustainedExercise('long-tone', root, scale, {
+          label: 'Long Tone',
+          description: 'Hold a comfortable note, focus on stability',
+          octaveRange: oRange,
+        });
+
+      case 'drone-match':
+        return buildSustainedExercise('drone-match', root, scale, {
+          label: 'Drone Match',
+          description: `Match the ${root} drone tone`,
+          octaveRange: oRange,
+          drone: { voice: 'triangle', gain: 0.7 },
+        });
+
+      case 'scale-runner':
+        return createSequenceExercise({
+          root,
+          scale,
+          pattern: 'ascending',
+          octaveLow,
+          octaveHigh,
+        });
+
+      case 'random-note':
+        return buildReactiveExercise('random-note', root, scale, {
+          label: 'Random Note',
+          description: `Find random notes from ${root} ${scale}`,
+          octaveRange: oRange,
+        });
+
+      case 'echo-mode':
+        return createEchoExercise({
+          root,
+          scale,
+          difficulty: 'easy',
+          phraseCount: 5,
+          octaveLow,
+          octaveHigh,
+        });
+
+      case 'free-play':
+        return buildFreePlayExercise(root, scale, {
+          label: 'Free Play',
+          description: `Play freely in ${root} ${scale}`,
+          octaveRange: oRange,
+          drone: { voice: 'triangle', gain: 0.6 },
+        });
+
+      case 'bend-trainer': {
+        const bendTargets = getBendTargets(harpKey, { maxStepDown: null });
+        const bendNotes = bendTargets.map(b => ({
+          note: b.note,
+          midi: b.midi,
+          label: b.label,
+        }));
+
+        if (bendNotes.length === 0) return null;
+
+        return applyDefaults({
+          id: `bend-standalone-${harpKey}`,
+          type: 'sustained',
+          name: `Bend Trainer (${harpKey} Harp)`,
+          description: `Practice bends on ${harpKey} harmonica`,
+          context: {
+            notes: bendNotes,
+            root,
+            scale,
+            octaveRange: oRange,
+            harpKey,
+          },
+          evaluator: 'bend-accuracy',
+          renderer: 'bend-meter',
+          timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 2000 },
+          loop: true,
+          measures: ['cents-avg', 'hold-steady-ms'],
+          skills: ['pitchAccuracy', 'pitchStability'],
+        });
+      }
+
+      case 'pitch-trace':
+        return applyDefaults({
+          id: `trace-${root}-${scale}-${octaveLow}-${octaveHigh}`,
+          type: 'sustained',
+          name: `Pitch Trace — ${root} ${scale}`,
+          description: `Follow a pitch contour in ${root} ${scale}`,
+          context: {
+            scale,
+            root,
+            octaveRange: oRange,
+            traceShape: 'wave',
+          },
+          evaluator: 'stability',
+          renderer: 'pitch-trace',
+          timing: { mode: 'indefinite' },
+          loop: false,
+          measures: ['cents-avg', 'hold-steady-ms'],
+          skills: ['pitchAccuracy', 'pitchStability'],
+        });
+
+      default:
+        return null;
     }
   }
 

@@ -351,6 +351,59 @@
 }
 
 /* -------------------------------------------------------------------
+   Exercise cards
+   ------------------------------------------------------------------- */
+
+.practice-exercises {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+@media (min-width: 600px) {
+  .practice-exercises {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.practice-exercise-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-md);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+  min-height: 44px;
+  transition: background var(--transition-base), border-color var(--transition-base);
+}
+
+.practice-exercise-card:hover,
+.practice-exercise-card:focus-visible {
+  background: var(--color-bg-surface);
+  border-color: var(--color-accent);
+}
+
+.practice-exercise-card:active {
+  background: rgba(78, 205, 196, 0.1);
+  transform: scale(0.98);
+}
+
+.practice-exercise-label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.practice-exercise-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* -------------------------------------------------------------------
    Quick Start
    ------------------------------------------------------------------- */
 
