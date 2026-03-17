@@ -4,7 +4,7 @@ import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate, buildSustainedExercise, buildReactiveExercise, buildFreePlayExercise } from '../core/session-templates.js';
 import { createSequenceExercise, createEchoExercise, applyDefaults } from '../core/exercise-schema.js';
-import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey } from '../profile/profile.js';
+import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey, getHoldDuration, setHoldDuration } from '../profile/profile.js';
 import { HARMONICA_KEYS, getBendTargets } from '../utils/harmonica.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
 import { getHistory } from '../profile/history.js';
@@ -53,6 +53,7 @@ class PracticeView {
   #octaveLowSelect;
   #octaveHighSelect;
   #harpKeySelect;
+  #holdDurationSelect;
   #exercisesEl;
   #goBtn;
   #settings;
@@ -72,6 +73,7 @@ class PracticeView {
     this.#octaveLowSelect = qs('#practice-octave-low');
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#harpKeySelect = qs('#practice-harp-key');
+    this.#holdDurationSelect = qs('#practice-hold-duration');
     this.#exercisesEl = qs('#practice-exercises');
     this.#goBtn = qs('#practice-quick-go');
 
@@ -117,6 +119,9 @@ class PracticeView {
     this.#octaveHighSelect.addEventListener('change', () => this.#saveSettings());
     if (this.#harpKeySelect) {
       this.#harpKeySelect.addEventListener('change', () => this.#saveHarpKey());
+    }
+    if (this.#holdDurationSelect) {
+      this.#holdDurationSelect.addEventListener('change', () => this.#saveHoldDuration());
     }
     this.#todayBtn.addEventListener('click', () => this.#startToday());
     this.#goBtn.addEventListener('click', () => this.#startQuick());
@@ -328,6 +333,9 @@ class PracticeView {
     if (this.#harpKeySelect) {
       this.#harpKeySelect.value = getHarmonicaKey();
     }
+    if (this.#holdDurationSelect) {
+      this.#holdDurationSelect.value = getHoldDuration();
+    }
   }
 
   #saveSettings() {
@@ -366,6 +374,14 @@ class PracticeView {
     const cacheKey = `${TODAY_SESSION_KEY}-${dateStr}`;
     this.#clearSessionCache(cacheKey);
     this.#generateAndCacheSession(cacheKey);
+  }
+
+  #saveHoldDuration() {
+    if (!this.#holdDurationSelect) return;
+    const ms = parseInt(this.#holdDurationSelect.value, 10);
+    if ([300, 600, 1000, 2000].includes(ms)) {
+      setHoldDuration(ms);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -493,6 +509,7 @@ class PracticeView {
           pattern: 'ascending',
           octaveLow,
           octaveHigh,
+          timing: { mode: 'player-driven', holdToAdvance: true, holdMs: getHoldDuration() },
         });
 
       case 'random-note':
@@ -616,6 +633,7 @@ class PracticeView {
       pattern: 'ascending',
       octaveLow,
       octaveHigh,
+      timing: { mode: 'player-driven', holdToAdvance: true, holdMs: getHoldDuration() },
     });
 
     const config = {
