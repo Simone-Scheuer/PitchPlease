@@ -166,6 +166,18 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       return;
     }
 
+    // Update drone to match the new target note (scale walk, etc.)
+    if (droneHandle && config.audio?.drone && hasNotes && cursor < notes.length) {
+      const newTarget = notes[cursor];
+      if (newTarget?.midi != null) {
+        droneHandle.stop();
+        droneHandle = startSynthDrone(newTarget.midi, {
+          voice: config.audio.drone.voice ?? 'triangle',
+          gain: config.audio.drone.gain ?? 0.6,
+        });
+      }
+    }
+
     // For fixed-tempo / auto-tempo, schedule next advance
     if (state === STATES.RUNNING) {
       scheduleFixedTempoAdvance();
@@ -426,7 +438,11 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     // Start drone if configured
     if (config.audio?.drone && !droneHandle) {
       const droneCfg = config.audio.drone;
-      const droneMidi = resolveDroneMidi(droneCfg);
+      // When the exercise has explicit notes, start the drone on the first
+      // note's pitch (e.g. scale walk). Otherwise resolve from drone config.
+      const droneMidi = (hasNotes && notes[0]?.midi != null)
+        ? notes[0].midi
+        : resolveDroneMidi(droneCfg);
       if (droneMidi != null) {
         droneHandle = startSynthDrone(droneMidi, {
           voice: droneCfg.voice ?? 'triangle',

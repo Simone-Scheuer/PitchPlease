@@ -68,6 +68,9 @@ export function createSeismographRenderer() {
   let targetNote = null;          // { midi, note, octave }
   let hasExplicitTarget = false;  // true if exercise config provided a target
   let exerciseDescription = '';   // instruction text from exercise config
+  let noteCount = 0;              // total notes in exercise (for progress)
+  let currentCursor = 0;          // current note index (for progress)
+  let prevTargetMidi = null;      // for detecting note changes
 
   // --- Auto-detect state ---
   let autoDetected = false;       // true if target was auto-detected from player
@@ -416,6 +419,14 @@ export function createSeismographRenderer() {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(label, 12, 10);
+
+    // Show progress indicator when exercise has multiple notes (e.g. scale walk)
+    if (hasExplicitTarget && noteCount > 1) {
+      ctx.font = `13px ${FONTS.FAMILY}`;
+      ctx.fillStyle = COLORS.TEXT_DIM;
+      ctx.fillText(`${currentCursor + 1} / ${noteCount}`, 12, autoDetected ? 34 : 42);
+    }
+
     ctx.restore();
   }
 
@@ -479,6 +490,9 @@ export function createSeismographRenderer() {
     relockTracking = false;
     relockStartTime = 0;
     relockCandidateMidi = 0;
+    prevTargetMidi = null;
+    noteCount = 0;
+    currentCursor = 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -505,9 +519,12 @@ export function createSeismographRenderer() {
       if (notes.length > 0) {
         targetNote = notes[0];
         hasExplicitTarget = true;
+        noteCount = notes.length;
+        prevTargetMidi = notes[0].midi;
       } else {
         targetNote = null;
         hasExplicitTarget = false;
+        noteCount = 0;
       }
 
       // Extract exercise description for instructions overlay
@@ -568,10 +585,25 @@ export function createSeismographRenderer() {
 
       const now = performance.now();
 
+      // Track progress
+      if (state.noteCount != null) noteCount = state.noteCount;
+      if (state.cursor != null) currentCursor = state.cursor;
+
       // --- Target note management ---
       if (hasExplicitTarget) {
         // Use the runtime-provided target if the exercise has explicit notes
         if (state.targetNote) {
+          const newMidi = state.targetNote.midi;
+          // Detect note change — reset trace for fresh start on new target
+          if (prevTargetMidi != null && newMidi !== prevTargetMidi) {
+            buffer = [];
+            bufferIndex = 0;
+            bufferCount = 0;
+            streakActive = false;
+            streakDuration = 0;
+            streakStartTime = 0;
+          }
+          prevTargetMidi = newMidi;
           targetNote = state.targetNote;
         }
       } else {
@@ -630,6 +662,9 @@ export function createSeismographRenderer() {
       hasExplicitTarget = false;
       autoDetected = false;
       exerciseDescription = '';
+      prevTargetMidi = null;
+      noteCount = 0;
+      currentCursor = 0;
 
       canvas = null;
       ctx = null;
@@ -656,6 +691,8 @@ export function createSeismographRenderer() {
       streakDuration = 0;
       streakStartTime = 0;
       countdownValue = null;
+      currentCursor = 0;
+      prevTargetMidi = null;
 
       // In auto-detect mode, reset the target so it re-locks
       if (!hasExplicitTarget) {

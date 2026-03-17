@@ -418,11 +418,16 @@ export function validateExercise(config) {
       errors.push(`audio.synthVoice must be one of: ${SYNTH_VOICES.join(', ')}`);
     }
     if (a.drone != null && typeof a.drone === 'object') {
-      if (!a.drone.note || typeof a.drone.note !== 'string') {
-        errors.push('audio.drone.note is required');
-      }
-      if (a.drone.octave == null || typeof a.drone.octave !== 'number') {
-        errors.push('audio.drone.octave is required');
+      // Drones on exercises with explicit notes (e.g. scale walk) follow
+      // the note sequence — they don't need a fixed note/octave.
+      const hasNotes = config.context?.notes?.length > 0;
+      if (!hasNotes) {
+        if (!a.drone.note || typeof a.drone.note !== 'string') {
+          errors.push('audio.drone.note is required');
+        }
+        if (a.drone.octave == null || typeof a.drone.octave !== 'number') {
+          errors.push('audio.drone.octave is required');
+        }
       }
     }
   }
@@ -553,6 +558,81 @@ export function createSequenceExercise({
   if (loop != null) config.loop = loop;
 
   return applyDefaults(config);
+}
+
+// ---------------------------------------------------------------------------
+// Public API — createScaleWalkExercise
+// ---------------------------------------------------------------------------
+
+/**
+ * Factory that builds a complete ExerciseConfig for "Long Tone Scale Walk"
+ * exercises. Walks through every note of a scale (ascending then descending)
+ * with a drone following the current target note. Player holds each note
+ * steady (within ±15 cents) for holdMs to advance.
+ *
+ * @param {Object} params
+ * @param {string}  params.root              - Root note name
+ * @param {string}  [params.scale='major']   - Scale key
+ * @param {number}  [params.octaveLow=4]     - Lowest octave
+ * @param {number}  [params.octaveHigh=5]    - Highest octave (top root boundary)
+ * @param {number}  [params.holdMs=10000]    - Required sustain time in ms (10s default)
+ * @param {string}  [params.droneVoice='triangle'] - Drone oscillator voice
+ * @param {number}  [params.droneGain=0.6]   - Drone gain
+ * @returns {ExerciseConfig}
+ */
+export function createScaleWalkExercise({
+  root,
+  scale = 'major',
+  octaveLow = 4,
+  octaveHigh = 5,
+  holdMs = 10000,
+  droneVoice = 'triangle',
+  droneGain = 0.6,
+} = {}) {
+  if (!root || !ROOT_NAMES.includes(root)) {
+    throw new Error(`Invalid root: "${root}". Must be one of: ${ROOT_NAMES.join(', ')}`);
+  }
+  if (!SCALE_INTERVALS[scale]) {
+    throw new Error(`Unknown scale: "${scale}"`);
+  }
+
+  // Build ascending MIDI notes for the scale across the octave range
+  const ascending = buildScaleMidiNotes(root, scale, octaveLow, octaveHigh);
+
+  // Apply up-and-back pattern: ascend then descend (excluding duplicate at top)
+  const ordered = applyNotePattern(ascending, 'up-and-back');
+  const noteSequence = ordered.map(midi => midiToNoteSpec(midi));
+
+  const scaleLabel = SCALE_LABELS[scale] || scale;
+
+  return applyDefaults({
+    id: `scale-walk-${root}-${scale}-${octaveLow}-${octaveHigh}`,
+    type: 'sustained',
+    name: `Long Tone Scale Walk`,
+    description: `Walk through ${root} ${scaleLabel} — hold each note steady`,
+    context: {
+      notes: noteSequence,
+      scale,
+      root,
+      octaveRange: [octaveLow, octaveHigh],
+    },
+    evaluator: 'stability',
+    renderer: 'seismograph',
+    timing: {
+      mode: 'player-driven',
+      holdToAdvance: true,
+      holdMs,
+    },
+    audio: {
+      drone: {
+        voice: droneVoice,
+        gain: droneGain,
+      },
+    },
+    loop: false,
+    measures: ['cents-avg', 'hold-steady-ms', 'steady-streak-ms'],
+    skills: ['pitchStability', 'pitchAccuracy'],
+  });
 }
 
 // ---------------------------------------------------------------------------

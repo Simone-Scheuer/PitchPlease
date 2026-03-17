@@ -48,7 +48,10 @@ const DEFAULT_COUNTDOWN = 3;
  */
 const EVALUATOR_REGISTRY = {
   'target-accuracy': (config) => createTargetAccuracyEvaluator(config),
-  'stability': (config) => createStabilityEvaluator(config?.evaluatorOptions),
+  'stability': (config) => createStabilityEvaluator({
+    ...config?.evaluatorOptions,
+    holdMs: config?.timing?.holdMs ?? config?.evaluatorOptions?.holdMs ?? null,
+  }),
   'reaction-time': () => createTargetAccuracyEvaluator({ tolerance: 40, holdMs: 300 }),
   'phrase-match': (config) => createPhraseMatchEvaluator(config),
   'bend-accuracy': (config) => createBendAccuracyEvaluator({

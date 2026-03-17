@@ -35,6 +35,7 @@ const BUFFER_SIZE = 600;          // ~10 seconds at 60fps
  * @property {number} [closeCents=15]   - Cents threshold for "close" (generous)
  * @property {number} [lockedMs=500]    - Ms of continuous inTune to be "locked"
  * @property {number} [bufferSize=600]  - Circular buffer capacity
+ * @property {number} [holdMs]          - Ms of continuous "close" to signal advance (player-driven)
  */
 
 /**
@@ -67,6 +68,7 @@ export function createStabilityEvaluator(config = {}) {
   const closeCents = config.closeCents ?? CLOSE_CENTS;
   const lockedMs = config.lockedMs ?? LOCKED_MS;
   const bufferSize = config.bufferSize ?? BUFFER_SIZE;
+  const holdMsThreshold = config.holdMs ?? null;  // null = no auto-advance
 
   // --- Circular buffer ---
   // Entries: { cents: number, timestamp: number } | null (silence gap)
@@ -214,7 +216,7 @@ export function createStabilityEvaluator(config = {}) {
      *
      * @param {Object} pitchData - From pitch event: { midi, cents, note, octave, ... }
      * @param {Object|null} targetNote - NoteSpec: { note, midi } or null
-     * @returns {{ inTune: boolean, close: boolean, absCents: number, locked: boolean, steadyStreakMs: number }}
+     * @returns {{ inTune: boolean, close: boolean, absCents: number, locked: boolean, steadyStreakMs: number, advance: boolean }}
      */
     onPitch(pitchData, targetNote) {
       // When no target is provided, return neutral results
@@ -226,6 +228,7 @@ export function createStabilityEvaluator(config = {}) {
           absCents: 0,
           locked: false,
           steadyStreakMs: 0,
+          advance: false,
         };
       }
 
@@ -296,12 +299,16 @@ export function createStabilityEvaluator(config = {}) {
       // "Locked" = in tune continuously for >= lockedMs
       const locked = inTuneStreakActive && currentInTuneStreakMs >= lockedMs;
 
+      // Player-driven advance: signal when steady streak meets holdMs threshold
+      const advance = holdMsThreshold != null && currentSteadyStreakMs >= holdMsThreshold;
+
       return {
         inTune,
         close,
         absCents: Math.round(absCents),
         locked,
         steadyStreakMs: Math.round(currentSteadyStreakMs),
+        advance,
       };
     },
 
