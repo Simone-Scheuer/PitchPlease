@@ -99,6 +99,7 @@ export const EVALUATOR_TYPES = Object.freeze([
   'phrase-match',        // compare played phrase to target
   'interval-accuracy',   // evaluate interval distance correctness
   'reaction-time',       // time from prompt to accurate pitch
+  'bend-accuracy',       // microtonal bend accuracy (fractional MIDI targets)
   'none',                // no evaluation (free play)
 ]);
 
@@ -110,6 +111,7 @@ export const RENDERER_TYPES = Object.freeze([
   'overlay-comparison',   // target vs player pitch overlay (echo)
   'pitch-trail',          // free-scrolling pitch graph
   'pitch-trace',          // trace a drawn contour with pitch
+  'bend-meter',           // vertical pitch meter for bend exercises
 ]);
 
 /** What metrics exercises can record */
@@ -375,8 +377,8 @@ export function validateExercise(config) {
           if (!ns.note || typeof ns.note !== 'string') {
             errors.push(`context.notes[${i}].note is required`);
           }
-          if (ns.midi == null || !Number.isInteger(ns.midi)) {
-            errors.push(`context.notes[${i}].midi must be an integer`);
+          if (ns.midi == null || typeof ns.midi !== 'number' || !Number.isFinite(ns.midi)) {
+            errors.push(`context.notes[${i}].midi must be a number`);
           } else if (ns.midi < 0 || ns.midi > 127) {
             errors.push(`context.notes[${i}].midi must be 0–127`);
           }

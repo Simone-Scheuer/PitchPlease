@@ -15,10 +15,13 @@ import { createExerciseRuntime } from './exercise-runtime.js';
 import { createTargetAccuracyEvaluator } from './evaluators/target-accuracy.js';
 import { createStabilityEvaluator } from './evaluators/stability.js';
 import { createPhraseMatchEvaluator } from './evaluators/phrase-match.js';
+import { createBendAccuracyEvaluator } from './evaluators/bend-accuracy.js';
 import { createScrollTargetsRenderer } from '../renderers/scroll-targets.js';
 import { createSeismographRenderer } from '../renderers/seismograph.js';
 import { createFlashCardRenderer } from '../renderers/flash-card.js';
 import { createOverlayComparisonRenderer } from '../renderers/overlay-comparison.js';
+import { createBendMeterRenderer } from '../renderers/bend-meter.js';
+import { createPitchTraceRenderer } from '../renderers/pitch-trace.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,6 +51,7 @@ const EVALUATOR_REGISTRY = {
   'stability': (config) => createStabilityEvaluator(config?.evaluatorOptions),
   'reaction-time': () => createTargetAccuracyEvaluator({ tolerance: 40, holdMs: 300 }),
   'phrase-match': (config) => createPhraseMatchEvaluator(config),
+  'bend-accuracy': (config) => createBendAccuracyEvaluator(config?.evaluatorOptions),
   'none': () => null,
   // Phase 5 placeholder
   'interval-accuracy': () => null,
@@ -66,8 +70,9 @@ const RENDERER_REGISTRY = {
   'seismograph': () => createSeismographRenderer(),
   'flash-card': () => createFlashCardRenderer(),
   'overlay-comparison': () => createOverlayComparisonRenderer(),
+  'bend-meter': () => createBendMeterRenderer(),
+  'pitch-trace': () => createPitchTraceRenderer(),
   'pitch-trail': () => null,  // placeholder
-  'pitch-trace': () => null,
 };
 
 // ---------------------------------------------------------------------------

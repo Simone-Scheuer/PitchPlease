@@ -493,6 +493,134 @@ function earTrainingFocus(root = 'C', scale = 'major', octaveLow = 3, octaveHigh
   };
 }
 
+/**
+ * Harmonica Workshop (15 min)
+ * Harmonica-specific technique: long tones, bends, blues scale, drone jam.
+ * Only relevant when the player has harmonica in their profile.
+ */
+function harmonicaWorkshop(root = 'C', scale = 'blues', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
+
+  // Define harmonica-specific bend targets (C diatonic harp, draw bends)
+  // These use fractional MIDI for microtonal targets
+  const rootIndex = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(root);
+  const baseMidi = (octaveLow + 1) * 12 + (rootIndex >= 0 ? rootIndex : 0);
+
+  // Half-step bend targets (easier bends)
+  const easyBendNotes = [
+    { note: `Bend ${baseMidi + 3 - 0.5}`, midi: baseMidi + 3 - 0.5, label: 'Hole 1 draw bend' },
+    { note: `Bend ${baseMidi + 7 - 0.5}`, midi: baseMidi + 7 - 0.5, label: 'Hole 2 draw bend' },
+    { note: `Bend ${baseMidi + 11 - 0.5}`, midi: baseMidi + 11 - 0.5, label: 'Hole 3 half-step bend' },
+    { note: `Bend ${baseMidi + 14 - 0.5}`, midi: baseMidi + 14 - 0.5, label: 'Hole 4 draw bend' },
+  ];
+
+  // Precision bend targets (specific blues-scale bent notes)
+  const precisionBendNotes = [
+    { note: `Bend ${baseMidi + 11 - 1}`, midi: baseMidi + 11 - 1, label: 'Hole 3 full-step bend' },
+    { note: `Bend ${baseMidi + 11 - 1.5}`, midi: baseMidi + 11 - 1.5, label: 'Hole 3 step-and-a-half bend' },
+    { note: `Bend ${baseMidi + 3 - 1}`, midi: baseMidi + 3 - 1, label: 'Hole 1 full-step bend' },
+    { note: `Bend ${baseMidi + 7 - 1}`, midi: baseMidi + 7 - 1, label: 'Hole 2 full-step bend' },
+  ];
+
+  const blocks = [
+    // 1. Long Tone warm-up (2 min)
+    {
+      exercise: buildSustainedExercise('long-tone-harp', root, scale, {
+        label: 'Long Tone Warm-Up',
+        description: 'Clean draw notes, holes 1-6. Focus on clear tone.',
+        octaveRange: oRange,
+      }),
+      duration: 120_000,
+      label: 'Warm Up',
+      phase: 'activate',
+    },
+    // 2. Bend Trainer easy — half-step bends (3 min)
+    {
+      exercise: applyDefaults({
+        id: `bend-easy-${root}-${scale}`,
+        type: 'sustained',
+        name: 'Half-Step Bends',
+        description: 'Find each half-step bend. Hold it steady in the target zone.',
+        context: {
+          notes: easyBendNotes,
+          root,
+          scale,
+          octaveRange: oRange,
+        },
+        evaluator: 'bend-accuracy',
+        renderer: 'bend-meter',
+        timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 1000 },
+        loop: true,
+        measures: ['cents-avg', 'hold-steady-ms'],
+        skills: ['pitchAccuracy', 'pitchStability'],
+      }),
+      duration: 180_000,
+      label: 'Easy Bends',
+      phase: 'develop',
+    },
+    // 3. Bend Trainer precision — specific bent notes (3 min)
+    {
+      exercise: applyDefaults({
+        id: `bend-precision-${root}-${scale}`,
+        type: 'sustained',
+        name: 'Precision Bends',
+        description: 'Hit specific bent pitches for the blues scale. Full-step and deeper.',
+        context: {
+          notes: precisionBendNotes,
+          root,
+          scale,
+          octaveRange: oRange,
+        },
+        evaluator: 'bend-accuracy',
+        renderer: 'bend-meter',
+        timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 1000 },
+        loop: true,
+        measures: ['cents-avg', 'hold-steady-ms'],
+        skills: ['pitchAccuracy', 'pitchStability'],
+      }),
+      duration: 180_000,
+      label: 'Precision Bends',
+      phase: 'develop',
+    },
+    // 4. Blues Scale Runner including bends (3 min)
+    {
+      exercise: createSequenceExercise({
+        root,
+        scale: 'blues',
+        pattern: 'up-and-back',
+        octaveLow,
+        octaveHigh,
+        skills: ['scaleFluency', 'pitchAccuracy'],
+      }),
+      duration: 180_000,
+      label: 'Blues Scale',
+      phase: 'challenge',
+    },
+    // 5. Blues Drone Jam (4 min)
+    {
+      exercise: buildFreePlayExercise(root, 'blues', {
+        label: 'Blues Drone Jam',
+        description: `Improvise freely over ${root} blues. Explore bends and expression.`,
+        octaveRange: oRange,
+        drone: { voice: 'triangle', gain: 0.6 },
+      }),
+      duration: 240_000,
+      label: 'Blues Jam',
+      phase: 'play',
+    },
+  ];
+
+  return {
+    id: 'harmonica-workshop',
+    name: 'Harmonica Workshop',
+    description: `Harmonica technique in ${root}: warm-up, bends, blues scale, improvisation`,
+    tags: ['harmonica', 'bends', 'blues', '15-min'],
+    blocks,
+    transitions: 'gentle',
+    totalDuration: blocks.reduce((sum, b) => sum + b.duration, 0),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Template registry
 // ---------------------------------------------------------------------------
@@ -503,6 +631,7 @@ const TEMPLATE_FACTORIES = {
   'quick-burst': quickBurst,
   'scale-fluency': scaleFluencyBuilder,
   'ear-training-focus': earTrainingFocus,
+  'harmonica-workshop': harmonicaWorkshop,
 };
 
 /**
@@ -514,6 +643,7 @@ export const SESSION_TEMPLATES = Object.freeze([
   { id: 'quick-burst', name: 'Quick Burst', duration: '5 min', description: 'Focused burst: long tone, speed ladder, free play', tags: ['quick', 'focus', '5-min'] },
   { id: 'scale-fluency', name: 'Scale Fluency Builder', duration: '15 min', description: 'Build fluency: patterns, reflex, speed ladder, improv', tags: ['scales', 'fluency', '15-min'] },
   { id: 'ear-training-focus', name: 'Ear Training Focus', duration: '13 min', description: 'Echo exercises: drone match, easy/medium/hard phrases, free play', tags: ['ear-training', 'echo', '13-min'] },
+  { id: 'harmonica-workshop', name: 'Harmonica Workshop', duration: '15 min', description: 'Harmonica technique: warm-up, bends, blues scale, improvisation', tags: ['harmonica', 'bends', 'blues', '15-min'] },
 ]);
 
 /**
