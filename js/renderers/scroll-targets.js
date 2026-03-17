@@ -103,6 +103,9 @@ export function createScrollTargetsRenderer() {
   // --- Pitch trail (circular buffer) ---
   let pitchTrail = [];
 
+  // --- Loop count ---
+  let loopCount = 0;
+
   // --- Previous frame state for delta computation ---
   let lastFrameTime = 0;
 
@@ -401,6 +404,16 @@ export function createScrollTargetsRenderer() {
     ctx.moveTo(gR, 0);
     ctx.lineTo(gR, height);
     ctx.stroke();
+
+    // Loop count badge (subtle, top-right of graph area)
+    if (loopCount > 0) {
+      const lcText = `Loop ${loopCount + 1}`;
+      ctx.font = `11px ${FONTS.FAMILY}`;
+      ctx.fillStyle = COLORS.TEXT_MUTED;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText(lcText, gR - 8, 8);
+    }
 
     // Countdown overlay (on top of everything)
     if (countdownValue !== null) {
@@ -856,6 +869,7 @@ export function createScrollTargetsRenderer() {
       cursor = 0;
       elapsed = 0;
       lastFrameTime = 0;
+      loopCount = 0;
       resetHoldProgress();
       glowPhase = 0;
 
@@ -999,6 +1013,7 @@ export function createScrollTargetsRenderer() {
       noteMatchTime = [];
       waitingSince = [];
       notes = [];
+      loopCount = 0;
       resetHoldProgress();
       glowPhase = 0;
 
@@ -1020,6 +1035,7 @@ export function createScrollTargetsRenderer() {
      * Reset renderer state for next loop iteration.
      */
     onLoopRestart() {
+      loopCount++;
       pitchTrail = [];
       noteScores = new Map();
       lastEvaluatorResult = null;
