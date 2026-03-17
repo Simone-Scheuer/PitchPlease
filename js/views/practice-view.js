@@ -4,6 +4,7 @@ import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate } from '../core/session-templates.js';
 import { createSequenceExercise } from '../core/exercise-schema.js';
+import { ensureProfile, getOctaveRange, setOctaveRange } from '../profile/profile.js';
 
 const QUICK_START_KEY = 'quick-start';
 
@@ -37,7 +38,16 @@ class PracticeView {
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#goBtn = qs('#practice-quick-go');
 
+    // Ensure profile exists (auto-creates with defaults on first launch)
+    ensureProfile();
+
+    // Load settings, seeding octave range from profile if no quick-start saved
     this.#settings = store.get(QUICK_START_KEY) || { ...DEFAULTS };
+    const profileRange = getOctaveRange();
+    if (!store.get(QUICK_START_KEY)) {
+      this.#settings.octaveLow = profileRange[0];
+      this.#settings.octaveHigh = profileRange[1];
+    }
 
     this.#populateRootSelect();
     this.#populateScaleSelect();
@@ -129,6 +139,9 @@ class PracticeView {
     };
     store.set(QUICK_START_KEY, this.#settings);
     this.#updateTodaySubtitle();
+
+    // Sync octave range to profile
+    setOctaveRange(octaveLow, octaveHigh);
   }
 
   // -------------------------------------------------------------------------

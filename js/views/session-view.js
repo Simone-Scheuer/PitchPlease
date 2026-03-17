@@ -4,6 +4,7 @@ import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { createSessionRunner } from '../core/session-runner.js';
 import { SCALE_LABELS } from '../utils/scales.js';
+import { recordSession } from '../profile/history.js';
 
 const MOTIVATIONAL_MESSAGES = [
   'Every session builds your skills',
@@ -227,7 +228,32 @@ class SessionView {
   }
 
   #onComplete(data) {
+    this.#recordToHistory(data);
     this.#showSummary(data);
+  }
+
+  /**
+   * Record the completed session to practice history.
+   */
+  #recordToHistory(data) {
+    try {
+      const config = data.sessionConfig ?? {};
+      const results = data.blockResults ?? this.#blockResults;
+
+      recordSession({
+        sessionId: config.id ?? config.name ?? 'session',
+        name: config.name ?? 'Practice Session',
+        duration: data.totalDuration ?? 0,
+        blocks: results.map(result => ({
+          label: result.label ?? '',
+          exerciseType: result.measurements?.exerciseType ?? result.phase ?? '',
+          measurements: result.measurements ?? {},
+        })),
+      });
+    } catch (err) {
+      // History recording should never break the session flow
+      console.warn('[session-view] Failed to record session to history:', err);
+    }
   }
 
   // ---------------------------------------------------------------------------

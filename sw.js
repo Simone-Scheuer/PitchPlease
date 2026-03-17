@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v4';
+const CACHE_NAME = 'pitchplease-v5';
 
 const STATIC_ASSETS = [
   './',
@@ -32,6 +32,9 @@ const STATIC_ASSETS = [
   './js/utils/song-data.js',
   './js/utils/exercise-generator.js',
   './js/utils/store.js',
+  './js/profile/profile.js',
+  './js/profile/history.js',
+  './js/profile/skill-model.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-192-maskable.png',
