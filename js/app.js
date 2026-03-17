@@ -2,6 +2,7 @@ import { tunerView } from './views/tuner-view.js';
 import { graphView } from './views/graph-view.js';
 import { libraryView } from './views/library-view.js';
 import { practiceView } from './views/practice-view.js';
+import { journalView } from './views/journal-view.js';
 import { gameView } from './views/game-view.js';
 import { sessionView } from './views/session-view.js';
 import { bus } from './utils/event-bus.js';
@@ -29,12 +30,15 @@ function switchView(viewId) {
   if (activeViewId === 'tuner-view') tunerView.deactivate();
   if (activeViewId === 'graph-view') graphView.deactivate();
   if (activeViewId === 'practice-view') practiceView.deactivate();
+  if (activeViewId === 'journal-view') journalView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
   if (activeViewId === 'session-view') sessionView.deactivate();
 
   // Activate new view
   if (resolvedId === 'practice-view') {
     practiceView.activate();
+  } else if (resolvedId === 'journal-view') {
+    journalView.activate();
   } else {
     const newEl = qs(`#${resolvedId}`);
     if (newEl) newEl.classList.add('active');
@@ -57,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   graphView.init();
   libraryView.init();
   practiceView.init();
+  journalView.init();
   gameView.init();
   sessionView.init();
 
@@ -84,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeViewId === 'tuner-view') tunerView.deactivate();
     if (activeViewId === 'graph-view') graphView.deactivate();
     if (activeViewId === 'practice-view') practiceView.deactivate();
+    if (activeViewId === 'journal-view') journalView.deactivate();
     if (activeViewId === 'game-view') gameView.deactivate();
 
     // Track that we're in session mode so navigate back works

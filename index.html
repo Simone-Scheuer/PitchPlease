@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="css/game.css">
   <link rel="stylesheet" href="css/session.css">
   <link rel="stylesheet" href="css/practice.css">
+  <link rel="stylesheet" href="css/journal.css">
 </head>
 <body>
   <div class="app" id="app">
@@ -138,6 +139,28 @@
             </div>
             <button class="practice-go-btn" id="practice-quick-go">Start Exercise</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Journal View -->
+    <div id="journal-view" class="view" hidden>
+      <div class="journal-scroll">
+        <div class="journal-section journal-stats">
+          <div class="journal-streak" id="journal-streak"></div>
+          <div class="journal-week-stats" id="journal-week-stats"></div>
+        </div>
+
+        <div class="journal-section journal-skills">
+          <h3 class="journal-section-title">Skills</h3>
+          <canvas id="journal-radar" width="200" height="200"></canvas>
+        </div>
+
+        <div class="journal-section journal-encouragement" id="journal-encouragement"></div>
+
+        <div class="journal-section journal-history">
+          <h3 class="journal-section-title">Recent Sessions</h3>
+          <div id="journal-sessions"></div>
         </div>
       </div>
     </div>
@@ -305,6 +328,12 @@
         <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
       </svg>
       Graph
+    </button>
+    <button class="view-switcher__tab" data-view="journal-view" aria-label="Journal">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+      </svg>
+      Journal
     </button>
     <button class="view-switcher__tab active" data-view="play-view" aria-label="Practice">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

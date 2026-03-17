@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v6';
+const CACHE_NAME = 'pitchplease-v7';
 
 const STATIC_ASSETS = [
   './',
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   './css/game.css',
   './css/session.css',
   './css/practice.css',
+  './css/journal.css',
   './js/app.js',
   './js/audio/mic.js',
   './js/audio/detector.js',
@@ -24,6 +25,7 @@ const STATIC_ASSETS = [
   './js/views/game-view.js',
   './js/views/practice-view.js',
   './js/views/session-view.js',
+  './js/views/journal-view.js',
   './js/components/needle.js',
   './js/components/note-display.js',
   './js/components/frequency-display.js',

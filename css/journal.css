@@ -1,0 +1,254 @@
+/* ===================================================================
+   Journal View — Practice History & Progress
+   =================================================================== */
+
+.journal-scroll {
+  overflow-y: auto;
+  padding: var(--space-md);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sections */
+.journal-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.journal-section-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  padding-left: var(--space-xs);
+}
+
+/* -------------------------------------------------------------------
+   Stats — Streak & Week
+   ------------------------------------------------------------------- */
+
+.journal-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  gap: var(--space-sm);
+}
+
+.journal-streak {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.journal-streak-number {
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 800;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.journal-streak-label {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.journal-week-stats {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+/* -------------------------------------------------------------------
+   Skills Radar
+   ------------------------------------------------------------------- */
+
+.journal-skills {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+#journal-radar {
+  display: block;
+}
+
+/* -------------------------------------------------------------------
+   Encouragement
+   ------------------------------------------------------------------- */
+
+.journal-encouragement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: linear-gradient(
+    135deg,
+    rgba(78, 205, 196, 0.08) 0%,
+    rgba(78, 205, 196, 0.02) 100%
+  );
+  border: 1px solid rgba(78, 205, 196, 0.15);
+  border-radius: var(--radius-md);
+}
+
+.journal-encouragement:empty {
+  display: none;
+}
+
+.journal-encouragement-msg {
+  font-size: var(--font-size-sm);
+  color: var(--color-accent);
+  font-style: italic;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* -------------------------------------------------------------------
+   Session History
+   ------------------------------------------------------------------- */
+
+.journal-history {
+  gap: var(--space-sm);
+}
+
+#journal-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.journal-session-item {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-base);
+}
+
+.journal-session-item.expanded {
+  border-color: var(--color-accent);
+}
+
+.journal-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-family);
+  color: var(--color-text);
+  gap: var(--space-md);
+  transition: background var(--transition-base);
+}
+
+.journal-session-header:hover,
+.journal-session-header:focus-visible {
+  background: var(--color-bg-surface);
+}
+
+.journal-session-header:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.journal-session-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.journal-session-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+}
+
+.journal-session-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.journal-session-duration {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Exercises detail — hidden by default, shown when expanded */
+.journal-session-exercises {
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 var(--space-md) var(--space-md);
+}
+
+.journal-session-item.expanded .journal-session-exercises {
+  display: flex;
+}
+
+.journal-session-exercise {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.journal-session-exercise-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.journal-session-exercise-stat {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------
+   Empty State
+   ------------------------------------------------------------------- */
+
+.journal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: var(--space-lg);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
