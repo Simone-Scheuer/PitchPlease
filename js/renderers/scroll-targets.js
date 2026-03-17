@@ -16,6 +16,7 @@
 
 import { NOTE_NAMES } from '../utils/constants.js';
 import { frequencyToMidi } from '../audio/note-math.js';
+import { playNote } from '../audio/synth.js';
 import {
   setupCanvas,
   resizeCanvas,
@@ -107,6 +108,12 @@ export function createScrollTargetsRenderer() {
 
   // --- Resize handler reference ---
   let resizeHandler = null;
+
+  // --- Tap-to-play state ---
+  let barHitRects = [];         // { midi, x, y, width, height } in canvas (scaled) coords
+  let tappedBarMidi = null;     // MIDI of currently flashing bar (null = none)
+  let tappedBarTimeout = null;  // timeout ID for clearing flash
+  let clickHandler = null;      // reference for cleanup
 
   // ---------------------------------------------------------------------------
   // Internal helpers
@@ -352,6 +359,9 @@ export function createScrollTargetsRenderer() {
   function draw() {
     clearCanvas(ctx, width, height);
 
+    // Reset hit rects for tap-to-play (rebuilt during drawNoteBar calls)
+    barHitRects = [];
+
     const gL = graphLeft();
     const gR = graphRight();
     const gW = graphWidth();
@@ -504,6 +514,12 @@ export function createScrollTargetsRenderer() {
     const barW = x2 - x1;
     const now = performance.now();
 
+    // Store bar rect for tap-to-play hit testing
+    barHitRects.push({ midi: note.midi, x: x1, y: yTop, width: barW, height: barH });
+
+    // Check if this bar is being tap-flashed
+    const isTapped = tappedBarMidi === note.midi;
+
     // Determine bar color from evaluator feedback
     let fillColor = COLORS_ALPHA.BAR_DEFAULT;
     let borderColor = COLORS_ALPHA.BAR_BORDER;
@@ -562,6 +578,15 @@ export function createScrollTargetsRenderer() {
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = isActive ? 1.5 : 1;
     ctx.strokeRect(x1, yTop, barW, barH);
+
+    // Tap flash overlay — bright highlight when user taps the bar
+    if (isTapped) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillRect(x1, yTop, barW, barH);
+      ctx.strokeStyle = COLORS.TEXT;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x1, yTop, barW, barH);
+    }
 
     // Note name inside bar
     if (barW > 30) {
@@ -754,6 +779,48 @@ export function createScrollTargetsRenderer() {
   }
 
   // ---------------------------------------------------------------------------
+  // Tap-to-play: click handler and hit testing
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle click/tap on the canvas. Maps event coordinates to bar hit rects
+   * and plays the corresponding note via the synth.
+   */
+  function handleCanvasClick(event) {
+    if (!canvas) return;
+
+    // Convert DOM event coordinates to canvas (scaled) coordinates
+    const x = event.offsetX * dpr;
+    const y = event.offsetY * dpr;
+
+    // Hit-test against stored bar rects (most recent frame)
+    for (const rect of barHitRects) {
+      if (
+        x >= rect.x &&
+        x <= rect.x + rect.width &&
+        y >= rect.y &&
+        y <= rect.y + rect.height
+      ) {
+        // Play the tapped note
+        playNote(rect.midi, 400, { voice: 'sine', gain: 0.8 });
+
+        // Visual feedback: flash this bar
+        tappedBarMidi = rect.midi;
+        if (tappedBarTimeout) clearTimeout(tappedBarTimeout);
+        tappedBarTimeout = setTimeout(() => {
+          tappedBarMidi = null;
+          tappedBarTimeout = null;
+          if (ctx) draw(); // redraw to clear the flash
+        }, 200);
+
+        // Redraw immediately to show the flash
+        if (ctx) draw();
+        return; // only play one note per tap
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Renderer interface
   // ---------------------------------------------------------------------------
 
@@ -795,6 +862,10 @@ export function createScrollTargetsRenderer() {
       // Listen for resize
       resizeHandler = () => handleResize();
       window.addEventListener('resize', resizeHandler);
+
+      // Listen for tap-to-play clicks on the canvas
+      clickHandler = (e) => handleCanvasClick(e);
+      canvas.addEventListener('click', clickHandler);
 
       // Draw initial frame
       draw();
@@ -908,6 +979,19 @@ export function createScrollTargetsRenderer() {
         window.removeEventListener('resize', resizeHandler);
         resizeHandler = null;
       }
+
+      if (clickHandler && canvas) {
+        canvas.removeEventListener('click', clickHandler);
+        clickHandler = null;
+      }
+
+      // Clean up tap-to-play state
+      if (tappedBarTimeout) {
+        clearTimeout(tappedBarTimeout);
+        tappedBarTimeout = null;
+      }
+      tappedBarMidi = null;
+      barHitRects = [];
 
       pitchTrail = [];
       noteScores = new Map();
