@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d0d0d">
-  <meta name="description" content="Real-time pitch detection and ear training app">
+  <meta name="description" content="Real-time pitch detection, guided ear training, and progress tracking — all in your browser">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>PitchPlease</title>
+  <title>PitchPlease — Pitch Training Companion</title>
 
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -95,6 +95,15 @@
 
     <!-- Practice View (Session Launcher) -->
     <div id="practice-view" class="view active">
+      <!-- Onboarding overlay (first launch only) -->
+      <div class="onboarding-overlay" id="onboarding-overlay" hidden>
+        <div class="onboarding-card">
+          <h2>Welcome to PitchPlease</h2>
+          <p>Your personal pitch training companion. Detect what you play, practice with guided sessions, and track your progress.</p>
+          <p class="onboarding-hint">We'll need microphone access to detect your pitch.</p>
+          <button class="onboarding-start-btn" id="onboarding-start">Let's Go</button>
+        </div>
+      </div>
       <div class="practice-scroll">
         <div class="practice-section practice-today">
           <div class="practice-today-wrap">

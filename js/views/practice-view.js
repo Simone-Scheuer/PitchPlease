@@ -4,8 +4,9 @@ import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate } from '../core/session-templates.js';
 import { createSequenceExercise } from '../core/exercise-schema.js';
-import { ensureProfile, getOctaveRange, setOctaveRange } from '../profile/profile.js';
+import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange } from '../profile/profile.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
+import { getHistory } from '../profile/history.js';
 
 const QUICK_START_KEY = 'quick-start';
 const TODAY_SESSION_KEY = 'today-session';
@@ -28,6 +29,8 @@ function todayDateStr() {
 
 class PracticeView {
   #viewEl;
+  #onboardingOverlay;
+  #onboardingStartBtn;
   #todayBtn;
   #todaySubEl;
   #todayExercisesEl;
@@ -43,6 +46,8 @@ class PracticeView {
 
   init() {
     this.#viewEl = qs('#practice-view');
+    this.#onboardingOverlay = qs('#onboarding-overlay');
+    this.#onboardingStartBtn = qs('#onboarding-start');
     this.#todayBtn = qs('#practice-start-today');
     this.#todaySubEl = qs('.practice-today-sub');
     this.#todayExercisesEl = qs('.practice-today-exercises');
@@ -54,8 +59,21 @@ class PracticeView {
     this.#octaveHighSelect = qs('#practice-octave-high');
     this.#goBtn = qs('#practice-quick-go');
 
+    // Check for first launch: no profile AND no history
+    const isFirstLaunch = !hasProfile() && getHistory(90).length === 0;
+
     // Ensure profile exists (auto-creates with defaults on first launch)
     ensureProfile();
+
+    // Show onboarding overlay for first-time users
+    if (isFirstLaunch && this.#onboardingOverlay) {
+      this.#onboardingOverlay.hidden = false;
+      if (this.#onboardingStartBtn) {
+        this.#onboardingStartBtn.addEventListener('click', () => {
+          this.#onboardingOverlay.hidden = true;
+        });
+      }
+    }
 
     // Load settings, seeding octave range from profile if no quick-start saved
     this.#settings = store.get(QUICK_START_KEY) || { ...DEFAULTS };

@@ -4,11 +4,99 @@
 
 .practice-scroll {
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   padding: var(--space-md);
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+/* ===================================================================
+   Onboarding Overlay (first launch)
+   =================================================================== */
+
+.onboarding-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 13, 13, 0.92);
+  z-index: var(--z-overlay);
+  padding: var(--space-xl);
+  animation: onboarding-fade-in 0.4s ease-out;
+}
+
+.onboarding-overlay[hidden] {
+  display: none !important;
+}
+
+@keyframes onboarding-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.onboarding-card {
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  text-align: center;
+}
+
+.onboarding-card h2 {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 0;
+}
+
+.onboarding-card p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.onboarding-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  margin: 0;
+}
+
+.onboarding-start-btn {
+  min-width: 160px;
+  min-height: 48px;
+  padding: var(--space-sm) var(--space-xl);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--transition-base), transform var(--transition-fast);
+  margin-top: var(--space-sm);
+}
+
+.onboarding-start-btn:hover,
+.onboarding-start-btn:focus-visible {
+  opacity: 0.9;
+}
+
+.onboarding-start-btn:active {
+  opacity: 0.8;
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-overlay {
+    animation: none;
+  }
 }
 
 /* Sections */
@@ -38,6 +126,27 @@
 /* -------------------------------------------------------------------
    Today's Practice — hero button with shuffle
    ------------------------------------------------------------------- */
+
+.practice-today {
+  animation: practice-today-fade-in 0.5s ease-out;
+}
+
+@keyframes practice-today-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-today {
+    animation: none;
+  }
+}
 
 .practice-today-wrap {
   display: flex;

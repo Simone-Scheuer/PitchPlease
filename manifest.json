@@ -1,7 +1,7 @@
 {
   "name": "PitchPlease",
   "short_name": "PitchPlease",
-  "description": "Real-time pitch detection and ear training",
+  "description": "Real-time pitch detection, guided ear training, and progress tracking",
   "start_url": ".",
   "display": "standalone",
   "orientation": "any",

@@ -6,6 +6,9 @@
   background: var(--color-bg);
   position: relative;
 }
+#session-view[hidden] {
+  display: none !important;
+}
 
 /* Progress bar */
 .session-progress {
@@ -17,7 +20,7 @@
 }
 .session-progress-segment {
   height: 100%;
-  transition: background var(--transition-base);
+  transition: background var(--transition-base), width 0.3s ease-out;
 }
 .session-progress-segment.active {
   background: var(--color-accent);
@@ -36,6 +39,22 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-dim);
   text-align: center;
+  transition: opacity var(--transition-base);
+}
+
+.session-label.slide-in {
+  animation: session-label-slide-in 0.3s ease-out;
+}
+
+@keyframes session-label-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Phase info before main label */
@@ -62,9 +81,16 @@
   justify-content: center;
   background: rgba(13, 13, 13, 0.85);
   z-index: var(--z-overlay);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 .session-transition[hidden] {
-  display: none;
+  display: none !important;
+}
+.session-transition.visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 .session-transition-text {
   font-size: var(--font-size-xl);
@@ -100,6 +126,9 @@
   padding: var(--space-sm) var(--space-md);
   justify-content: center;
   background: var(--color-bg);
+}
+.session-controls[hidden] {
+  display: none !important;
 }
 .session-btn {
   min-width: 44px;
@@ -147,9 +176,21 @@
   background: rgba(13, 13, 13, 0.95);
   z-index: var(--z-overlay);
   padding: var(--space-xl);
+  animation: session-summary-fade-in 0.4s ease-out;
 }
 .session-summary[hidden] {
-  display: none;
+  display: none !important;
+}
+
+@keyframes session-summary-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .session-summary-icon {
   font-size: 64px;
@@ -201,4 +242,20 @@
 /* Hide tab bar during sessions */
 .tab-bar-hidden {
   display: none !important;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .session-label.slide-in {
+    animation: none;
+  }
+  .session-summary {
+    animation: none;
+  }
+  .session-transition {
+    transition: none;
+  }
+  .session-progress-segment {
+    transition: background var(--transition-base);
+  }
 }

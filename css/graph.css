@@ -133,6 +133,18 @@
 
 .view-switcher__tab.active {
   color: var(--color-accent);
+  position: relative;
+}
+
+.view-switcher__tab.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 0 0 var(--radius-full) var(--radius-full);
 }
 
 .view-switcher__tab:hover {

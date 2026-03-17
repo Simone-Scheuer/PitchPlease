@@ -39,6 +39,10 @@ body {
   transition: opacity var(--transition-base);
 }
 
+.view[hidden] {
+  display: none !important;
+}
+
 .view.active {
   opacity: 1;
   pointer-events: auto;

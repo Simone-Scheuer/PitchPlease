@@ -86,6 +86,7 @@ class SessionView {
     // Reset UI state
     this.#summaryEl.hidden = true;
     this.#transitionEl.hidden = true;
+    this.#transitionEl.classList.remove('visible');
     this.#controlsEl.hidden = false;
     this.#pauseIconEl.innerHTML = '\u23F8';
     this.#pauseTextEl.textContent = 'Pause';
@@ -196,13 +197,22 @@ class SessionView {
     const scaleLabel = SCALE_LABELS[scaleKey] ?? scaleKey;
     const phaseText = root && scaleLabel ? `${root} ${scaleLabel}` : '';
 
+    // Animate label change with slide-in
+    this.#labelEl.classList.remove('slide-in');
+    // Force reflow to restart animation
+    void this.#labelEl.offsetWidth;
+    this.#labelEl.classList.add('slide-in');
+
     if (phaseText) {
       this.#labelEl.innerHTML = `<span class="session-phase">${phaseText}</span> ${data.label ?? ''}`;
     } else {
       this.#labelEl.textContent = data.label ?? '';
     }
 
-    this.#transitionEl.hidden = true;
+    // Fade out transition overlay
+    this.#transitionEl.classList.remove('visible');
+    // Hide after fade completes
+    setTimeout(() => { this.#transitionEl.hidden = true; }, 300);
   }
 
   #onBlockEnd(data) {
@@ -224,7 +234,11 @@ class SessionView {
     }
 
     this.#transitionTextEl.innerHTML = html;
+    // Show and fade in the transition overlay
     this.#transitionEl.hidden = false;
+    // Force reflow so the transition triggers
+    void this.#transitionEl.offsetWidth;
+    this.#transitionEl.classList.add('visible');
   }
 
   #onComplete(data) {
@@ -297,6 +311,7 @@ class SessionView {
 
   #showSummary(data) {
     this.#controlsEl.hidden = true;
+    this.#transitionEl.classList.remove('visible');
     this.#transitionEl.hidden = true;
 
     const totalMs = data.totalDuration ?? 0;

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'pitchplease-v7';
+const CACHE_NAME = 'pitchplease-v9';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  // CSS
   './css/reset.css',
   './css/tokens.css',
   './css/layout.css',
@@ -13,12 +14,16 @@ const STATIC_ASSETS = [
   './css/session.css',
   './css/practice.css',
   './css/journal.css',
+  // JS — app entry
   './js/app.js',
+  // JS — audio
   './js/audio/mic.js',
   './js/audio/detector.js',
   './js/audio/note-math.js',
   './js/audio/pitch-buffer.js',
   './js/audio/song-engine.js',
+  './js/audio/synth.js',
+  // JS — views
   './js/views/tuner-view.js',
   './js/views/graph-view.js',
   './js/views/library-view.js',
@@ -26,13 +31,32 @@ const STATIC_ASSETS = [
   './js/views/practice-view.js',
   './js/views/session-view.js',
   './js/views/journal-view.js',
+  // JS — components
   './js/components/needle.js',
   './js/components/note-display.js',
   './js/components/frequency-display.js',
   './js/components/pitch-graph.js',
   './js/components/game-canvas.js',
+  // JS — core
   './js/core/exercise-schema.js',
+  './js/core/exercise-runtime.js',
+  './js/core/session-runner.js',
   './js/core/session-templates.js',
+  './js/core/measurements.js',
+  // JS — core evaluators
+  './js/core/evaluators/target-accuracy.js',
+  './js/core/evaluators/stability.js',
+  './js/core/evaluators/phrase-match.js',
+  './js/core/evaluators/bend-accuracy.js',
+  // JS — renderers
+  './js/renderers/renderer-base.js',
+  './js/renderers/scroll-targets.js',
+  './js/renderers/seismograph.js',
+  './js/renderers/flash-card.js',
+  './js/renderers/overlay-comparison.js',
+  './js/renderers/bend-meter.js',
+  './js/renderers/pitch-trace.js',
+  // JS — utils
   './js/utils/constants.js',
   './js/utils/dom.js',
   './js/utils/event-bus.js',
@@ -40,11 +64,14 @@ const STATIC_ASSETS = [
   './js/utils/song-data.js',
   './js/utils/exercise-generator.js',
   './js/utils/store.js',
+  // JS — profile
   './js/profile/profile.js',
   './js/profile/history.js',
   './js/profile/skill-model.js',
+  // JS — generation
   './js/generation/session-generator.js',
   './js/generation/difficulty.js',
+  // Assets
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-192-maskable.png',
