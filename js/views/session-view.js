@@ -3,6 +3,15 @@ import { qs } from '../utils/dom.js';
 import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { createSessionRunner } from '../core/session-runner.js';
+import { SCALE_LABELS } from '../utils/scales.js';
+
+const MOTIVATIONAL_MESSAGES = [
+  'Every session builds your skills',
+  'Consistency is the key to progress',
+  'You showed up \u2014 that\u2019s what matters',
+  'Small steps, big results',
+  'Your ears are getting sharper every day',
+];
 
 class SessionView {
   #viewEl;
@@ -13,10 +22,14 @@ class SessionView {
   #transitionTextEl;
   #controlsEl;
   #pauseBtn;
+  #pauseIconEl;
+  #pauseTextEl;
   #skipBtn;
   #endBtn;
   #summaryEl;
-  #summaryStatsEl;
+  #summaryTimeEl;
+  #summaryExercisesEl;
+  #summaryMessageEl;
   #backBtn;
   #tabBar;
 
@@ -38,10 +51,14 @@ class SessionView {
     this.#transitionTextEl = qs('.session-transition-text');
     this.#controlsEl = qs('.session-controls');
     this.#pauseBtn = qs('#session-pause');
+    this.#pauseIconEl = this.#pauseBtn.querySelector('.session-btn-icon');
+    this.#pauseTextEl = this.#pauseBtn.querySelector('.session-btn-text');
     this.#skipBtn = qs('#session-skip');
     this.#endBtn = qs('#session-end');
     this.#summaryEl = qs('.session-summary');
-    this.#summaryStatsEl = qs('.session-summary-stats');
+    this.#summaryTimeEl = qs('.session-summary-time');
+    this.#summaryExercisesEl = qs('.session-summary-exercises');
+    this.#summaryMessageEl = qs('.session-summary-message');
     this.#backBtn = qs('#session-back');
     this.#tabBar = qs('.view-switcher');
 
@@ -69,7 +86,8 @@ class SessionView {
     this.#summaryEl.hidden = true;
     this.#transitionEl.hidden = true;
     this.#controlsEl.hidden = false;
-    this.#pauseBtn.textContent = '\u23F8';
+    this.#pauseIconEl.innerHTML = '\u23F8';
+    this.#pauseTextEl.textContent = 'Pause';
     this.#progressEl.innerHTML = '';
     this.#labelEl.textContent = '';
 
@@ -170,7 +188,19 @@ class SessionView {
 
   #onBlockStart(data) {
     this.#updateProgressBar(data.blockIndex);
-    this.#labelEl.textContent = data.label ?? '';
+
+    // Show phase + key context before the main label
+    const root = data.exercise?.context?.root ?? '';
+    const scaleKey = data.exercise?.context?.scale ?? '';
+    const scaleLabel = SCALE_LABELS[scaleKey] ?? scaleKey;
+    const phaseText = root && scaleLabel ? `${root} ${scaleLabel}` : '';
+
+    if (phaseText) {
+      this.#labelEl.innerHTML = `<span class="session-phase">${phaseText}</span> ${data.label ?? ''}`;
+    } else {
+      this.#labelEl.textContent = data.label ?? '';
+    }
+
     this.#transitionEl.hidden = true;
   }
 
@@ -183,7 +213,16 @@ class SessionView {
   }
 
   #onTransition(data) {
-    this.#transitionTextEl.textContent = `Next: ${data.nextLabel}`;
+    // Show structured transition with "Next" label, exercise name, and description
+    const nextBlock = this.#blocks[data.nextBlockIndex];
+    const desc = nextBlock?.exercise?.description ?? '';
+
+    let html = `<div class="session-transition-next">Next</div><div class="session-transition-name">${data.nextLabel}</div>`;
+    if (desc) {
+      html += `<div class="session-transition-desc">${desc}</div>`;
+    }
+
+    this.#transitionTextEl.innerHTML = html;
     this.#transitionEl.hidden = false;
   }
 
@@ -201,11 +240,13 @@ class SessionView {
     if (this.#paused) {
       this.#runner.resume();
       this.#paused = false;
-      this.#pauseBtn.textContent = '\u23F8';
+      this.#pauseIconEl.innerHTML = '\u23F8';
+      this.#pauseTextEl.textContent = 'Pause';
     } else {
       this.#runner.pause();
       this.#paused = true;
-      this.#pauseBtn.textContent = '\u25B6';
+      this.#pauseIconEl.innerHTML = '\u25B6';
+      this.#pauseTextEl.textContent = 'Resume';
     }
   }
 
@@ -232,7 +273,6 @@ class SessionView {
     this.#controlsEl.hidden = true;
     this.#transitionEl.hidden = true;
 
-    const blocksCompleted = data.blockResults?.length ?? this.#blockResults.length;
     const totalMs = data.totalDuration ?? 0;
     const totalSec = Math.round(totalMs / 1000);
     const mins = Math.floor(totalSec / 60);
@@ -241,16 +281,31 @@ class SessionView {
       ? `${mins}m ${secs}s`
       : `${secs}s`;
 
-    this.#summaryStatsEl.innerHTML = '';
-    const lines = [
-      `Blocks completed: ${blocksCompleted} / ${this.#blocks.length}`,
-      `Total duration: ${timeStr}`,
-    ];
-    for (const line of lines) {
-      const div = document.createElement('div');
-      div.textContent = line;
-      this.#summaryStatsEl.appendChild(div);
+    // Time display
+    this.#summaryTimeEl.textContent = timeStr;
+
+    // Exercise list with checkmarks
+    this.#summaryExercisesEl.innerHTML = '';
+    const results = data.blockResults ?? this.#blockResults;
+    for (const result of results) {
+      const item = document.createElement('div');
+      item.className = 'session-summary-exercise-item';
+
+      const check = document.createElement('span');
+      check.className = 'session-summary-exercise-check';
+      check.textContent = '\u2713';
+
+      const name = document.createElement('span');
+      name.textContent = result.label;
+
+      item.appendChild(check);
+      item.appendChild(name);
+      this.#summaryExercisesEl.appendChild(item);
     }
+
+    // Motivational message (rotate)
+    const msg = MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)];
+    this.#summaryMessageEl.textContent = msg;
 
     // Mark all progress segments as completed
     this.#updateProgressBar(this.#blocks.length);

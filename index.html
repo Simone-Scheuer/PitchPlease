@@ -26,7 +26,7 @@
   <div class="app" id="app">
 
     <!-- Tuner View -->
-    <div class="view active" id="tuner-view">
+    <div class="view" id="tuner-view">
       <div class="tuner">
 
         <div class="tuner__header">
@@ -93,7 +93,7 @@
     </div>
 
     <!-- Practice View (Session Launcher) -->
-    <div id="practice-view" class="view" hidden>
+    <div id="practice-view" class="view active">
       <div class="practice-scroll">
         <div class="practice-section practice-today">
           <button class="practice-today-btn" id="practice-start-today">
@@ -104,11 +104,13 @@
 
         <div class="practice-section">
           <h3 class="practice-section-title">Sessions</h3>
+          <p class="practice-section-desc">Guided practice routines with multiple exercises</p>
           <div class="practice-templates" id="practice-templates"></div>
         </div>
 
         <div class="practice-section">
           <h3 class="practice-section-title">Quick Start</h3>
+          <p class="practice-section-desc">Jump into a single exercise</p>
           <div class="practice-quick-start" id="practice-quick-start">
             <div class="practice-select-row">
               <label>Root</label>
@@ -156,9 +158,9 @@
             <div class="practice__row">
               <label class="practice__label">Octave Range</label>
               <div class="practice__controls-row">
-                <select class="practice__select" id="practice-octave-low" aria-label="Low octave"></select>
+                <select class="practice__select" id="library-octave-low" aria-label="Low octave"></select>
                 <span class="practice__separator">to</span>
-                <select class="practice__select" id="practice-octave-high" aria-label="High octave"></select>
+                <select class="practice__select" id="library-octave-high" aria-label="High octave"></select>
               </div>
             </div>
 
@@ -197,13 +199,22 @@
         <div class="session-transition-text"></div>
       </div>
       <div class="session-controls">
-        <button class="session-btn" id="session-pause">&#x23F8;</button>
-        <button class="session-btn" id="session-skip">&#x23ED;</button>
-        <button class="session-btn session-btn-end" id="session-end">End</button>
+        <button class="session-btn session-btn-pause" id="session-pause">
+          <span class="session-btn-icon">&#x23F8;</span>
+          <span class="session-btn-text">Pause</span>
+        </button>
+        <button class="session-btn session-btn-skip" id="session-skip">
+          <span class="session-btn-icon">&#x23ED;</span>
+          <span class="session-btn-text">Skip</span>
+        </button>
+        <button class="session-btn session-btn-end" id="session-end">End Session</button>
       </div>
       <div class="session-summary" hidden>
-        <h2 class="session-summary-title">Session Complete</h2>
-        <div class="session-summary-stats"></div>
+        <div class="session-summary-icon">&#10003;</div>
+        <h2 class="session-summary-title">Nice Work!</h2>
+        <div class="session-summary-time"></div>
+        <div class="session-summary-exercises"></div>
+        <div class="session-summary-message"></div>
         <button class="session-btn session-btn-primary" id="session-back">Back to Practice</button>
       </div>
     </div>
@@ -274,7 +285,7 @@
 
   <!-- View Switcher -->
   <nav class="view-switcher" id="view-switcher">
-    <button class="view-switcher__tab active" data-view="tuner-view" aria-label="Tuner">
+    <button class="view-switcher__tab" data-view="tuner-view" aria-label="Tuner">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/>
         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
@@ -287,11 +298,11 @@
       </svg>
       Graph
     </button>
-    <button class="view-switcher__tab" data-view="play-view" aria-label="Play">
+    <button class="view-switcher__tab active" data-view="play-view" aria-label="Practice">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
       </svg>
-      Play
+      Practice
     </button>
   </nav>
 

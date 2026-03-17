@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // View management
-let activeViewId = 'tuner-view';
+let activeViewId = 'practice-view';
 
 function switchView(viewId) {
   // Map play-view tab to practice-view
@@ -30,6 +30,7 @@ function switchView(viewId) {
   if (activeViewId === 'graph-view') graphView.deactivate();
   if (activeViewId === 'practice-view') practiceView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
+  if (activeViewId === 'session-view') sessionView.deactivate();
 
   // Activate new view
   if (resolvedId === 'practice-view') {
@@ -85,6 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeViewId === 'practice-view') practiceView.deactivate();
     if (activeViewId === 'game-view') gameView.deactivate();
 
+    // Track that we're in session mode so navigate back works
+    activeViewId = 'session-view';
     sessionView.activate(config);
   });
 });

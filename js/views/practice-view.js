@@ -17,6 +17,7 @@ const DEFAULTS = {
 class PracticeView {
   #viewEl;
   #todayBtn;
+  #todaySubEl;
   #templatesEl;
   #rootSelect;
   #scaleSelect;
@@ -28,6 +29,7 @@ class PracticeView {
   init() {
     this.#viewEl = qs('#practice-view');
     this.#todayBtn = qs('#practice-start-today');
+    this.#todaySubEl = qs('.practice-today-sub');
     this.#templatesEl = qs('#practice-templates');
     this.#rootSelect = qs('#practice-root');
     this.#scaleSelect = qs('#practice-scale');
@@ -103,6 +105,13 @@ class PracticeView {
     this.#scaleSelect.value = this.#settings.scale;
     this.#octaveLowSelect.value = this.#settings.octaveLow ?? DEFAULTS.octaveLow;
     this.#octaveHighSelect.value = this.#settings.octaveHigh ?? DEFAULTS.octaveHigh;
+    this.#updateTodaySubtitle();
+  }
+
+  #updateTodaySubtitle() {
+    const { root, scale } = this.#settings;
+    const scaleLabel = SCALE_LABELS[scale] ?? scale;
+    this.#todaySubEl.textContent = `Morning Practice \u00B7 ${root} ${scaleLabel} \u00B7 15 min`;
   }
 
   #saveSettings() {
@@ -119,6 +128,7 @@ class PracticeView {
       octaveHigh,
     };
     store.set(QUICK_START_KEY, this.#settings);
+    this.#updateTodaySubtitle();
   }
 
   // -------------------------------------------------------------------------

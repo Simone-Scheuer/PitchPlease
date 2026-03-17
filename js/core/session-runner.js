@@ -306,6 +306,7 @@ export function createSessionRunner(sessionConfig) {
       bus.emit('session:transition', {
         nextBlockIndex: blockIndex,
         nextLabel: nextBlock.label,
+        nextExercise: nextBlock.exercise,
       });
 
       transitionTimerId = setTimeout(() => {

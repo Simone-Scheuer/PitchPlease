@@ -4,13 +4,16 @@
   flex-direction: column;
   height: 100dvh;
   background: var(--color-bg);
+  position: relative;
 }
 
 /* Progress bar */
 .session-progress {
   display: flex;
-  height: 4px;
+  height: 6px;
   background: var(--color-bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
 }
 .session-progress-segment {
   height: 100%;
@@ -33,6 +36,14 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-dim);
   text-align: center;
+}
+
+/* Phase info before main label */
+.session-phase {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  opacity: 0.7;
+  margin-right: var(--space-xs);
 }
 
 /* Canvas fills available space */
@@ -59,6 +70,27 @@
   font-size: var(--font-size-xl);
   color: var(--color-text);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.session-transition-next {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-accent);
+}
+.session-transition-name {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text);
+}
+.session-transition-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  max-width: 280px;
 }
 
 /* Controls */
@@ -79,6 +111,17 @@
   color: var(--color-text);
   font-size: var(--font-size-base);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+.session-btn-icon {
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+.session-btn-text {
+  font-size: var(--font-size-sm);
 }
 .session-btn-end {
   margin-left: auto;
@@ -108,9 +151,46 @@
 .session-summary[hidden] {
   display: none;
 }
+.session-summary-icon {
+  font-size: 64px;
+  color: var(--color-accent);
+  line-height: 1;
+}
 .session-summary-title {
   font-size: var(--font-size-xl);
   color: var(--color-accent);
+  margin: 0;
+}
+.session-summary-time {
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+}
+.session-summary-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-align: left;
+  width: 100%;
+  max-width: 300px;
+}
+.session-summary-exercise-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+}
+.session-summary-exercise-check {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+.session-summary-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
 }
 .session-summary-stats {
   color: var(--color-text-dim);
