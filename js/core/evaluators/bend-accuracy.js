@@ -34,6 +34,8 @@ const REACH_WEIGHT = 0.2;
  * @property {number}  [inTuneCents=10]  - Cents threshold for "in tune"
  * @property {number}  [closeCents=25]   - Cents threshold for "close"
  * @property {number}  [lockMs=300]      - Sustained in-tune time for "locked"
+ * @property {number}  [holdMs=2000]     - Sustained in-tune time to signal advance
+ * @property {boolean} [playerDriven=true] - Whether evaluator signals note advance
  */
 
 /**
@@ -54,7 +56,7 @@ const REACH_WEIGHT = 0.2;
  *
  * @param {BendAccuracyConfig} [config]
  * @returns {{
- *   onPitch:         (pitchData: Object, targetNote: Object) => { inTune: boolean, close: boolean, absCents: number, locked: boolean, holdMs: number, timeToReachMs: number },
+ *   onPitch:         (pitchData: Object, targetNote: Object) => { inTune: boolean, close: boolean, absCents: number, locked: boolean, holdMs: number, timeToReachMs: number, advance: boolean },
  *   onSilence:       () => void,
  *   advanceNote:     () => BendTargetResult|null,
  *   getMeasurements: () => Object,
@@ -66,6 +68,8 @@ export function createBendAccuracyEvaluator(config = {}) {
   const inTuneCents = config.inTuneCents ?? DEFAULT_IN_TUNE_CENTS;
   const closeCents = config.closeCents ?? DEFAULT_CLOSE_CENTS;
   const lockMs = config.lockMs ?? DEFAULT_LOCK_MS;
+  const holdMsThreshold = config.holdMs ?? 2000;  // ms in-zone to signal advance
+  const playerDriven = config.playerDriven !== false; // default true
 
   // --- Per-target accumulators (current target) ---
   let totalFrames = 0;
@@ -146,11 +150,11 @@ export function createBendAccuracyEvaluator(config = {}) {
      *
      * @param {Object} pitchData  - { midi, cents, note, octave, ... }
      * @param {Object} targetNote - { note, midi (fractional), label? }
-     * @returns {{ inTune: boolean, close: boolean, absCents: number, locked: boolean, holdMs: number, timeToReachMs: number }}
+     * @returns {{ inTune: boolean, close: boolean, absCents: number, locked: boolean, holdMs: number, timeToReachMs: number, advance: boolean }}
      */
     onPitch(pitchData, targetNote) {
       if (!targetNote) {
-        return { inTune: false, close: false, absCents: 0, locked: false, holdMs: 0, timeToReachMs: -1 };
+        return { inTune: false, close: false, absCents: 0, locked: false, holdMs: 0, timeToReachMs: -1, advance: false };
       }
 
       const now = performance.now();
@@ -212,6 +216,12 @@ export function createBendAccuracyEvaluator(config = {}) {
         runningHoldMs += now - holdStreakStart;
       }
 
+      // Player-driven advance: signal when hold time exceeds threshold
+      let advance = false;
+      if (playerDriven && runningHoldMs >= holdMsThreshold) {
+        advance = true;
+      }
+
       return {
         inTune,
         close,
@@ -219,6 +229,7 @@ export function createBendAccuracyEvaluator(config = {}) {
         locked: hasLocked,
         holdMs: Math.round(runningHoldMs),
         timeToReachMs,
+        advance,
       };
     },
 

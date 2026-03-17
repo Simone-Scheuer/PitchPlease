@@ -51,7 +51,11 @@ const EVALUATOR_REGISTRY = {
   'stability': (config) => createStabilityEvaluator(config?.evaluatorOptions),
   'reaction-time': () => createTargetAccuracyEvaluator({ tolerance: 40, holdMs: 300 }),
   'phrase-match': (config) => createPhraseMatchEvaluator(config),
-  'bend-accuracy': (config) => createBendAccuracyEvaluator(config?.evaluatorOptions),
+  'bend-accuracy': (config) => createBendAccuracyEvaluator({
+    ...config?.evaluatorOptions,
+    holdMs: config?.timing?.holdMs ?? config?.evaluatorOptions?.holdMs ?? 2000,
+    playerDriven: (config?.timing?.mode === 'player-driven'),
+  }),
   'none': () => null,
   // Phase 5 placeholder
   'interval-accuracy': () => null,

@@ -89,6 +89,16 @@ export function createBendMeterRenderer() {
   let currentCursor = 0;
   let currentNoteCount = 0;
 
+  // --- Hold progress tracking (visual fill for active target) ---
+  let holdProgress = 0;           // 0..1 fill ratio
+  let holdStartTimestamp = 0;     // performance.now() when in-tune streak began
+  let holdInTune = false;         // was the last frame in-tune?
+  let holdGraceStart = 0;         // timestamp when grace period began (out-of-tune)
+  let holdAccumulatedMs = 0;      // accumulated in-tune ms (survives short gaps)
+  let holdTargetMs = 2000;        // holdMs from exercise config
+  const HOLD_GRACE_MS = 200;      // grace period before resetting progress
+  let holdFlashUntil = 0;         // timestamp until which to show bright flash
+
   // --- Resize handler ---
   let resizeHandler = null;
 
@@ -147,6 +157,80 @@ export function createBendMeterRenderer() {
   }
 
   // ---------------------------------------------------------------------------
+  // Hold progress tracking
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Update the visual hold progress based on the current evaluator result.
+   * Called every frame from update().
+   */
+  function updateHoldProgress(evaluatorResult) {
+    const now = performance.now();
+
+    if (evaluatorResult && evaluatorResult.inTune) {
+      // Player is in tune
+      if (!holdInTune) {
+        // Transition from out-of-tune to in-tune
+        if (holdGraceStart > 0 && (now - holdGraceStart) < HOLD_GRACE_MS) {
+          // Within grace period — resume from where we left off
+          holdGraceStart = 0;
+        } else {
+          // Grace expired or fresh start
+          if (holdGraceStart > 0) {
+            // Grace expired, reset
+            holdAccumulatedMs = 0;
+            holdGraceStart = 0;
+          }
+        }
+        holdStartTimestamp = now;
+        holdInTune = true;
+      }
+
+      // Accumulate in-tune time
+      const streakMs = now - holdStartTimestamp;
+      const totalMs = holdAccumulatedMs + streakMs;
+      holdProgress = Math.min(1, totalMs / holdTargetMs);
+
+      // Check for advance (target fully filled)
+      if (evaluatorResult.advance) {
+        holdProgress = 1;
+        holdFlashUntil = now + 150; // bright flash for 150ms
+      }
+    } else {
+      // Player is out of tune or silent
+      if (holdInTune) {
+        // Just went out of tune — bank accumulated time and start grace
+        holdAccumulatedMs += (now - holdStartTimestamp);
+        holdInTune = false;
+        holdGraceStart = now;
+      }
+
+      // During grace period, freeze progress (don't reset)
+      if (holdGraceStart > 0) {
+        if ((now - holdGraceStart) >= HOLD_GRACE_MS) {
+          // Grace period expired — reset
+          holdAccumulatedMs = 0;
+          holdProgress = 0;
+          holdGraceStart = 0;
+        }
+        // else: keep holdProgress frozen at its current value
+      }
+    }
+  }
+
+  /**
+   * Reset hold progress (when cursor advances to next note).
+   */
+  function resetHoldProgress() {
+    holdProgress = 0;
+    holdStartTimestamp = 0;
+    holdInTune = false;
+    holdGraceStart = 0;
+    holdAccumulatedMs = 0;
+    holdFlashUntil = 0;
+  }
+
+  // ---------------------------------------------------------------------------
   // Drawing routines
   // ---------------------------------------------------------------------------
 
@@ -175,6 +259,9 @@ export function createBendMeterRenderer() {
 
     // --- Target zone band ---
     drawTargetZone(centerX, graphLeft, graphRight);
+
+    // --- Hold progress fill inside target zone ---
+    drawHoldProgressFill(graphLeft, graphRight);
 
     // --- Player pitch ball ---
     drawPlayerBall(centerX);
@@ -301,6 +388,39 @@ export function createBendMeterRenderer() {
     ctx.lineTo(graphRight, centerY);
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  function drawHoldProgressFill(graphLeft, graphRight) {
+    if (!currentTarget || holdProgress <= 0) return;
+
+    const now = performance.now();
+    const zoneCents = TARGET_ZONE_CENTS / 100; // Convert to semitones
+    const topY = midiToY(currentTarget.midi + zoneCents);
+    const bottomY = midiToY(currentTarget.midi - zoneCents);
+    const zoneHeight = bottomY - topY;
+    const zoneWidth = graphRight - graphLeft;
+
+    // Fill width proportional to holdProgress
+    const fillW = zoneWidth * holdProgress;
+
+    // Color: brighter during flash, otherwise accent at 0.3 opacity
+    if (holdFlashUntil > now) {
+      ctx.fillStyle = 'rgba(78, 205, 196, 0.55)';
+    } else {
+      ctx.fillStyle = 'rgba(78, 205, 196, 0.3)';
+    }
+
+    ctx.fillRect(graphLeft, topY, fillW, zoneHeight);
+
+    // Draw a thin leading edge line at the fill boundary
+    if (holdProgress > 0 && holdProgress < 1) {
+      ctx.strokeStyle = 'rgba(78, 205, 196, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(graphLeft + fillW, topY);
+      ctx.lineTo(graphLeft + fillW, bottomY);
+      ctx.stroke();
+    }
   }
 
   function drawPlayerBall(centerX) {
@@ -486,6 +606,7 @@ export function createBendMeterRenderer() {
       // Extract target notes from config
       targetNotes = exerciseConfig.context?.notes ?? [];
       exerciseDescription = exerciseConfig.description ?? '';
+      holdTargetMs = exerciseConfig.timing?.holdMs ?? 2000;
 
       // Reset state
       active = false;
@@ -495,6 +616,7 @@ export function createBendMeterRenderer() {
       currentEvaluatorResult = null;
       currentCursor = 0;
       currentNoteCount = 0;
+      resetHoldProgress();
 
       // Listen for resize
       resizeHandler = () => handleResize();
@@ -516,6 +638,7 @@ export function createBendMeterRenderer() {
       // Re-read notes if config provided
       if (config) {
         targetNotes = config.context?.notes ?? targetNotes;
+        holdTargetMs = config.timing?.holdMs ?? holdTargetMs;
       }
     },
 
@@ -527,11 +650,21 @@ export function createBendMeterRenderer() {
     update(state) {
       if (!ctx) return;
 
+      // Detect cursor advancement and reset hold progress
+      const prevCursor = currentCursor;
+
       currentTarget = state.targetNote;
       currentPitchData = state.pitchData;
       currentEvaluatorResult = state.evaluatorResult;
       currentCursor = state.cursor;
       currentNoteCount = state.noteCount;
+
+      if (currentCursor !== prevCursor) {
+        resetHoldProgress();
+      }
+
+      // Update hold progress for the active target
+      updateHoldProgress(state.evaluatorResult);
 
       draw();
     },
@@ -561,6 +694,7 @@ export function createBendMeterRenderer() {
       currentPitchData = null;
       currentEvaluatorResult = null;
       exerciseDescription = '';
+      resetHoldProgress();
 
       canvas = null;
       ctx = null;
@@ -584,6 +718,7 @@ export function createBendMeterRenderer() {
       currentEvaluatorResult = null;
       currentCursor = 0;
       countdownValue = null;
+      resetHoldProgress();
 
       if (ctx) draw();
     },
