@@ -122,13 +122,18 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   }
 
   function buildTickState() {
+    // If the evaluator exposes getState() (e.g., phrase-match manages its own
+    // lifecycle phases), merge that into evaluatorResult so the renderer always
+    // has the latest phase even during silence frames.
+    const evalResult = lastEvaluatorResult ?? evaluator?.getState?.() ?? null;
+
     return {
       pitchData: lastPitchData,
       targetNote: currentTarget(),
       cursor,
       noteCount: notes.length,
       elapsed,
-      evaluatorResult: lastEvaluatorResult,
+      evaluatorResult: evalResult,
       exerciseState: state,
       iteration: iterationCount,
     };
@@ -434,6 +439,9 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       config,
       iteration: iterationCount,
     });
+
+    // Start evaluator if it has a start method (e.g., phrase-match manages its own lifecycle)
+    evaluator?.start?.(config);
 
     renderer?.start?.(config);
 

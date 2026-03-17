@@ -552,3 +552,184 @@ export function createSequenceExercise({
 
   return applyDefaults(config);
 }
+
+// ---------------------------------------------------------------------------
+// Public API — generateEchoPhrase
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a random phrase for echo exercises within a given scale.
+ *
+ * Uses a constrained random walk: starts on a random scale degree, then
+ * steps through the scale with intervals limited by difficulty.
+ *
+ * @param {Object} params
+ * @param {'easy'|'medium'|'hard'} [params.difficulty='easy']
+ * @param {string}  params.root       - Root note name
+ * @param {string}  [params.scale='major'] - Scale key
+ * @param {[number, number]} [params.octaveRange=[3, 5]] - Octave range
+ * @returns {Array<{ midi: number, durationMs: number, gapMs?: number }>}
+ */
+export function generateEchoPhrase({
+  difficulty = 'easy',
+  root,
+  scale = 'major',
+  octaveRange = [3, 5],
+} = {}) {
+  if (!root || !ROOT_NAMES.includes(root)) {
+    throw new Error(`Invalid root: "${root}"`);
+  }
+
+  const intervals = SCALE_INTERVALS[scale];
+  if (!intervals) {
+    throw new Error(`Unknown scale: "${scale}"`);
+  }
+
+  const rootIndex = ROOT_NAMES.indexOf(root);
+  const [octLow, octHigh] = octaveRange;
+
+  // Build pool of scale MIDI notes
+  const pool = [];
+  for (let oct = octLow; oct <= octHigh; oct++) {
+    for (const interval of intervals) {
+      const midi = (oct + 1) * 12 + rootIndex + interval;
+      pool.push(midi);
+    }
+  }
+  if (pool.length === 0) return [];
+
+  // Difficulty parameters
+  let noteCount, maxLeap, noteDuration;
+  switch (difficulty) {
+    case 'easy':
+      noteCount = 2 + Math.floor(Math.random() * 2);  // 2-3 notes
+      maxLeap = 2;   // stepwise motion: max 2 scale degrees
+      noteDuration = 500;
+      break;
+    case 'medium':
+      noteCount = 3 + Math.floor(Math.random() * 2);  // 3-4 notes
+      maxLeap = 4;   // allow 3rds and 4ths (up to 4 scale degrees)
+      noteDuration = 450;
+      break;
+    case 'hard':
+      noteCount = 4 + Math.floor(Math.random() * 2);  // 4-5 notes
+      maxLeap = 6;   // larger leaps allowed
+      noteDuration = 400;
+      break;
+    default:
+      noteCount = 3;
+      maxLeap = 2;
+      noteDuration = 500;
+  }
+
+  // Random walk through the pool
+  let currentIdx = Math.floor(Math.random() * Math.min(pool.length, pool.length - noteCount));
+  // Ensure we start somewhere with room to move
+  currentIdx = Math.max(0, Math.min(currentIdx, pool.length - 1));
+
+  const phrase = [];
+  const usedIndices = new Set();
+
+  for (let i = 0; i < noteCount; i++) {
+    phrase.push({
+      midi: pool[currentIdx],
+      durationMs: noteDuration,
+      gapMs: 80,
+    });
+    usedIndices.add(currentIdx);
+
+    // Pick next index within leap distance
+    if (i < noteCount - 1) {
+      const minIdx = Math.max(0, currentIdx - maxLeap);
+      const maxIdx = Math.min(pool.length - 1, currentIdx + maxLeap);
+      const candidates = [];
+      for (let j = minIdx; j <= maxIdx; j++) {
+        if (j !== currentIdx) candidates.push(j);
+      }
+      if (candidates.length > 0) {
+        currentIdx = candidates[Math.floor(Math.random() * candidates.length)];
+      }
+    }
+  }
+
+  return phrase;
+}
+
+// ---------------------------------------------------------------------------
+// Public API — createEchoExercise
+// ---------------------------------------------------------------------------
+
+/**
+ * Factory that builds a complete ExerciseConfig for echo (listen-and-repeat)
+ * exercises. Generates a set of phrases at the specified difficulty and
+ * wires up the phrase-match evaluator and overlay-comparison renderer.
+ *
+ * @param {Object} params
+ * @param {string}  params.root              - Root note name
+ * @param {string}  [params.scale='major']   - Scale key
+ * @param {number}  [params.octaveLow=3]     - Lowest octave
+ * @param {number}  [params.octaveHigh=5]    - Highest octave
+ * @param {'easy'|'medium'|'hard'} [params.difficulty='easy']
+ * @param {number}  [params.phraseCount=4]   - Number of phrases per exercise
+ * @param {boolean} [params.showReview=true]  - Whether to show review phase
+ * @param {string}  [params.synthVoice='sine'] - Synth voice for phrase playback
+ * @param {number}  [params.synthGain=0.8]    - Synth gain
+ * @returns {ExerciseConfig}
+ */
+export function createEchoExercise({
+  root,
+  scale = 'major',
+  octaveLow = 3,
+  octaveHigh = 5,
+  difficulty = 'easy',
+  phraseCount = 4,
+  showReview = true,
+  synthVoice = 'sine',
+  synthGain = 0.8,
+} = {}) {
+  if (!root || !ROOT_NAMES.includes(root)) {
+    throw new Error(`Invalid root: "${root}". Must be one of: ${ROOT_NAMES.join(', ')}`);
+  }
+  if (!SCALE_INTERVALS[scale]) {
+    throw new Error(`Unknown scale: "${scale}"`);
+  }
+
+  // Generate phrases
+  const phrases = [];
+  for (let i = 0; i < phraseCount; i++) {
+    phrases.push(generateEchoPhrase({
+      difficulty,
+      root,
+      scale,
+      octaveRange: [octaveLow, octaveHigh],
+    }));
+  }
+
+  const scaleLabel = SCALE_LABELS[scale] || scale;
+  const diffLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+
+  return applyDefaults({
+    id: `echo-${root}-${scale}-${difficulty}-${octaveLow}-${octaveHigh}`,
+    type: 'echo',
+    name: `Echo ${diffLabel} — ${root} ${scaleLabel}`,
+    description: `Listen and play back ${diffLabel.toLowerCase()} phrases in ${root} ${scaleLabel}`,
+    context: {
+      scale,
+      root,
+      octaveRange: [octaveLow, octaveHigh],
+    },
+    evaluator: 'phrase-match',
+    renderer: 'overlay-comparison',
+    timing: { mode: 'indefinite' },
+    audio: {
+      phrases,
+      synthVoice,
+      synthGain,
+      playPhrase: true,
+    },
+    duration: null,
+    loop: false,
+    measures: ['phrase-accuracy', 'notes-hit-pct', 'cents-avg'],
+    skills: ['earTraining', 'pitchAccuracy'],
+  });
+}

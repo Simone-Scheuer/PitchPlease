@@ -7,7 +7,7 @@
  * Pure data module — no DOM, no audio, no event bus.
  */
 
-import { createSequenceExercise, applyDefaults } from './exercise-schema.js';
+import { createSequenceExercise, createEchoExercise, applyDefaults } from './exercise-schema.js';
 
 // ---------------------------------------------------------------------------
 // Session config schema (JSDoc)
@@ -409,6 +409,90 @@ function scaleFluencyBuilder(root = 'C', scale = 'major', octaveLow = 3, octaveH
   };
 }
 
+/**
+ * Ear Training Focus (13 min)
+ * Developing relative pitch and audiation with echo exercises.
+ */
+function earTrainingFocus(root = 'C', scale = 'major', octaveLow = 3, octaveHigh = 5) {
+  const oRange = [octaveLow, octaveHigh];
+  const blocks = [
+    {
+      exercise: buildSustainedExercise('drone-match', root, scale, {
+        label: 'Drone Match',
+        description: `Settle into ${root} — match the drone`,
+        octaveRange: oRange,
+        drone: { voice: 'triangle', gain: 0.7 },
+      }),
+      duration: 120_000,
+      label: 'Settle In',
+      phase: 'activate',
+    },
+    {
+      exercise: createEchoExercise({
+        root,
+        scale,
+        octaveLow,
+        octaveHigh,
+        difficulty: 'easy',
+        phraseCount: 3,
+        synthVoice: 'sine',
+      }),
+      duration: 180_000,
+      label: 'Echo Easy',
+      phase: 'develop',
+    },
+    {
+      exercise: createEchoExercise({
+        root,
+        scale,
+        octaveLow,
+        octaveHigh,
+        difficulty: 'medium',
+        phraseCount: 3,
+        synthVoice: 'sine',
+      }),
+      duration: 180_000,
+      label: 'Echo Medium',
+      phase: 'challenge',
+    },
+    {
+      exercise: createEchoExercise({
+        root,
+        scale,
+        octaveLow,
+        octaveHigh,
+        difficulty: 'hard',
+        phraseCount: 3,
+        synthVoice: 'sine',
+      }),
+      duration: 180_000,
+      label: 'Echo Hard',
+      phase: 'challenge',
+    },
+    {
+      exercise: buildFreePlayExercise(root, scale, {
+        label: 'Drone Jam',
+        description: `Free play in ${root} ${scale} over drone`,
+        octaveRange: oRange,
+        drone: { voice: 'triangle', gain: 0.6 },
+      }),
+      duration: 120_000,
+      label: 'Cool Down',
+      phase: 'play',
+    },
+  ];
+
+  return {
+    id: 'ear-training-focus',
+    name: 'Ear Training Focus',
+    description: `Ear training in ${root} ${scale}: drone match, echo easy → hard, free play`,
+    tags: ['ear-training', 'echo', '13-min'],
+    blocks,
+    transitions: 'gentle',
+    totalDuration: blocks.reduce((sum, b) => sum + b.duration, 0),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Template registry
 // ---------------------------------------------------------------------------
@@ -418,6 +502,7 @@ const TEMPLATE_FACTORIES = {
   'morning-practice': morningPractice,
   'quick-burst': quickBurst,
   'scale-fluency': scaleFluencyBuilder,
+  'ear-training-focus': earTrainingFocus,
 };
 
 /**
@@ -428,6 +513,7 @@ export const SESSION_TEMPLATES = Object.freeze([
   { id: 'morning-practice', name: 'Morning Practice', duration: '15 min', description: 'Balanced session: drone match, scales, reflex, free play', tags: ['daily', 'balanced', '15-min'] },
   { id: 'quick-burst', name: 'Quick Burst', duration: '5 min', description: 'Focused burst: long tone, speed ladder, free play', tags: ['quick', 'focus', '5-min'] },
   { id: 'scale-fluency', name: 'Scale Fluency Builder', duration: '15 min', description: 'Build fluency: patterns, reflex, speed ladder, improv', tags: ['scales', 'fluency', '15-min'] },
+  { id: 'ear-training-focus', name: 'Ear Training Focus', duration: '13 min', description: 'Echo exercises: drone match, easy/medium/hard phrases, free play', tags: ['ear-training', 'echo', '13-min'] },
 ]);
 
 /**

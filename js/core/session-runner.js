@@ -14,9 +14,11 @@ import { bus } from '../utils/event-bus.js';
 import { createExerciseRuntime } from './exercise-runtime.js';
 import { createTargetAccuracyEvaluator } from './evaluators/target-accuracy.js';
 import { createStabilityEvaluator } from './evaluators/stability.js';
+import { createPhraseMatchEvaluator } from './evaluators/phrase-match.js';
 import { createScrollTargetsRenderer } from '../renderers/scroll-targets.js';
 import { createSeismographRenderer } from '../renderers/seismograph.js';
 import { createFlashCardRenderer } from '../renderers/flash-card.js';
+import { createOverlayComparisonRenderer } from '../renderers/overlay-comparison.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -45,9 +47,9 @@ const EVALUATOR_REGISTRY = {
   'target-accuracy': (config) => createTargetAccuracyEvaluator(config),
   'stability': (config) => createStabilityEvaluator(config?.evaluatorOptions),
   'reaction-time': () => createTargetAccuracyEvaluator({ tolerance: 40, holdMs: 300 }),
+  'phrase-match': (config) => createPhraseMatchEvaluator(config),
   'none': () => null,
-  // Phase 5 placeholders
-  'phrase-match': () => null,
+  // Phase 5 placeholder
   'interval-accuracy': () => null,
 };
 
@@ -63,8 +65,8 @@ const RENDERER_REGISTRY = {
   'scroll-targets': () => createScrollTargetsRenderer(),
   'seismograph': () => createSeismographRenderer(),
   'flash-card': () => createFlashCardRenderer(),
-  'pitch-trail': () => null,  // placeholder until Phase 2 adds this
-  'overlay-comparison': () => null,
+  'overlay-comparison': () => createOverlayComparisonRenderer(),
+  'pitch-trail': () => null,  // placeholder
   'pitch-trace': () => null,
 };
 
