@@ -13,6 +13,7 @@
 
 import { bus } from '../utils/event-bus.js';
 import { NOTE_NAMES } from '../utils/constants.js';
+import { startDrone as startSynthDrone, playPhrase as playSynthPhrase } from '../audio/synth.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -74,6 +75,9 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   // --- Unsub tracking ---
   const unsubs = [];
 
+  // --- Synth state ---
+  let droneHandle = null;  // { stop, pause, resume } from startDrone
+
   // --- Derived from config ---
   const notes = config.context?.notes ?? [];
   const timingMode = config.timing?.mode ?? 'player-driven';
@@ -91,6 +95,17 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     const octave = cfg.context?.octaveRange?.[0] ?? 4;
     const midi = (octave + 1) * 12 + rootIndex;
     return { note: `${root}${octave}`, midi };
+  }
+
+  function resolveDroneMidi(droneCfg) {
+    // Drone can specify { midi } directly, or { note, octave }
+    if (droneCfg.midi != null) return droneCfg.midi;
+    const note = droneCfg.note ?? config.context?.root;
+    if (!note) return null;
+    const noteIndex = NOTE_NAMES.indexOf(note);
+    if (noteIndex === -1) return null;
+    const octave = droneCfg.octave ?? config.context?.octaveRange?.[0] ?? 4;
+    return (octave + 1) * 12 + noteIndex;
   }
 
   // ---------------------------------------------------------------------------
@@ -403,6 +418,18 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       // a different approach. For now, reactive should have notes pre-generated.
     }
 
+    // Start drone if configured
+    if (config.audio?.drone && !droneHandle) {
+      const droneCfg = config.audio.drone;
+      const droneMidi = resolveDroneMidi(droneCfg);
+      if (droneMidi != null) {
+        droneHandle = startSynthDrone(droneMidi, {
+          voice: droneCfg.voice ?? 'triangle',
+          gain: droneCfg.gain ?? 0.8,
+        });
+      }
+    }
+
     bus.emit('exercise:start', {
       config,
       iteration: iterationCount,
@@ -432,6 +459,12 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     if (loopGapTimer != null) {
       clearTimeout(loopGapTimer);
       loopGapTimer = null;
+    }
+
+    // Stop drone
+    if (droneHandle) {
+      droneHandle.stop();
+      droneHandle = null;
     }
 
     // Unsubscribe from all events
@@ -486,9 +519,9 @@ export function createExerciseRuntime(config, evaluator, renderer) {
         pauseTime = performance.now();
         clearFixedTempoTimer();
         stopRafLoop();
+        droneHandle?.pause?.();
         bus.emit('exercise:paused', { elapsed });
       } else if (state === STATES.COUNTDOWN) {
-        // Pause during countdown — stop the countdown timer
         state = STATES.PAUSED;
         pauseTime = performance.now();
         if (countdownTimer != null) {
@@ -496,6 +529,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
           countdownTimer = null;
         }
         stopRafLoop();
+        droneHandle?.pause?.();
         bus.emit('exercise:paused', { elapsed: 0 });
       }
     },
@@ -510,6 +544,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       totalPausedMs += pausedDuration;
 
       state = STATES.RUNNING;
+      droneHandle?.resume?.();
       bus.emit('exercise:resumed', { elapsed });
 
       // Reschedule fixed-tempo if needed

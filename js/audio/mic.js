@@ -1,4 +1,5 @@
 import { FFT_SIZE } from '../utils/constants.js';
+import { destroySynth } from './synth.js';
 
 class Mic {
   #audioCtx = null;
@@ -13,6 +14,11 @@ class Mic {
 
   get analyser() {
     return this.#analyser;
+  }
+
+  /** Expose AudioContext so synth can share it (avoids multiple contexts on mobile) */
+  get audioContext() {
+    return this.#audioCtx;
   }
 
   async start() {
@@ -59,6 +65,8 @@ class Mic {
       }
       this.#stream = null;
     }
+    // Clean up synth before closing audio context
+    destroySynth();
     if (this.#audioCtx) {
       this.#audioCtx.close();
       this.#audioCtx = null;

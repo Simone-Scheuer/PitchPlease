@@ -37,7 +37,7 @@ import { createSequenceExercise, applyDefaults } from './exercise-schema.js';
 // ---------------------------------------------------------------------------
 
 function buildSustainedExercise(name, root, scale, opts = {}) {
-  return applyDefaults({
+  const exercise = applyDefaults({
     id: `sustained-${name}-${root}-${scale}`,
     type: 'sustained',
     name: opts.label ?? name,
@@ -54,6 +54,20 @@ function buildSustainedExercise(name, root, scale, opts = {}) {
     measures: ['cents-avg', 'hold-steady-ms', 'steady-streak-ms'],
     skills: ['pitchStability', 'pitchAccuracy'],
   });
+
+  // Add drone audio if requested
+  if (opts.drone) {
+    exercise.audio = {
+      drone: {
+        note: root,
+        octave: opts.octaveRange?.[0] ?? 3,
+        voice: opts.drone.voice ?? 'triangle',
+        gain: opts.drone.gain ?? 0.8,
+      },
+    };
+  }
+
+  return exercise;
 }
 
 function buildReactiveExercise(name, root, scale, opts = {}) {
@@ -88,7 +102,7 @@ function buildReactiveExercise(name, root, scale, opts = {}) {
 }
 
 function buildFreePlayExercise(root, scale, opts = {}) {
-  return applyDefaults({
+  const exercise = applyDefaults({
     id: `free-play-${root}-${scale}`,
     type: 'free',
     name: opts.label ?? 'Free Play',
@@ -105,6 +119,20 @@ function buildFreePlayExercise(root, scale, opts = {}) {
     measures: [],
     skills: [],
   });
+
+  // Add drone audio if requested
+  if (opts.drone) {
+    exercise.audio = {
+      drone: {
+        note: root,
+        octave: opts.octaveRange?.[0] ?? 3,
+        voice: opts.drone.voice ?? 'triangle',
+        gain: opts.drone.gain ?? 0.8,
+      },
+    };
+  }
+
+  return exercise;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +211,7 @@ function morningPractice(root = 'C', scale = 'major', octaveLow = 3, octaveHigh 
         label: 'Drone Match',
         description: `Match the ${root} drone tone`,
         octaveRange: oRange,
+        drone: { voice: 'triangle', gain: 0.7 },
       }),
       duration: 120_000,
       label: 'Drone Match',
@@ -193,6 +222,7 @@ function morningPractice(root = 'C', scale = 'major', octaveLow = 3, octaveHigh 
         label: 'Long Tone Cycle',
         description: 'Walk through scale degrees, hold each steady',
         octaveRange: oRange,
+        drone: { voice: 'sine', gain: 0.5 },
       }),
       duration: 120_000,
       label: 'Long Tones',
@@ -234,6 +264,7 @@ function morningPractice(root = 'C', scale = 'major', octaveLow = 3, octaveHigh 
         label: 'Drone Jam',
         description: `Improvise freely in ${root} ${scale}`,
         octaveRange: oRange,
+        drone: { voice: 'triangle', gain: 0.6 },
       }),
       duration: 180_000,
       label: 'Drone Jam',
