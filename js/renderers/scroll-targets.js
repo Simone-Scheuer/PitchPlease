@@ -18,6 +18,7 @@ import { NOTE_NAMES } from '../utils/constants.js';
 import { frequencyToMidi } from '../audio/note-math.js';
 import { playNote } from '../audio/synth.js';
 import { mic } from '../audio/mic.js';
+import { bus } from '../utils/event-bus.js';
 import {
   setupCanvas,
   resizeCanvas,
@@ -844,6 +845,9 @@ export function createScrollTargetsRenderer() {
       ) {
         // Play the tapped note — longer tone with warm triangle voice
         playNote(rect.midi, 800, { voice: 'triangle', gain: 0.8 });
+
+        // Tell the runtime to suppress advance while the synth tone plays
+        bus.emit('synth:reference-playing', { durationMs: 800 });
 
         // Visual feedback: flash this bar
         tappedBarMidi = rect.midi;

@@ -72,6 +72,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   let currentTempoBpm = 0;         // for auto-tempo mode
   let currentNoteDuration = 0;     // for auto-tempo mode (ms)
   let hadCountdown = false;        // true if start() used a countdown
+  let suppressAdvanceUntil = 0;    // timestamp — ignore advance signals while synth tone plays
 
   // --- Unsub tracking ---
   const unsubs = [];
@@ -184,11 +185,6 @@ export function createExerciseRuntime(config, evaluator, renderer) {
           gain: config.audio.drone.gain ?? 0.6,
         });
       }
-    }
-
-    // Brief reference blip for the new target note (quieter than initial)
-    if (refEnabled && hasNotes && cursor < notes.length && notes[cursor]?.midi != null) {
-      playNote(notes[cursor].midi, 300, { voice: 'sine', gain: 0.3 });
     }
 
     // For fixed-tempo / auto-tempo, schedule next advance
@@ -331,6 +327,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     // Reference tone at loop restart (same level as initial)
     if (refEnabled && hasNotes && notes[0]?.midi != null) {
       playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
+      suppressAdvanceUntil = performance.now() + 900;
     }
 
     bus.emit('exercise:start', {
@@ -358,7 +355,10 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       lastEvaluatorResult = evaluator.onPitch(pitchData, target);
 
       // Player-driven advance (skip if holdToAdvance is explicitly false — manual mode)
-      if (timingMode === 'player-driven' && config.timing?.holdToAdvance !== false && lastEvaluatorResult?.advance && hasNotes) {
+      // Also suppress while a synth reference tone is playing (tap-to-play, countdown, etc.)
+      if (timingMode === 'player-driven' && config.timing?.holdToAdvance !== false
+          && lastEvaluatorResult?.advance && hasNotes
+          && performance.now() > suppressAdvanceUntil) {
         advanceNote();
       }
     }
@@ -441,6 +441,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
         // Play reference tone at "1" — the last tick before go
         if (remaining === 1 && refEnabled && hasNotes && notes[0]?.midi != null) {
           playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
+          suppressAdvanceUntil = performance.now() + 900;
         }
         bus.emit('exercise:countdown', { secondsLeft: remaining });
         renderer?.onCountdown?.(remaining);
@@ -485,6 +486,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     // Reference tone when starting without countdown (no countdown = no "1" tick)
     if (!hadCountdown && iterationCount === 0 && refEnabled && hasNotes && notes[0]?.midi != null) {
       playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
+      suppressAdvanceUntil = performance.now() + 900;
     }
 
     bus.emit('exercise:start', {
@@ -540,6 +542,11 @@ export function createExerciseRuntime(config, evaluator, renderer) {
 
   unsubs.push(bus.on('pitch', onPitch));
   unsubs.push(bus.on('silence', onSilence));
+
+  // Suppress advance while a synth reference tone is playing (tap-to-play, etc.)
+  unsubs.push(bus.on('synth:reference-playing', ({ durationMs }) => {
+    suppressAdvanceUntil = performance.now() + (durationMs ?? 800) + 100;
+  }));
 
   // Per-note skip: external trigger to skip the current note
   unsubs.push(bus.on('exercise:skip-note', () => {
