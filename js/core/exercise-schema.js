@@ -51,6 +51,7 @@ import { NOTE_NAMES } from '../utils/constants.js';
  * @property {{ note: string, octave: number, voice: string }|null} [drone]
  * @property {boolean}  [playPhrase]  - Play phrase via synth (echo exercises)
  * @property {string}   [synthVoice]  - One of SYNTH_VOICES
+ * @property {boolean}  [playReference] - Play brief reference tone before each note (default true, opt-out with false)
  */
 
 /**
@@ -819,6 +820,7 @@ export function createEchoExercise({
       synthVoice,
       synthGain,
       playPhrase: true,
+      playReference: false,
     },
     duration: null,
     loop: false,

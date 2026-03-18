@@ -13,7 +13,7 @@
 
 import { bus } from '../utils/event-bus.js';
 import { NOTE_NAMES } from '../utils/constants.js';
-import { startDrone as startSynthDrone, playPhrase as playSynthPhrase } from '../audio/synth.js';
+import { startDrone as startSynthDrone, playPhrase as playSynthPhrase, playNote } from '../audio/synth.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -71,6 +71,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   let iterationCount = 0;          // loop iteration counter
   let currentTempoBpm = 0;         // for auto-tempo mode
   let currentNoteDuration = 0;     // for auto-tempo mode (ms)
+  let hadCountdown = false;        // true if start() used a countdown
 
   // --- Unsub tracking ---
   const unsubs = [];
@@ -86,6 +87,13 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   // For sustained/free exercises without explicit notes, derive a target
   // from context.root so the evaluator and renderer have something to work with.
   const fallbackTarget = deriveFallbackTarget(config);
+
+  // Reference tone: play a brief synth blip so the player knows the target pitch.
+  // Opt-out via config.audio.playReference === false.
+  // Skip when a drone follows notes (no fixed note/octave) — the drone IS the reference.
+  const droneFollowsNotes = config.audio?.drone
+    && !config.audio.drone.note && !config.audio.drone.octave;
+  const refEnabled = config.audio?.playReference !== false && !droneFollowsNotes;
 
   function deriveFallbackTarget(cfg) {
     const root = cfg.context?.root;
@@ -176,6 +184,11 @@ export function createExerciseRuntime(config, evaluator, renderer) {
           gain: config.audio.drone.gain ?? 0.6,
         });
       }
+    }
+
+    // Brief reference blip for the new target note (quieter than initial)
+    if (refEnabled && hasNotes && cursor < notes.length && notes[cursor]?.midi != null) {
+      playNote(notes[cursor].midi, 300, { voice: 'sine', gain: 0.3 });
     }
 
     // For fixed-tempo / auto-tempo, schedule next advance
@@ -315,6 +328,11 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     totalPausedMs = 0;
     elapsed = 0;
 
+    // Reference tone at loop restart (same level as initial)
+    if (refEnabled && hasNotes && notes[0]?.midi != null) {
+      playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
+    }
+
     bus.emit('exercise:start', {
       config,
       iteration: iterationCount,
@@ -420,6 +438,10 @@ export function createExerciseRuntime(config, evaluator, renderer) {
         countdownTimer = null;
         beginRunning();
       } else {
+        // Play reference tone at "1" — the last tick before go
+        if (remaining === 1 && refEnabled && hasNotes && notes[0]?.midi != null) {
+          playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
+        }
         bus.emit('exercise:countdown', { secondsLeft: remaining });
         renderer?.onCountdown?.(remaining);
       }
@@ -458,6 +480,11 @@ export function createExerciseRuntime(config, evaluator, renderer) {
           gain: droneCfg.gain ?? 0.8,
         });
       }
+    }
+
+    // Reference tone when starting without countdown (no countdown = no "1" tick)
+    if (!hadCountdown && iterationCount === 0 && refEnabled && hasNotes && notes[0]?.midi != null) {
+      playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
     }
 
     bus.emit('exercise:start', {
@@ -552,6 +579,7 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       evaluator?.reset?.();
 
       const seconds = countdownSeconds ?? DEFAULT_COUNTDOWN_SECONDS;
+      hadCountdown = seconds > 0;
 
       if (seconds > 0) {
         startCountdown(seconds);
