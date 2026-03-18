@@ -459,18 +459,44 @@ export function createPitchTraceRenderer() {
   function buildContour(exerciseConfig) {
     const context = exerciseConfig.context ?? {};
     const shape = context.traceShape ?? 'wave';
-    const oRange = context.octaveRange ?? [3, 5];
+    const oRange = context.octaveRange;  // may be undefined
     const root = context.root ?? 'C';
+
+    // Compute MIDI bounds from octave range (if provided)
+    // C of octaveLow to C of octaveHigh+1
+    const hasOctaveRange = Array.isArray(oRange) && oRange.length === 2;
+    const lowMidi  = hasOctaveRange ? oRange[0] * 12 + 12 : null;
+    const highMidi = hasOctaveRange ? (oRange[1] + 1) * 12 + 12 : null;
 
     // Determine center MIDI from root
     const rootIndex = NOTE_NAMES.indexOf(root);
-    const centerOctave = Math.floor((oRange[0] + oRange[1]) / 2);
-    const centerMidi = rootIndex >= 0
+    const fallbackORange = oRange ?? [3, 5];
+    const centerOctave = Math.floor((fallbackORange[0] + fallbackORange[1]) / 2);
+    let centerMidi = rootIndex >= 0
       ? (centerOctave + 1) * 12 + rootIndex
       : 60; // default C4
 
-    const rangeSemitones = context.traceSemitones ?? 4;
+    let rangeSemitones = context.traceSemitones ?? 4;
     const duration = context.traceDurationMs ?? CONTOUR_DURATION_MS;
+
+    // Clamp contour to octave range when provided
+    if (hasOctaveRange) {
+      const maxRange = (highMidi - lowMidi) / 2;
+      rangeSemitones = Math.min(rangeSemitones, maxRange);
+
+      // Center should be midpoint of the user's range
+      const rangeMidpoint = (lowMidi + highMidi) / 2;
+      centerMidi = rangeMidpoint;
+
+      // Ensure center +/- halfRange stays within bounds
+      const halfRange = rangeSemitones / 2;
+      if (centerMidi - halfRange < lowMidi) {
+        centerMidi = lowMidi + halfRange;
+      }
+      if (centerMidi + halfRange > highMidi) {
+        centerMidi = highMidi - halfRange;
+      }
+    }
 
     // Check if contour points are provided directly in config
     if (Array.isArray(context.contourPoints) && context.contourPoints.length > 0) {
