@@ -591,14 +591,16 @@ class PracticeView {
       id: `standalone-${exerciseDef.id}`,
       name: exerciseDef.label,
       description: exerciseDef.desc,
+      skipSummary: true,
+      showTabBar: true,
       blocks: [{
         exercise: exerciseConfig,
-        duration: 300_000,
+        duration: null,
         label: exerciseDef.label,
         phase: 'play',
       }],
       transitions: 'none',
-      totalDuration: 300_000,
+      totalDuration: null,
     };
 
     bus.emit('session:activate', { config: sessionConfig });
@@ -717,7 +719,7 @@ class PracticeView {
           evaluator: 'none',
           renderer: 'pitch-trace',
           timing: { mode: 'indefinite' },
-          loop: false,
+          loop: true,
           measures: ['cents-avg', 'hold-steady-ms'],
           skills: ['pitchAccuracy', 'pitchStability'],
         });
@@ -775,16 +777,18 @@ class PracticeView {
       name: `Quick ${root} ${scale}`,
       description: `Scale runner in ${root} ${scale}`,
       tags: ['quick-start'],
+      skipSummary: true,
+      showTabBar: true,
       blocks: [
         {
           exercise,
-          duration: 300_000,
+          duration: null,
           label: `${root} ${scale} Scale`,
           phase: 'develop',
         },
       ],
       transitions: 'none',
-      totalDuration: 300_000,
+      totalDuration: null,
     };
 
     bus.emit('session:activate', { config });

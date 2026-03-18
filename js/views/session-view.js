@@ -39,6 +39,7 @@ class SessionView {
   #blockResults = [];
   #paused = false;
   #keyHandler = null;
+  #sessionConfig = null;
   #micStarted = false;
   #blocks = [];
 
@@ -84,11 +85,12 @@ class SessionView {
   async activate(sessionConfig) {
     this.#blockResults = [];
     this.#paused = false;
+    this.#sessionConfig = sessionConfig;
     document.addEventListener('keydown', this.#keyHandler);
     this.#blocks = sessionConfig.blocks ?? [];
 
-    // Hide tab bar
-    if (this.#tabBar) {
+    // Hide tab bar (keep visible for standalone tool-mode exercises)
+    if (this.#tabBar && !sessionConfig.showTabBar) {
       this.#tabBar.classList.add('tab-bar-hidden');
     }
 
@@ -157,8 +159,8 @@ class SessionView {
     }
     this.#unsubs = [];
 
-    // Show tab bar
-    if (this.#tabBar) {
+    // Show tab bar (only remove class if we added it)
+    if (this.#tabBar && !this.#sessionConfig?.showTabBar) {
       this.#tabBar.classList.remove('tab-bar-hidden');
     }
 
@@ -265,7 +267,11 @@ class SessionView {
 
   #onComplete(data) {
     this.#recordToHistory(data);
-    this.#showSummary(data);
+    if (this.#sessionConfig?.skipSummary) {
+      this.#backToPractice();
+    } else {
+      this.#showSummary(data);
+    }
   }
 
   /**

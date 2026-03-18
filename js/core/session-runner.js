@@ -222,11 +222,13 @@ export function createSessionRunner(sessionConfig) {
     // Start the exercise runtime with countdown
     currentRuntime.start(DEFAULT_COUNTDOWN);
 
-    // Start block duration timer
-    blockRemainingMs = block.duration;
+    // Start block duration timer (null duration = indefinite, no timer)
+    blockRemainingMs = block.duration ?? null;
     blockStartTime = performance.now();
     blockElapsed = 0;
-    scheduleBlockTimer(blockRemainingMs);
+    if (blockRemainingMs != null && blockRemainingMs > 0) {
+      scheduleBlockTimer(blockRemainingMs);
+    }
   }
 
   function scheduleBlockTimer(ms) {
@@ -417,7 +419,8 @@ export function createSessionRunner(sessionConfig) {
         // Pause block timer — capture remaining time
         const now = performance.now();
         blockElapsed = now - blockStartTime;
-        blockRemainingMs = Math.max(0, currentBlock().duration - blockElapsed);
+        const blockDuration = currentBlock().duration;
+        blockRemainingMs = (blockDuration != null) ? Math.max(0, blockDuration - blockElapsed) : null;
         clearBlockTimer();
 
         // Track session pause
@@ -451,8 +454,10 @@ export function createSessionRunner(sessionConfig) {
         // Resume exercise runtime
         currentRuntime?.resume();
 
-        // Re-schedule block timer with remaining time
-        scheduleBlockTimer(blockRemainingMs);
+        // Re-schedule block timer with remaining time (skip if indefinite)
+        if (blockRemainingMs != null && blockRemainingMs > 0) {
+          scheduleBlockTimer(blockRemainingMs);
+        }
 
       } else if (state === STATES.TRANSITIONING && sessionPauseTime > 0) {
         const pausedMs = now - sessionPauseTime;
