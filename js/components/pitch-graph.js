@@ -32,9 +32,6 @@ export class PitchGraph {
   #speedIndex = DEFAULT_SPEED_INDEX;
   #lastFrameTime = 0;
 
-  // Scroll mode: false = continuous (shows gaps), true = compact (skips gaps)
-  #compact = false;
-
   // Auto-range: track detected pitch to adjust Y range
   #autoRange = true;
   #detectedMidiMin = 60;  // C4
@@ -101,7 +98,7 @@ export class PitchGraph {
     };
     this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
 
-    // Press-and-hold to drone note labels, quick tap for brief tone
+    // Press-and-hold note labels to drone continuously (release to stop)
     this._pointerDownHandler = (e) => this.#handleLabelDown(e);
     this._pointerUpHandler = () => this.#handleLabelUp();
     this.#canvas.addEventListener('pointerdown', this._pointerDownHandler);
@@ -185,7 +182,7 @@ export class PitchGraph {
     }
   }
 
-  async #handleLabelDown(e) {
+  #handleLabelDown(e) {
     const rect = this.#canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
@@ -206,19 +203,27 @@ export class PitchGraph {
     const semitoneHeight = this.#height / this.#semitoneRange;
     if (!closestTarget || closestDist > semitoneHeight * 0.6) return;
 
-    // Ensure AudioContext exists
-    await mic.ensureAudioContext();
-
     // Stop any existing drone
     this.#stopDrone();
 
-    // Start a long sustained drone (10s max, stopped on release)
-    this.#droneHandle = playNote(closestTarget.midi, 10000, { voice: 'triangle', gain: 0.7 });
-    this.#droneMidi = closestTarget.midi;
+    // Ensure AudioContext exists — if it doesn't yet, start it then play
+    // (first tap may have slight delay, subsequent taps are instant)
+    if (!mic.audioContext || mic.audioContext.state === 'suspended') {
+      mic.ensureAudioContext().then(() => {
+        this.#startLabelDrone(closestTarget.midi);
+      });
+    } else {
+      this.#startLabelDrone(closestTarget.midi);
+    }
+  }
+
+  #startLabelDrone(midi) {
+    this.#droneHandle = playNote(midi, 120000, { voice: 'triangle', gain: 0.7 });
+    this.#droneMidi = midi;
 
     // Visual feedback: highlight the droning note
     if (this.#tapFlashTimer) clearTimeout(this.#tapFlashTimer);
-    this.#tappedMidi = closestTarget.midi;
+    this.#tappedMidi = midi;
     if (!this.#active) this.drawStatic();
   }
 
@@ -299,14 +304,6 @@ export class PitchGraph {
     return `${SCROLL_SPEEDS[this.#speedIndex]}x`;
   }
 
-  get isCompact() {
-    return this.#compact;
-  }
-
-  toggleCompact() {
-    this.#compact = !this.#compact;
-  }
-
   setScale(rootName, scaleKey) {
     if (rootName && scaleKey) {
       this.#scaleRoot = rootName;
@@ -377,20 +374,7 @@ export class PitchGraph {
     const dt = now - this.#lastFrameTime;
     this.#lastFrameTime = now;
 
-    const scaledDt = dt * this.#speedMultiplier;
-    if (this.#compact) {
-      // Compact mode: only advance scroll when there's recent pitch data
-      const data = this.#buffer?.data;
-      if (data && data.length > 0) {
-        const last = data[data.length - 1];
-        if (!last.silent) {
-          this.#scrollTimeMs += scaledDt;
-        }
-      }
-    } else {
-      // Continuous mode: always advance
-      this.#scrollTimeMs += scaledDt;
-    }
+    this.#scrollTimeMs += dt * this.#speedMultiplier;
 
     // Auto-range: expand Y range based on detected pitch
     if (this.#autoRange) {

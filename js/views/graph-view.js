@@ -10,7 +10,7 @@ class GraphView {
   #graph;
   #micBtn;
   #speedBtn;
-  #compactBtn;
+
   #scaleRootSelect;
   #scaleTypeSelect;
   #currentNoteEl;
@@ -22,14 +22,14 @@ class GraphView {
 
     this.#micBtn = qs('#graph-mic-btn');
     this.#speedBtn = qs('#graph-speed-btn');
-    this.#compactBtn = qs('#graph-compact-btn');
+
     this.#scaleRootSelect = qs('#scale-root');
     this.#scaleTypeSelect = qs('#scale-type');
     this.#currentNoteEl = qs('#graph-current-note');
 
     this.#micBtn.addEventListener('click', () => this.#toggle());
     this.#speedBtn.addEventListener('click', () => this.#cycleSpeed());
-    this.#compactBtn.addEventListener('click', () => this.#toggleCompact());
+
     this.#scaleRootSelect.addEventListener('change', () => this.#updateScale());
     this.#scaleTypeSelect.addEventListener('change', () => this.#updateScale());
 
@@ -123,7 +123,7 @@ class GraphView {
     this.#graph.stop();
     this.#active = false;
     this.#micBtn.classList.remove('active');
-    this.#compactBtn.classList.remove('active');
+
     this.#currentNoteEl.innerHTML = '--';
     this.#currentNoteEl.classList.remove('detected');
     // Redraw static grid so it doesn't go blank
@@ -136,10 +136,6 @@ class GraphView {
     this.#speedBtn.textContent = this.#graph.speedLabel;
   }
 
-  #toggleCompact() {
-    this.#graph.toggleCompact();
-    this.#compactBtn.classList.toggle('active', this.#graph.isCompact);
-  }
 
   #onPitch(data) {
     this.#currentNoteEl.innerHTML = `${data.note}<span class="octave">${data.octave}</span>`;
