@@ -39,6 +39,7 @@ const GRID_LINE_WIDTH = 0.5;
 const CENTER_LINE_WIDTH = 1;
 
 // Auto-detect constants
+const INITIAL_LOCK_MS = 200;         // ms of stable pitch before first lock
 const RELOCK_CENTS_THRESHOLD = 200;  // cents away to consider a note change
 const RELOCK_TIME_MS = 500;          // ms the player must stay away to re-lock
 
@@ -74,6 +75,8 @@ export function createSeismographRenderer() {
 
   // --- Auto-detect state ---
   let autoDetected = false;       // true if target was auto-detected from player
+  let initialLockStartTime = 0;   // when we first saw the candidate for initial lock
+  let initialLockCandidateMidi = null;  // candidate MIDI for initial lock
   let relockStartTime = 0;        // when the player started drifting away
   let relockTracking = false;     // true while monitoring for re-lock
   let relockCandidateMidi = 0;    // the MIDI note the player may be switching to
@@ -135,11 +138,19 @@ export function createSeismographRenderer() {
 
     const snappedMidi = pitchData.midi;  // already integer from detector
 
-    // --- First detection: lock onto whatever the player is playing ---
+    // --- First detection: require stable pitch before locking ---
     if (!targetNote) {
-      targetNote = midiToTarget(snappedMidi);
-      autoDetected = true;
-      relockTracking = false;
+      if (initialLockCandidateMidi === null || snappedMidi !== initialLockCandidateMidi) {
+        // New candidate — start tracking
+        initialLockCandidateMidi = snappedMidi;
+        initialLockStartTime = now;
+      } else if (now - initialLockStartTime >= INITIAL_LOCK_MS) {
+        // Candidate held long enough — lock
+        targetNote = midiToTarget(snappedMidi);
+        autoDetected = true;
+        relockTracking = false;
+        initialLockCandidateMidi = null;
+      }
       return;
     }
 
@@ -471,6 +482,7 @@ export function createSeismographRenderer() {
     width = dims.width;
     height = dims.height;
     dpr = dims.dpr;
+    draw();
   }
 
   // ---------------------------------------------------------------------------

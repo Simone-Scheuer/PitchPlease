@@ -20,6 +20,7 @@ const DEFAULT_TOLERANCE = 40;   // cents — "medium" difficulty
 const DEFAULT_HOLD_MS = 300;    // ms of sustained in-tune before advance
 const ACCURACY_WEIGHT = 0.7;
 const HOLD_WEIGHT = 0.3;
+const MAX_JUMP_SEMITONES = 12;  // reject pitch spikes larger than an octave
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -75,6 +76,10 @@ export function createTargetAccuracyEvaluator(config = {}) {
   let firstHitTime = null;       // timestamp of first in-tune frame
   let holdStartTime = null;      // timestamp of consecutive in-tune streak start
   let totalHoldTimeMs = 0;       // accumulated in-tune time
+
+  // --- Jump filter ---
+  let lastPlayerMidi = null;
+  let lastResult = { inTune: false, close: false, absCents: 0, advance: false };
 
   // --- Completed notes ---
   let completedNotes = [];
@@ -141,6 +146,7 @@ export function createTargetAccuracyEvaluator(config = {}) {
     holdStartTime = null;
     totalHoldTimeMs = 0;
     currentTarget = null;
+    lastPlayerMidi = null;
   }
 
   // --- Public interface ---
@@ -167,6 +173,15 @@ export function createTargetAccuracyEvaluator(config = {}) {
 
       // Compute cents distance from target
       // pitchData.midi is fractional (e.g., 60.15), targetNote.midi is integer
+      const playerMidi = pitchData.midi + (pitchData.cents || 0) / 100;
+
+      // Reject pitch spikes — if the jump from last frame exceeds threshold,
+      // treat as a detection glitch and return the previous result unchanged
+      if (lastPlayerMidi != null && Math.abs(playerMidi - lastPlayerMidi) > MAX_JUMP_SEMITONES) {
+        return lastResult;
+      }
+      lastPlayerMidi = playerMidi;
+
       const exactCents = (pitchData.midi - targetNote.midi) * 100 + (pitchData.cents || 0);
       const absCents = Math.abs(exactCents);
 
@@ -205,7 +220,8 @@ export function createTargetAccuracyEvaluator(config = {}) {
         }
       }
 
-      return { inTune, close, absCents: Math.round(absCents), advance };
+      lastResult = { inTune, close, absCents: Math.round(absCents), advance };
+      return lastResult;
     },
 
     /**
@@ -217,6 +233,7 @@ export function createTargetAccuracyEvaluator(config = {}) {
       if (holdStartTime != null) {
         holdStartTime = null;
       }
+      lastPlayerMidi = null;  // reset jump filter — next pitch starts fresh
     },
 
     /**

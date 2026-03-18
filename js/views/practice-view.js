@@ -638,6 +638,7 @@ class PracticeView {
           octaveLow,
           octaveHigh,
           drone: opts.drone || 'off',
+          loop: opts.loop !== false,
           timing: { mode: 'player-driven', holdToAdvance: true, holdMs },
         });
 

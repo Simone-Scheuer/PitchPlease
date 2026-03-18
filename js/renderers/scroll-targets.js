@@ -1077,6 +1077,8 @@ export function createScrollTargetsRenderer() {
       resetHoldProgress();
       glowPhase = 0;
 
+      // Recompute range — notes may have changed (e.g., echo phrase regeneration)
+      computeMidiRange(notes);
       initNoteStates();
 
       if (ctx) draw();

@@ -58,7 +58,8 @@ export function buildSustainedExercise(name, root, scale, opts = {}) {
 
   // Pattern support: build note sequence for scale walking
   if (opts.pattern && opts.pattern !== 'none') {
-    const midiNotes = buildScaleMidiNotes(root, scale, opts.octaveRange?.[0] ?? 4, opts.octaveRange?.[1] ?? 5);
+    const oRange = opts.octaveRange ?? [3, 5];
+    const midiNotes = buildScaleMidiNotes(root, scale, oRange[0], oRange[1]);
     const ordered = applyNotePattern(midiNotes, opts.pattern);
     config.context.notes = ordered.map(midi => midiToNoteSpec(midi));
     config.timing = {

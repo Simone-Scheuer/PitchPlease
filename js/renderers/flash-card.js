@@ -519,6 +519,7 @@ export function createFlashCardRenderer() {
     width = dims.width;
     height = dims.height;
     dpr = dims.dpr;
+    draw();
   }
 
   // ---------------------------------------------------------------------------

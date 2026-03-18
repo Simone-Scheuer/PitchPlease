@@ -450,6 +450,7 @@ export function createPitchTraceRenderer() {
     width = dims.width;
     height = dims.height;
     dpr = dims.dpr;
+    draw();
   }
 
   // ---------------------------------------------------------------------------

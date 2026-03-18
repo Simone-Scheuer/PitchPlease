@@ -82,7 +82,8 @@ export function createExerciseRuntime(config, evaluator, renderer) {
   let droneHandle = null;  // { stop, pause, resume } from startDrone
 
   // --- Derived from config ---
-  const notes = config.context?.notes ?? [];
+  // Copy notes so in-place mutation (echo loop) doesn't corrupt the original config
+  const notes = [...(config.context?.notes ?? [])];
   const timingMode = config.timing?.mode ?? 'player-driven';
   const hasNotes = notes.length > 0;
 

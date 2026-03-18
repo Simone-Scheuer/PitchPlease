@@ -24,6 +24,7 @@ const IN_TUNE_CENTS = 5;          // within this = green / "in tune"
 const CLOSE_CENTS = 15;           // within this = yellow / "close" (generous)
 const LOCKED_MS = 500;            // sustained inTune for this long = "locked"
 const BUFFER_SIZE = 600;          // ~10 seconds at 60fps
+const MAX_JUMP_SEMITONES = 5;     // reject pitch spikes larger than this
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -94,6 +95,10 @@ export function createStabilityEvaluator(config = {}) {
   let inTuneStreakStartTime = 0;
   let inTuneStreakActive = false;
   let currentInTuneStreakMs = 0;
+
+  // --- Jump filter ---
+  let lastPlayerMidi = null;
+  let lastResult = { inTune: false, close: false, absCents: 0, locked: false, steadyStreakMs: 0, advance: false };
 
   // --- Completed notes ---
   let completedNotes = [];
@@ -205,6 +210,8 @@ export function createStabilityEvaluator(config = {}) {
     inTuneStreakStartTime = 0;
     inTuneStreakActive = false;
     currentInTuneStreakMs = 0;
+
+    lastPlayerMidi = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -242,6 +249,14 @@ export function createStabilityEvaluator(config = {}) {
         }
         currentTarget = targetNote;
       }
+
+      // Reject pitch spikes — if the jump from last frame exceeds threshold,
+      // treat as a detection glitch and return the previous result unchanged
+      const playerMidi = pitchData.midi + (pitchData.cents || 0) / 100;
+      if (lastPlayerMidi != null && Math.abs(playerMidi - lastPlayerMidi) > MAX_JUMP_SEMITONES) {
+        return lastResult;
+      }
+      lastPlayerMidi = playerMidi;
 
       // Compute cents deviation
       const signedCents = computeCents(pitchData, targetNote);
@@ -303,7 +318,7 @@ export function createStabilityEvaluator(config = {}) {
       // Player-driven advance: signal when steady streak meets holdMs threshold
       const advance = holdMsThreshold != null && currentSteadyStreakMs >= holdMsThreshold;
 
-      return {
+      lastResult = {
         inTune,
         close,
         absCents: Math.round(absCents),
@@ -311,6 +326,7 @@ export function createStabilityEvaluator(config = {}) {
         steadyStreakMs: Math.round(currentSteadyStreakMs),
         advance,
       };
+      return lastResult;
     },
 
     /**
@@ -318,6 +334,7 @@ export function createStabilityEvaluator(config = {}) {
      * Silence is not penalized in frame counts (generous philosophy).
      */
     onSilence() {
+      lastPlayerMidi = null;  // reset jump filter — next pitch starts fresh
       const now = performance.now();
 
       // Record the ended streaks before resetting

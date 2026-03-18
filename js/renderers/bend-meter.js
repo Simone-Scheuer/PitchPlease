@@ -582,6 +582,7 @@ export function createBendMeterRenderer() {
     width = dims.width;
     height = dims.height;
     dpr = dims.dpr;
+    draw();
   }
 
   // ---------------------------------------------------------------------------
