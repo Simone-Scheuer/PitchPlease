@@ -22,6 +22,7 @@ import { createFlashCardRenderer } from '../renderers/flash-card.js';
 import { createOverlayComparisonRenderer } from '../renderers/overlay-comparison.js';
 import { createBendMeterRenderer } from '../renderers/bend-meter.js';
 import { createPitchTraceRenderer } from '../renderers/pitch-trace.js';
+import { createPitchTrailRenderer } from '../renderers/pitch-trail.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -79,7 +80,7 @@ const RENDERER_REGISTRY = {
   'overlay-comparison': () => createOverlayComparisonRenderer(),
   'bend-meter': () => createBendMeterRenderer(),
   'pitch-trace': () => createPitchTraceRenderer(),
-  'pitch-trail': () => null,  // placeholder
+  'pitch-trail': () => createPitchTrailRenderer(),
 };
 
 // ---------------------------------------------------------------------------

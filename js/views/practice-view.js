@@ -714,7 +714,7 @@ class PracticeView {
             octaveRange: oRange,
             traceShape: opts.traceShape || 'wave',
           },
-          evaluator: 'stability',
+          evaluator: 'none',
           renderer: 'pitch-trace',
           timing: { mode: 'indefinite' },
           loop: false,
