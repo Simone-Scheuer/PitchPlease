@@ -472,8 +472,8 @@ export function validateExercise(config) {
   if (config.type === 'sequence' && (!config.context?.notes || config.context.notes.length === 0)) {
     errors.push('[warn] sequence exercise should have context.notes');
   }
-  if (config.type === 'echo' && config.evaluator !== 'phrase-match') {
-    errors.push('[warn] echo exercises typically use phrase-match evaluator');
+  if (config.type === 'echo' && config.evaluator !== 'phrase-match' && config.evaluator !== 'target-accuracy') {
+    errors.push('[warn] echo exercises typically use phrase-match or target-accuracy evaluator');
   }
   if (config.type === 'free' && config.evaluator !== 'none') {
     errors.push('[warn] free exercises typically use evaluator: none');
@@ -755,8 +755,9 @@ export function generateEchoPhrase({
 
 /**
  * Factory that builds a complete ExerciseConfig for echo (listen-and-repeat)
- * exercises. Generates a set of phrases at the specified difficulty and
- * wires up the phrase-match evaluator and overlay-comparison renderer.
+ * exercises. Generates a random phrase, plays it via synth, then the player
+ * matches the notes using scroll-targets + target-accuracy — untimed,
+ * player-driven. Each loop iteration regenerates a new phrase for variety.
  *
  * @param {Object} params
  * @param {string}  params.root              - Root note name
@@ -764,8 +765,6 @@ export function generateEchoPhrase({
  * @param {number}  [params.octaveLow=3]     - Lowest octave
  * @param {number}  [params.octaveHigh=5]    - Highest octave
  * @param {'easy'|'medium'|'hard'} [params.difficulty='easy']
- * @param {number}  [params.phraseCount=4]   - Number of phrases per exercise
- * @param {boolean} [params.showReview=true]  - Whether to show review phase
  * @param {string}  [params.synthVoice='sine'] - Synth voice for phrase playback
  * @param {number}  [params.synthGain=0.8]    - Synth gain
  * @returns {ExerciseConfig}
@@ -776,8 +775,6 @@ export function createEchoExercise({
   octaveLow = 3,
   octaveHigh = 5,
   difficulty = 'easy',
-  phraseCount = 4,
-  showReview = true,
   synthVoice = 'sine',
   synthGain = 0.8,
 } = {}) {
@@ -788,43 +785,48 @@ export function createEchoExercise({
     throw new Error(`Unknown scale: "${scale}"`);
   }
 
-  // Generate phrases
-  const phrases = [];
-  for (let i = 0; i < phraseCount; i++) {
-    phrases.push(generateEchoPhrase({
-      difficulty,
-      root,
-      scale,
-      octaveRange: [octaveLow, octaveHigh],
-    }));
-  }
+  // Generate a phrase as NoteSpec[]
+  const phraseRaw = generateEchoPhrase({
+    difficulty,
+    root,
+    scale,
+    octaveRange: [octaveLow, octaveHigh],
+  });
+  const notes = phraseRaw.map(p => midiToNoteSpec(p.midi));
 
   const scaleLabel = SCALE_LABELS[scale] || scale;
   const diffLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
   return applyDefaults({
     id: `echo-${root}-${scale}-${difficulty}-${octaveLow}-${octaveHigh}`,
-    type: 'echo',
+    type: 'sequence',
     name: `Echo ${diffLabel} — ${root} ${scaleLabel}`,
-    description: `Listen and play back ${diffLabel.toLowerCase()} phrases in ${root} ${scaleLabel}`,
+    description: `Listen, then match — ${diffLabel.toLowerCase()} phrases`,
     context: {
+      notes,
       scale,
       root,
       octaveRange: [octaveLow, octaveHigh],
+      echoPhrase: true,
+      echoDifficulty: difficulty,
     },
-    evaluator: 'phrase-match',
-    renderer: 'overlay-comparison',
-    timing: { mode: 'indefinite' },
+    evaluator: 'target-accuracy',
+    renderer: 'scroll-targets',
+    timing: {
+      mode: 'player-driven',
+      holdToAdvance: true,
+      holdMs: 600,
+    },
     audio: {
-      phrases,
+      echoPhrase: true,
       synthVoice,
       synthGain,
-      playPhrase: true,
       playReference: false,
     },
     duration: null,
-    loop: false,
-    measures: ['phrase-accuracy', 'notes-hit-pct', 'cents-avg'],
+    loop: true,
+    loopGapMs: 1500,
+    measures: ['cents-avg', 'notes-hit-pct', 'time-to-hit-ms'],
     skills: ['earTraining', 'pitchAccuracy'],
   });
 }

@@ -655,7 +655,6 @@ class PracticeView {
           root,
           scale,
           difficulty: opts.difficulty || 'easy',
-          phraseCount: 5,
           octaveLow,
           octaveHigh,
         });

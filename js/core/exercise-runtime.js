@@ -14,6 +14,7 @@
 import { bus } from '../utils/event-bus.js';
 import { NOTE_NAMES } from '../utils/constants.js';
 import { startDrone as startSynthDrone, playPhrase as playSynthPhrase, playNote } from '../audio/synth.js';
+import { generateEchoPhrase, midiToNoteSpec } from './exercise-schema.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -319,13 +320,42 @@ export function createExerciseRuntime(config, evaluator, renderer) {
       });
     }
 
+    // Echo mode: regenerate phrase for variety and play it
+    if (config.audio?.echoPhrase && config.context?.scale && config.context?.root) {
+      const newPhrase = generateEchoPhrase({
+        difficulty: config.context.echoDifficulty ?? 'easy',
+        root: config.context.root,
+        scale: config.context.scale,
+        octaveRange: config.context.octaveRange ?? [3, 5],
+      });
+      // Update notes array in place
+      notes.length = 0;
+      for (const p of newPhrase) {
+        notes.push(midiToNoteSpec(p.midi));
+      }
+
+      // Play the new phrase
+      const phraseData = notes.map(n => ({
+        midi: n.midi,
+        durationMs: 500,
+        gapMs: 80,
+      }));
+      const totalMs = phraseData.reduce((s, p) => s + p.durationMs + p.gapMs, 0);
+      suppressAdvanceUntil = performance.now() + totalMs + 300;
+
+      playSynthPhrase(phraseData, {
+        voice: config.audio.synthVoice ?? 'sine',
+        gain: config.audio.synthGain ?? 0.8,
+      });
+    }
+
     state = STATES.RUNNING;
     startTime = performance.now();
     totalPausedMs = 0;
     elapsed = 0;
 
-    // Reference tone at loop restart (same level as initial)
-    if (refEnabled && hasNotes && notes[0]?.midi != null) {
+    // Reference tone at loop restart (same level as initial — skip for echo, phrase IS the reference)
+    if (refEnabled && !config.audio?.echoPhrase && hasNotes && notes[0]?.midi != null) {
       playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
       suppressAdvanceUntil = performance.now() + 900;
     }
@@ -487,6 +517,22 @@ export function createExerciseRuntime(config, evaluator, renderer) {
     if (!hadCountdown && iterationCount === 0 && refEnabled && hasNotes && notes[0]?.midi != null) {
       playNote(notes[0].midi, 800, { voice: 'sine', gain: 0.5 });
       suppressAdvanceUntil = performance.now() + 900;
+    }
+
+    // Echo mode: play the phrase via synth before the player starts
+    if (config.audio?.echoPhrase && hasNotes) {
+      const phraseData = notes.map(n => ({
+        midi: n.midi,
+        durationMs: 500,
+        gapMs: 80,
+      }));
+      const totalMs = phraseData.reduce((s, p) => s + p.durationMs + p.gapMs, 0);
+      suppressAdvanceUntil = performance.now() + totalMs + 300;
+
+      playSynthPhrase(phraseData, {
+        voice: config.audio.synthVoice ?? 'sine',
+        gain: config.audio.synthGain ?? 0.8,
+      });
     }
 
     bus.emit('exercise:start', {
