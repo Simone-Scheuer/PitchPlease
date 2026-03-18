@@ -17,6 +17,7 @@
 import { NOTE_NAMES } from '../utils/constants.js';
 import { frequencyToMidi } from '../audio/note-math.js';
 import { playNote } from '../audio/synth.js';
+import { mic } from '../audio/mic.js';
 import {
   setupCanvas,
   resizeCanvas,
@@ -404,6 +405,30 @@ export function createScrollTargetsRenderer() {
     ctx.moveTo(gR, 0);
     ctx.lineTo(gR, height);
     ctx.stroke();
+
+    // Current target note label + progress (top-left of graph area)
+    if (notes.length > 0 && cursor < notes.length) {
+      const currentNote = notes[cursor];
+      const noteIndex = ((currentNote.midi % 12) + 12) % 12;
+      const octave = Math.floor(currentNote.midi / 12) - 1;
+      const noteName = currentNote.note ?? `${NOTE_NAMES[noteIndex]}${octave}`;
+
+      // Large note name
+      ctx.font = `bold 18px ${FONTS.FAMILY}`;
+      ctx.fillStyle = COLORS.ACCENT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(noteName, gL + 10, 10);
+
+      // Progress counter beside it
+      const progressText = `${cursor + 1} / ${notes.length}`;
+      ctx.font = `12px ${FONTS.FAMILY}`;
+      ctx.fillStyle = COLORS.TEXT_MUTED;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const nameWidth = ctx.measureText(noteName).width;
+      ctx.fillText(progressText, gL + 10 + nameWidth + 8, 14);
+    }
 
     // Loop count badge (subtle, top-right of graph area)
     if (loopCount > 0) {
@@ -802,6 +827,9 @@ export function createScrollTargetsRenderer() {
   function handleCanvasClick(event) {
     if (!canvas) return;
 
+    // Ensure AudioContext exists for playback
+    mic.ensureAudioContext?.();
+
     // Convert DOM event coordinates to canvas (scaled) coordinates
     const x = event.offsetX * dpr;
     const y = event.offsetY * dpr;
@@ -814,8 +842,8 @@ export function createScrollTargetsRenderer() {
         y >= rect.y &&
         y <= rect.y + rect.height
       ) {
-        // Play the tapped note
-        playNote(rect.midi, 400, { voice: 'sine', gain: 0.8 });
+        // Play the tapped note — longer tone with warm triangle voice
+        playNote(rect.midi, 800, { voice: 'triangle', gain: 0.8 });
 
         // Visual feedback: flash this bar
         tappedBarMidi = rect.midi;
