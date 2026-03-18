@@ -100,11 +100,14 @@ export function buildSustainedExercise(name, root, scale, opts = {}) {
 
 export function buildReactiveExercise(name, root, scale, opts = {}) {
   // Build notes from scale for the pool
+  // Prefer octaveRange array, fall back to octaveLow/octaveHigh, then defaults
+  const octLow = opts.octaveRange?.[0] ?? opts.octaveLow ?? 3;
+  const octHigh = opts.octaveRange?.[1] ?? opts.octaveHigh ?? 5;
   const seq = createSequenceExercise({
     root,
     scale,
-    octaveLow: opts.octaveLow ?? 3,
-    octaveHigh: opts.octaveHigh ?? 5,
+    octaveLow: octLow,
+    octaveHigh: octHigh,
     pattern: 'random',
   });
 
