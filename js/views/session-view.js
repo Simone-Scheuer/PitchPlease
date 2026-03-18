@@ -93,6 +93,8 @@ class SessionView {
     if (this.#tabBar && !sessionConfig.showTabBar) {
       this.#tabBar.classList.add('tab-bar-hidden');
     }
+    // Shrink session view when tab bar is visible
+    this.#viewEl.classList.toggle('with-tab-bar', !!sessionConfig.showTabBar);
 
     // Show session view
     this.#viewEl.hidden = false;

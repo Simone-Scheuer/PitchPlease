@@ -6,6 +6,9 @@
   background: var(--color-bg);
   position: relative;
 }
+#session-view.with-tab-bar {
+  height: calc(100dvh - 48px - env(safe-area-inset-bottom));
+}
 #session-view[hidden] {
   display: none !important;
 }
