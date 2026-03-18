@@ -143,6 +143,7 @@ export function buildFreePlayExercise(root, scale, opts = {}) {
     evaluator: 'none',
     renderer: 'pitch-trail',
     timing: { mode: 'indefinite' },
+    audio: { playReference: false },
     loop: false,
     measures: [],
     skills: [],
@@ -151,6 +152,7 @@ export function buildFreePlayExercise(root, scale, opts = {}) {
   // Add drone audio if requested
   if (opts.drone) {
     exercise.audio = {
+      playReference: false,
       drone: {
         note: root,
         octave: opts.octaveRange?.[0] ?? 3,
