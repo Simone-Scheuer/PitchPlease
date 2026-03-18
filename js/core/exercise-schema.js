@@ -586,7 +586,7 @@ export function createSequenceExercise({
  * @param {string}  [params.scale='major']   - Scale key
  * @param {number}  [params.octaveLow=4]     - Lowest octave
  * @param {number}  [params.octaveHigh=5]    - Highest octave (top root boundary)
- * @param {number}  [params.holdMs=10000]    - Required sustain time in ms (10s default)
+ * @param {number}  [params.holdMs=3000]     - Required sustain time in ms (3s default)
  * @param {string}  [params.droneVoice='triangle'] - Drone oscillator voice
  * @param {number}  [params.droneGain=0.6]   - Drone gain
  * @returns {ExerciseConfig}
@@ -596,7 +596,7 @@ export function createScaleWalkExercise({
   scale = 'major',
   octaveLow = 4,
   octaveHigh = 5,
-  holdMs = 10000,
+  holdMs = 3000,
   droneVoice = 'triangle',
   droneGain = 0.6,
 } = {}) {
