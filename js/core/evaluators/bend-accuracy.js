@@ -19,6 +19,7 @@
 const DEFAULT_IN_TUNE_CENTS = 10;    // ±10 cents = "in tune" for bends
 const DEFAULT_CLOSE_CENTS = 25;      // ±25 cents = "close"
 const DEFAULT_LOCK_MS = 300;         // ms of sustained in-tune to be "locked"
+const MAX_JUMP_SEMITONES = 5;        // reject pitch spikes larger than this
 
 // Scoring weights
 const ACCURACY_WEIGHT = 0.5;
@@ -83,6 +84,10 @@ export function createBendAccuracyEvaluator(config = {}) {
   let hasLocked = false;         // achieved lock for current target
   let currentLockMs = 0;         // current continuous in-tune streak ms
 
+  // --- Jump filter ---
+  let lastPlayerMidi = null;
+  let lastResult = { inTune: false, close: false, absCents: 0, locked: false, holdMs: 0, timeToReachMs: -1, advance: false };
+
   // --- Completed targets ---
   let completedTargets = [];
   let skippedIndices = new Set();
@@ -102,6 +107,7 @@ export function createBendAccuracyEvaluator(config = {}) {
     hasLocked = false;
     currentLockMs = 0;
     currentTarget = null;
+    lastPlayerMidi = null;
   }
 
   function finalizeCurrentTarget() {
@@ -172,6 +178,14 @@ export function createBendAccuracyEvaluator(config = {}) {
       // Compute precise cents distance
       // pitchData.midi is integer (nearest semitone), pitchData.cents is sub-semitone offset
       const playerMidi = pitchData.midi + (pitchData.cents || 0) / 100;
+
+      // Reject pitch spikes — if the jump from last frame exceeds threshold,
+      // treat as a detection glitch and return the previous result unchanged
+      if (lastPlayerMidi != null && Math.abs(playerMidi - lastPlayerMidi) > MAX_JUMP_SEMITONES) {
+        return lastResult;
+      }
+      lastPlayerMidi = playerMidi;
+
       const centsDistance = (playerMidi - targetNote.midi) * 100;
       const absCents = Math.abs(centsDistance);
 
@@ -223,7 +237,7 @@ export function createBendAccuracyEvaluator(config = {}) {
         advance = true;
       }
 
-      return {
+      lastResult = {
         inTune,
         close,
         absCents: Math.round(absCents * 10) / 10,
@@ -232,6 +246,7 @@ export function createBendAccuracyEvaluator(config = {}) {
         timeToReachMs,
         advance,
       };
+      return lastResult;
     },
 
     /**
@@ -244,6 +259,7 @@ export function createBendAccuracyEvaluator(config = {}) {
         holdStreakStart = null;
       }
       currentLockMs = 0;
+      lastPlayerMidi = null;  // reset jump filter — next pitch starts fresh
     },
 
     /**
