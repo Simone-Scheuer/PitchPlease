@@ -53,6 +53,8 @@ export class PitchGraph {
   #labelHitTargets = [];  // Array of { midi, y, areaLeft, areaRight }
   #tappedMidi = null;     // Currently highlighted (tapped) MIDI note
   #tapFlashTimer = null;  // Timer to clear the tap highlight
+  #droneHandle = null;    // Active drone { stop } from sustained press
+  #droneMidi = null;      // MIDI of currently droning note
 
   // Noise filter: confirmation buffer to reject single-frame spikes
   #pendingPoint = null;   // Most recent unconfirmed pitch reading
@@ -99,9 +101,13 @@ export class PitchGraph {
     };
     this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
 
-    // Tap-to-play: click on note labels to hear the note
-    this._clickHandler = (e) => this.#handleLabelClick(e);
-    this.#canvas.addEventListener('click', this._clickHandler);
+    // Press-and-hold to drone note labels, quick tap for brief tone
+    this._pointerDownHandler = (e) => this.#handleLabelDown(e);
+    this._pointerUpHandler = () => this.#handleLabelUp();
+    this.#canvas.addEventListener('pointerdown', this._pointerDownHandler);
+    this.#canvas.addEventListener('pointerup', this._pointerUpHandler);
+    this.#canvas.addEventListener('pointerleave', this._pointerUpHandler);
+    this.#canvas.addEventListener('pointercancel', this._pointerUpHandler);
 
     // Noise filter: subscribe to pitch/silence events
     this._filterPitchHandler = (data) => this.#filterPitch(data);
@@ -179,12 +185,12 @@ export class PitchGraph {
     }
   }
 
-  async #handleLabelClick(e) {
+  async #handleLabelDown(e) {
     const rect = this.#canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    // Check if click is in any label area
+    // Find closest label
     let closestTarget = null;
     let closestDist = Infinity;
 
@@ -197,25 +203,44 @@ export class PitchGraph {
       }
     }
 
-    // Only trigger if click is reasonably close to a label (within half a semitone height)
     const semitoneHeight = this.#height / this.#semitoneRange;
     if (!closestTarget || closestDist > semitoneHeight * 0.6) return;
 
-    // Ensure AudioContext exists for synth playback
+    // Ensure AudioContext exists
     await mic.ensureAudioContext();
 
-    // Play the note
-    playNote(closestTarget.midi, 500, { voice: 'triangle', gain: 0.7 });
+    // Stop any existing drone
+    this.#stopDrone();
 
-    // Visual feedback: flash the tapped note label
+    // Start a long sustained drone (10s max, stopped on release)
+    this.#droneHandle = playNote(closestTarget.midi, 10000, { voice: 'triangle', gain: 0.7 });
+    this.#droneMidi = closestTarget.midi;
+
+    // Visual feedback: highlight the droning note
     if (this.#tapFlashTimer) clearTimeout(this.#tapFlashTimer);
     this.#tappedMidi = closestTarget.midi;
     if (!this.#active) this.drawStatic();
+  }
+
+  #handleLabelUp() {
+    if (!this.#droneHandle) return;
+
+    this.#stopDrone();
+
+    // Clear visual highlight after brief delay
     this.#tapFlashTimer = setTimeout(() => {
       this.#tappedMidi = null;
       if (!this.#active) this.drawStatic();
       this.#tapFlashTimer = null;
-    }, 300);
+    }, 150);
+  }
+
+  #stopDrone() {
+    if (this.#droneHandle) {
+      this.#droneHandle.stop();
+      this.#droneHandle = null;
+      this.#droneMidi = null;
+    }
   }
 
   #resize() {
@@ -615,11 +640,15 @@ export class PitchGraph {
       clearTimeout(this.#tapFlashTimer);
       this.#tapFlashTimer = null;
     }
+    this.#stopDrone();
     bus.off('pitch', this._filterPitchHandler);
     bus.off('silence', this._filterSilenceHandler);
     window.removeEventListener('resize', this._resizeHandler);
     this.#canvas.removeEventListener('wheel', this._wheelHandler);
-    this.#canvas.removeEventListener('click', this._clickHandler);
+    this.#canvas.removeEventListener('pointerdown', this._pointerDownHandler);
+    this.#canvas.removeEventListener('pointerup', this._pointerUpHandler);
+    this.#canvas.removeEventListener('pointerleave', this._pointerUpHandler);
+    this.#canvas.removeEventListener('pointercancel', this._pointerUpHandler);
     this.#canvas.removeEventListener('mousemove', this._mousemoveHandler);
     this.#canvas = null;
     this.#ctx = null;
