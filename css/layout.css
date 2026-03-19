@@ -32,11 +32,8 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  display: flex;
+  display: none;
   flex-direction: column;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition-base);
 }
 
 .view[hidden] {
@@ -44,8 +41,7 @@ body {
 }
 
 .view.active {
-  opacity: 1;
-  pointer-events: auto;
+  display: flex;
 }
 
 /* Toast notifications */
