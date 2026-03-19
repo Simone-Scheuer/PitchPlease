@@ -1,0 +1,38 @@
+# PitchPlease — Netlify deployment config
+# Static site, no build step needed
+
+[build]
+  publish = "."
+
+# Headers for security + mic access
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Required for getUserMedia (mic access) on all browsers
+    Permissions-Policy = "microphone=(self)"
+    # Security headers
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Service worker should never be cached
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

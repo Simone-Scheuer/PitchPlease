@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v9';
+const CACHE_NAME = 'pitchplease-v10';
 
 const STATIC_ASSETS = [
   './',
@@ -56,6 +56,7 @@ const STATIC_ASSETS = [
   './js/renderers/overlay-comparison.js',
   './js/renderers/bend-meter.js',
   './js/renderers/pitch-trace.js',
+  './js/renderers/pitch-trail.js',
   // JS — utils
   './js/utils/constants.js',
   './js/utils/dom.js',
@@ -64,6 +65,7 @@ const STATIC_ASSETS = [
   './js/utils/song-data.js',
   './js/utils/exercise-generator.js',
   './js/utils/store.js',
+  './js/utils/harmonica.js',
   // JS — profile
   './js/profile/profile.js',
   './js/profile/history.js',
