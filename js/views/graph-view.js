@@ -42,6 +42,9 @@ class GraphView {
   }
 
   activate() {
+    // Resize canvas now that the view is visible (display:none → flex gives it dimensions)
+    this.#graph.resize();
+
     // Always draw the grid/scale immediately when switching to graph tab
     this.#graph.drawStatic();
 

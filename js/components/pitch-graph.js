@@ -248,6 +248,10 @@ export class PitchGraph {
     }
   }
 
+  resize() {
+    this.#resize();
+  }
+
   #resize() {
     this.#dpr = window.devicePixelRatio || 1;
     const rect = this.#canvas.getBoundingClientRect();
