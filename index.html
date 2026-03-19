@@ -66,6 +66,32 @@
           <canvas class="graph__canvas" id="graph-canvas"></canvas>
         </div>
 
+        <div class="graph__drone-panel" id="graph-drone-panel" hidden>
+          <div class="graph__drone-row">
+            <select class="graph__select" id="drone-root" aria-label="Drone root"></select>
+            <select class="graph__select" id="drone-octave" aria-label="Drone octave">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+            <select class="graph__select" id="drone-chord" aria-label="Chord type">
+              <option value="single">Single</option>
+              <option value="5th">Power (5th)</option>
+              <option value="major">Major</option>
+              <option value="minor">Minor</option>
+              <option value="7th">Dom 7th</option>
+              <option value="maj7">Maj 7th</option>
+              <option value="min7">Min 7th</option>
+            </select>
+          </div>
+          <div class="graph__drone-row">
+            <button class="graph__drone-play" id="drone-play">Play Drone</button>
+            <button class="graph__drone-stop" id="drone-stop" hidden>Stop</button>
+          </div>
+        </div>
+
         <div class="graph__controls">
           <div class="graph__controls-group">
             <button class="graph__btn" id="graph-mic-btn" aria-label="Start/Stop recording">
@@ -75,6 +101,11 @@
               </svg>
             </button>
             <button class="graph__btn" id="graph-speed-btn" aria-label="Scroll speed">1x</button>
+            <button class="graph__btn" id="graph-drone-btn" aria-label="Toggle drone panel" title="Drone">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+              </svg>
+            </button>
           </div>
 
           <div class="graph__current-note" id="graph-current-note">--</div>

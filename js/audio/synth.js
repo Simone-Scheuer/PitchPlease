@@ -13,7 +13,7 @@ import { midiToFrequency } from './note-math.js';
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_GAIN = 0.25;
+const DEFAULT_GAIN = 0.5;
 const ATTACK_MS = 20;
 const RELEASE_MS = 80;
 const DRONE_FADE_IN_MS = 400;
