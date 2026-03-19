@@ -1,5 +1,6 @@
 import { tunerView } from './views/tuner-view.js';
 import { graphView } from './views/graph-view.js';
+import { droneView } from './views/drone-view.js';
 import { libraryView } from './views/library-view.js';
 import { practiceView } from './views/practice-view.js';
 import { journalView } from './views/journal-view.js';
@@ -29,6 +30,7 @@ function switchView(viewId) {
   if (oldEl) oldEl.classList.remove('active');
   if (activeViewId === 'tuner-view') tunerView.deactivate();
   if (activeViewId === 'graph-view') graphView.deactivate();
+  if (activeViewId === 'drone-view') droneView.deactivate();
   if (activeViewId === 'practice-view') practiceView.deactivate();
   if (activeViewId === 'journal-view') journalView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
@@ -39,6 +41,8 @@ function switchView(viewId) {
     practiceView.activate();
   } else if (resolvedId === 'journal-view') {
     journalView.activate();
+  } else if (resolvedId === 'drone-view') {
+    droneView.activate();
   } else {
     const newEl = qs(`#${resolvedId}`);
     if (newEl) newEl.classList.add('active');
@@ -59,6 +63,7 @@ function switchView(viewId) {
 document.addEventListener('DOMContentLoaded', () => {
   tunerView.init();
   graphView.init();
+  droneView.init();
   libraryView.init();
   practiceView.init();
   journalView.init();
@@ -88,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (oldEl) oldEl.classList.remove('active');
     if (activeViewId === 'tuner-view') tunerView.deactivate();
     if (activeViewId === 'graph-view') graphView.deactivate();
+    if (activeViewId === 'drone-view') droneView.deactivate();
     if (activeViewId === 'practice-view') practiceView.deactivate();
     if (activeViewId === 'journal-view') journalView.deactivate();
     if (activeViewId === 'game-view') gameView.deactivate();

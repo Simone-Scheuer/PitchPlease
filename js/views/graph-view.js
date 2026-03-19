@@ -1,22 +1,10 @@
 import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { pitchBuffer } from '../audio/pitch-buffer.js';
-import { startDrone } from '../audio/synth.js';
 import { bus } from '../utils/event-bus.js';
 import { qs, showToast } from '../utils/dom.js';
 import { PitchGraph } from '../components/pitch-graph.js';
 import { SCALE_LABELS, ROOT_NAMES } from '../utils/scales.js';
-import { NOTE_NAMES } from '../utils/constants.js';
-
-const CHORD_INTERVALS = {
-  'single': [0],
-  '5th': [0, 7],
-  'major': [0, 4, 7],
-  'minor': [0, 3, 7],
-  '7th': [0, 4, 7, 10],
-  'maj7': [0, 4, 7, 11],
-  'min7': [0, 3, 7, 10],
-};
 
 class GraphView {
   #graph;
@@ -27,7 +15,6 @@ class GraphView {
   #scaleTypeSelect;
   #currentNoteEl;
   #active = false;
-  #droneHandles = null;
 
   init() {
     const canvas = qs('#graph-canvas');
@@ -52,12 +39,6 @@ class GraphView {
     bus.on('silence', () => this.#onSilence());
 
     this.#speedBtn.textContent = this.#graph.speedLabel;
-
-    // Drone panel wiring
-    qs('#graph-drone-btn').addEventListener('click', () => this.#toggleDronePanel());
-    qs('#drone-play').addEventListener('click', () => this.#startDrone());
-    qs('#drone-stop').addEventListener('click', () => this.#stopDroneChord());
-    this.#populateDroneRoot();
   }
 
   activate() {
@@ -71,7 +52,6 @@ class GraphView {
   }
 
   deactivate() {
-    this.#stopDroneChord();
     // Stop animation but keep mic/buffer running if active
     this.#graph.stopRendering();
   }
@@ -137,7 +117,6 @@ class GraphView {
   }
 
   #stopAll() {
-    this.#stopDroneChord();
     detector.stop();
     mic.stop();
     pitchBuffer.stop();
@@ -167,58 +146,6 @@ class GraphView {
     this.#currentNoteEl.classList.remove('detected');
   }
 
-  #populateDroneRoot() {
-    const sel = qs('#drone-root');
-    for (const name of NOTE_NAMES) {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    }
-  }
-
-  #toggleDronePanel() {
-    const panel = qs('#graph-drone-panel');
-    const btn = qs('#graph-drone-btn');
-    panel.hidden = !panel.hidden;
-    btn.classList.toggle('active', !panel.hidden);
-  }
-
-  async #startDrone() {
-    this.#stopDroneChord();
-
-    // Ensure AudioContext exists (user gesture bootstraps it)
-    await mic.ensureAudioContext();
-
-    const root = qs('#drone-root').value;
-    const octave = parseInt(qs('#drone-octave').value);
-    const chordType = qs('#drone-chord').value;
-    const intervals = CHORD_INTERVALS[chordType] ?? [0];
-
-    const rootIndex = NOTE_NAMES.indexOf(root);
-    const rootMidi = (octave + 1) * 12 + rootIndex;
-
-    this.#droneHandles = [];
-    for (const interval of intervals) {
-      const midi = rootMidi + interval;
-      const handle = startDrone(midi, { voice: 'triangle', gain: 0.8 });
-      if (handle) this.#droneHandles.push(handle);
-    }
-
-    qs('#drone-play').hidden = true;
-    qs('#drone-stop').hidden = false;
-  }
-
-  #stopDroneChord() {
-    if (this.#droneHandles) {
-      for (const h of this.#droneHandles) h.stop();
-      this.#droneHandles = null;
-    }
-    const playBtn = qs('#drone-play');
-    const stopBtn = qs('#drone-stop');
-    if (playBtn) playBtn.hidden = false;
-    if (stopBtn) stopBtn.hidden = true;
-  }
 }
 
 export const graphView = new GraphView();

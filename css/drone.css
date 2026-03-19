@@ -1,0 +1,110 @@
+#drone-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  gap: var(--space-lg);
+  background: var(--color-bg);
+}
+
+#drone-view[hidden] {
+  display: none !important;
+}
+
+.drone-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.drone-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 320px;
+}
+
+.drone-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.drone-row label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  min-width: 50px;
+  text-align: right;
+}
+
+.drone-select {
+  flex: 1;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 16px; /* prevent iOS zoom */
+  padding: 10px 12px;
+  min-height: 44px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23999' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+.drone-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.drone-play-btn,
+.drone-stop-btn {
+  width: 100%;
+  max-width: 320px;
+  min-height: 56px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.drone-play-btn:active,
+.drone-stop-btn:active {
+  transform: scale(0.97);
+}
+
+.drone-play-btn {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.drone-stop-btn {
+  background: rgba(255, 107, 107, 0.85);
+  color: #fff;
+}
+
+.drone-play-btn[hidden],
+.drone-stop-btn[hidden] {
+  display: none !important;
+}
+
+.drone-status {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+  min-height: 28px;
+  transition: color 0.2s;
+}
+
+.drone-status.active {
+  color: var(--color-accent);
+}

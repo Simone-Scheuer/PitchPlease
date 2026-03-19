@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v10';
+const CACHE_NAME = 'pitchplease-v11';
 
 const STATIC_ASSETS = [
   './',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   './css/session.css',
   './css/practice.css',
   './css/journal.css',
+  './css/drone.css',
   // JS — app entry
   './js/app.js',
   // JS — audio
@@ -31,6 +32,7 @@ const STATIC_ASSETS = [
   './js/views/practice-view.js',
   './js/views/session-view.js',
   './js/views/journal-view.js',
+  './js/views/drone-view.js',
   // JS — components
   './js/components/needle.js',
   './js/components/note-display.js',
