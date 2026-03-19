@@ -214,8 +214,10 @@ class GraphView {
       for (const h of this.#droneHandles) h.stop();
       this.#droneHandles = null;
     }
-    qs('#drone-play').hidden = false;
-    qs('#drone-stop').hidden = true;
+    const playBtn = qs('#drone-play');
+    const stopBtn = qs('#drone-stop');
+    if (playBtn) playBtn.hidden = false;
+    if (stopBtn) stopBtn.hidden = true;
   }
 }
 

@@ -228,3 +228,8 @@
 .graph__drone-stop:active {
   transform: scale(0.97);
 }
+
+.graph__drone-play[hidden],
+.graph__drone-stop[hidden] {
+  display: none !important;
+}
