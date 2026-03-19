@@ -467,29 +467,46 @@ export function createBendMeterRenderer() {
   function drawTargetLabel() {
     if (!currentTarget) return;
 
-    // Target name in top-left
-    const label = currentTarget.label
-      ?? currentTarget.note
-      ?? midiToNoteName(currentTarget.midi);
+    const fraction = currentTarget.midi - Math.round(currentTarget.midi);
+    const isFractional = Math.abs(fraction) > 0.05;
+
+    // For integer MIDI targets with a label (e.g. guitar bends), show
+    // the note name prominently and the label as context below.
+    // For fractional MIDI (harmonica bends), use the label as primary.
+    let primaryText;
+    let subText = null;
+
+    if (currentTarget.label && !isFractional) {
+      // Integer target with label — note name is primary, label is context
+      primaryText = midiToNoteName(currentTarget.midi);
+      subText = currentTarget.label;
+    } else {
+      // Fractional target or no label — label (or note name) is primary
+      primaryText = currentTarget.label
+        ?? currentTarget.note
+        ?? midiToNoteName(currentTarget.midi);
+
+      // Show fractional MIDI description as sub-label
+      if (isFractional) {
+        subText = midiToNoteName(currentTarget.midi);
+      }
+    }
 
     ctx.save();
     ctx.font = `bold 24px ${FONTS.FAMILY}`;
     ctx.fillStyle = COLORS.TEXT;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(label, 12, 10);
+    ctx.fillText(primaryText, 12, 10);
     ctx.restore();
 
-    // Show fractional MIDI as a sub-label if it's a bend
-    const fraction = currentTarget.midi - Math.round(currentTarget.midi);
-    if (Math.abs(fraction) > 0.05) {
-      const bendDesc = midiToNoteName(currentTarget.midi);
+    if (subText) {
       ctx.save();
       ctx.font = `12px ${FONTS.MONO}`;
       ctx.fillStyle = COLORS.TEXT_DIM;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(bendDesc, 12, 38);
+      ctx.fillText(subText, 12, 38);
       ctx.restore();
     }
   }

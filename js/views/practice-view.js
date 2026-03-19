@@ -3,9 +3,10 @@ import { qs } from '../utils/dom.js';
 import { store } from '../utils/store.js';
 import { ROOT_NAMES, SCALE_LABELS } from '../utils/scales.js';
 import { SESSION_TEMPLATES, getTemplate, buildSustainedExercise, buildReactiveExercise, buildFreePlayExercise } from '../core/session-templates.js';
-import { createSequenceExercise, createEchoExercise, applyDefaults } from '../core/exercise-schema.js';
+import { createSequenceExercise, createEchoExercise, applyDefaults, buildScaleMidiNotes } from '../core/exercise-schema.js';
 import { hasProfile, ensureProfile, getOctaveRange, setOctaveRange, getHarmonicaKey, setHarmonicaKey, getHoldDuration, setHoldDuration, getExerciseOptions, setExerciseOptions } from '../profile/profile.js';
 import { HARMONICA_KEYS, getBendTargets } from '../utils/harmonica.js';
+import { NOTE_NAMES } from '../utils/constants.js';
 import { generateSession, summarizeSession } from '../generation/session-generator.js';
 import { getHistory } from '../profile/history.js';
 
@@ -20,6 +21,7 @@ const STANDALONE_EXERCISES = [
   { id: 'echo-mode',    label: 'Echo Mode',      desc: 'Listen and repeat',         builder: 'echo' },
   { id: 'free-play',    label: 'Free Play',      desc: 'Play freely with graph',    builder: 'free' },
   { id: 'bend-trainer', label: 'Bend Trainer',   desc: 'Practice harmonica bends',  builder: 'bend' },
+  { id: 'guitar-bends', label: 'Guitar Bends',   desc: 'Practice bend accuracy',    builder: 'guitar-bend' },
   { id: 'pitch-trace',  label: 'Pitch Trace',    desc: 'Follow a pitch shape',      builder: 'trace' },
 ];
 
@@ -40,6 +42,7 @@ const EXERCISE_OPTIONS_CONFIG = {
   'echo-mode':    [{ key: 'difficulty', label: 'Difficulty', choices: [['easy','Easy'], ['medium','Medium'], ['hard','Hard']] }],
   'free-play':    [],
   'bend-trainer': [{ key: 'drone', label: 'Drone', choices: [['off','Off'], ['root','Root Note']] }],
+  'guitar-bends': [{ key: 'bendType', label: 'Bend Type', choices: [['both','Half & Whole'], ['half','Half Step'], ['whole','Whole Step']] }],
   'pitch-trace':  [{ key: 'traceShape', label: 'Shape', choices: [['wave','Wave'], ['zigzag','Zigzag']] }],
 };
 
@@ -57,6 +60,68 @@ const DEFAULTS = {
 function todayDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Build guitar bend targets from scale notes within an octave range.
+ * For each scale note, creates half-step and/or whole-step bend targets.
+ * The player frets the scale note and bends UP to the target pitch.
+ *
+ * @param {string} root
+ * @param {string} scale
+ * @param {number} octaveLow
+ * @param {number} octaveHigh
+ * @param {Object} [opts]
+ * @param {'both'|'half'|'whole'} [opts.bendType='both']
+ * @returns {Array<{ note: string, octave: number, midi: number, label: string }>}
+ */
+function buildGuitarBendTargets(root, scale, octaveLow, octaveHigh, opts = {}) {
+  const bendType = opts.bendType || 'both';
+  const scaleMidi = buildScaleMidiNotes(root, scale, octaveLow, octaveHigh);
+  if (scaleMidi.length === 0) return [];
+
+  // Upper MIDI limit: top of octave range
+  const upperLimit = (octaveHigh + 2) * 12; // one octave above octaveHigh root
+
+  const targets = [];
+
+  for (const frettedMidi of scaleMidi) {
+    const frettedNoteIdx = ((frettedMidi % 12) + 12) % 12;
+    const frettedOctave = Math.floor(frettedMidi / 12) - 1;
+    const frettedName = `${NOTE_NAMES[frettedNoteIdx]}${frettedOctave}`;
+
+    if (bendType === 'half' || bendType === 'both') {
+      const targetMidi = frettedMidi + 1;
+      if (targetMidi <= upperLimit) {
+        const targetNoteIdx = ((targetMidi % 12) + 12) % 12;
+        const targetOctave = Math.floor(targetMidi / 12) - 1;
+        const targetName = `${NOTE_NAMES[targetNoteIdx]}${targetOctave}`;
+        targets.push({
+          note: NOTE_NAMES[targetNoteIdx],
+          octave: targetOctave,
+          midi: targetMidi,
+          label: `${frettedName} \u2192 ${targetName} (half)`,
+        });
+      }
+    }
+
+    if (bendType === 'whole' || bendType === 'both') {
+      const targetMidi = frettedMidi + 2;
+      if (targetMidi <= upperLimit) {
+        const targetNoteIdx = ((targetMidi % 12) + 12) % 12;
+        const targetOctave = Math.floor(targetMidi / 12) - 1;
+        const targetName = `${NOTE_NAMES[targetNoteIdx]}${targetOctave}`;
+        targets.push({
+          note: NOTE_NAMES[targetNoteIdx],
+          octave: targetOctave,
+          midi: targetMidi,
+          label: `${frettedName} \u2192 ${targetName} (whole)`,
+        });
+      }
+    }
+  }
+
+  return targets;
 }
 
 class PracticeView {
@@ -699,6 +764,36 @@ class PracticeView {
           timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 2000 },
           audio: bendDrone ? { drone: bendDrone } : undefined,
           loop: true,
+          measures: ['cents-avg', 'hold-steady-ms'],
+          skills: ['pitchAccuracy', 'pitchStability'],
+        });
+      }
+
+      case 'guitar-bend': {
+        const bendTargets = buildGuitarBendTargets(root, scale, octaveLow, octaveHigh, {
+          bendType: opts.bendType || 'both',
+        });
+
+        if (bendTargets.length === 0) return null;
+
+        const scaleLabel = scale.replace(/-/g, ' ');
+
+        return applyDefaults({
+          id: `guitar-bend-${root}-${scale}-${octaveLow}-${octaveHigh}`,
+          type: 'sustained',
+          name: `Guitar Bends — ${root} ${scaleLabel}`,
+          description: `Bend practice in ${root} ${scaleLabel}`,
+          context: {
+            notes: bendTargets,
+            root,
+            scale,
+            octaveRange: oRange,
+          },
+          evaluator: 'bend-accuracy',
+          renderer: 'bend-meter',
+          timing: { mode: 'player-driven', holdToAdvance: true, holdMs: 2000 },
+          loop: true,
+          loopGapMs: 1500,
           measures: ['cents-avg', 'hold-steady-ms'],
           skills: ['pitchAccuracy', 'pitchStability'],
         });
