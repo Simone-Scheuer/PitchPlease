@@ -34,14 +34,14 @@ body {
   bottom: 0;
   display: none;
   flex-direction: column;
-}
-
-.view[hidden] {
-  display: none !important;
+  visibility: hidden;
+  z-index: 0;
 }
 
 .view.active {
   display: flex;
+  visibility: visible;
+  z-index: 1;
 }
 
 /* Toast notifications */

@@ -831,9 +831,10 @@ export function createScrollTargetsRenderer() {
     // Ensure AudioContext exists for playback
     mic.ensureAudioContext?.();
 
-    // Convert DOM event coordinates to canvas (scaled) coordinates
-    const x = event.offsetX * dpr;
-    const y = event.offsetY * dpr;
+    // offsetX/Y are already in CSS pixels, matching our drawing coordinates
+    // (ctx.scale(dpr) means we draw in CSS pixels, not canvas pixels)
+    const x = event.offsetX;
+    const y = event.offsetY;
 
     // Hit-test against stored bar rects (most recent frame)
     for (const rect of barHitRects) {
