@@ -279,14 +279,12 @@ class JournalView {
   }
 
   activate() {
-    this.#viewEl.hidden = false;
     this.#viewEl.classList.add('active');
     this.#render();
   }
 
   deactivate() {
     this.#viewEl.classList.remove('active');
-    this.#viewEl.hidden = true;
   }
 
   // -------------------------------------------------------------------------

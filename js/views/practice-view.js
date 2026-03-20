@@ -222,7 +222,6 @@ class PracticeView {
   }
 
   activate() {
-    this.#viewEl.hidden = false;
     this.#viewEl.classList.add('active');
     // Refresh today's session preview on re-activation (in case history changed)
     this.#loadTodaySession();
@@ -230,7 +229,6 @@ class PracticeView {
 
   deactivate() {
     this.#viewEl.classList.remove('active');
-    this.#viewEl.hidden = true;
   }
 
   // -------------------------------------------------------------------------

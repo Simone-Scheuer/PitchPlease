@@ -46,7 +46,6 @@ class DroneView {
   }
 
   activate() {
-    this.#viewEl.hidden = false;
     this.#viewEl.classList.add('active');
   }
 
@@ -55,7 +54,6 @@ class DroneView {
     // The drone persists across tab switches so the user can play along
     // in Graph or Tuner view. It only stops via the Stop button or page unload.
     this.#viewEl.classList.remove('active');
-    this.#viewEl.hidden = true;
   }
 
   #populateRoot() {

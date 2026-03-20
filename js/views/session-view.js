@@ -97,7 +97,6 @@ class SessionView {
     this.#viewEl.classList.toggle('with-tab-bar', !!sessionConfig.showTabBar);
 
     // Show session view
-    this.#viewEl.hidden = false;
     this.#viewEl.classList.add('active');
 
     // Reset UI state
@@ -168,7 +167,6 @@ class SessionView {
 
     // Hide session view
     this.#viewEl.classList.remove('active');
-    this.#viewEl.hidden = true;
   }
 
   // ---------------------------------------------------------------------------
