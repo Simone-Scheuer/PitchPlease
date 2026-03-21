@@ -66,6 +66,23 @@ body {
   opacity: 1;
 }
 
+/* Made-by tag */
+.made-by {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 60px);
+  right: var(--space-sm);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  opacity: 0.4;
+  z-index: 2;
+  letter-spacing: 0.02em;
+}
+
+.made-by:hover {
+  opacity: 0.8;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
