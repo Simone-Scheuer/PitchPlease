@@ -9,7 +9,9 @@ import { SCALE_LABELS, ROOT_NAMES } from '../utils/scales.js';
 class GraphView {
   #graph;
   #micBtn;
+  #stopBtn;
   #speedBtn;
+  #idleOverlay;
 
   #scaleRootSelect;
   #scaleTypeSelect;
@@ -21,13 +23,16 @@ class GraphView {
     this.#graph = new PitchGraph(canvas, pitchBuffer);
 
     this.#micBtn = qs('#graph-mic-btn');
+    this.#stopBtn = qs('#graph-stop-btn');
     this.#speedBtn = qs('#graph-speed-btn');
+    this.#idleOverlay = qs('#graph-idle');
 
     this.#scaleRootSelect = qs('#scale-root');
     this.#scaleTypeSelect = qs('#scale-type');
     this.#currentNoteEl = qs('#graph-current-note');
 
-    this.#micBtn.addEventListener('click', () => this.#toggle());
+    this.#micBtn.addEventListener('click', () => this.#startAll());
+    this.#stopBtn.addEventListener('click', () => this.#stopAll());
     this.#speedBtn.addEventListener('click', () => this.#cycleSpeed());
 
     this.#scaleRootSelect.addEventListener('change', () => this.#updateScale());
@@ -42,7 +47,7 @@ class GraphView {
   }
 
   activate() {
-    // Resize canvas now that the view is visible (display:none → flex gives it dimensions)
+    // Resize canvas now that the view is visible (display:none -> flex gives it dimensions)
     this.#graph.resize();
 
     // Always draw the grid/scale immediately when switching to graph tab
@@ -90,25 +95,18 @@ class GraphView {
     }
   }
 
-  async #toggle() {
-    if (this.#active) {
-      this.#stopAll();
-    } else {
-      await this.#startAll();
-    }
-  }
-
   async #startAll() {
     try {
-      this.#micBtn.classList.remove('error');
       await mic.start();
       detector.start();
       pitchBuffer.start();
       this.#graph.start();
       this.#active = true;
-      this.#micBtn.classList.add('active');
+
+      // Hide idle overlay, show stop button
+      this.#idleOverlay.hidden = true;
+      this.#stopBtn.hidden = false;
     } catch (err) {
-      this.#micBtn.classList.add('error');
       if (err.name === 'NotAllowedError') {
         showToast('Microphone access denied.');
       } else if (err.name === 'NotFoundError') {
@@ -125,7 +123,10 @@ class GraphView {
     pitchBuffer.stop();
     this.#graph.stop();
     this.#active = false;
-    this.#micBtn.classList.remove('active');
+
+    // Show idle overlay, hide stop button
+    this.#idleOverlay.hidden = false;
+    this.#stopBtn.hidden = true;
 
     this.#currentNoteEl.innerHTML = '--';
     this.#currentNoteEl.classList.remove('detected');
@@ -139,7 +140,6 @@ class GraphView {
     this.#speedBtn.textContent = this.#graph.speedLabel;
   }
 
-
   #onPitch(data) {
     this.#currentNoteEl.innerHTML = `${data.note}<span class="octave">${data.octave}</span>`;
     this.#currentNoteEl.classList.add('detected');
@@ -148,7 +148,6 @@ class GraphView {
   #onSilence() {
     this.#currentNoteEl.classList.remove('detected');
   }
-
 }
 
 export const graphView = new GraphView();

@@ -19,7 +19,81 @@
   display: block;
 }
 
-/* Controls bar at bottom */
+/* -------------------------------------------------------------------
+   Idle overlay — centered play button over the graph
+   ------------------------------------------------------------------- */
+
+.graph__idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  background: rgba(13, 13, 13, 0.55);
+  z-index: 2;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.graph__idle[hidden] {
+  display: none;
+}
+
+.graph__play-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  border: none;
+  color: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-base);
+  box-shadow:
+    0 0 0 0 rgba(78, 205, 196, 0.3),
+    0 4px 24px rgba(0, 0, 0, 0.4);
+  animation: graph-pulse 2.5s ease-in-out infinite;
+}
+
+.graph__play-btn:hover {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 8px rgba(78, 205, 196, 0.15),
+    0 4px 32px rgba(0, 0, 0, 0.5);
+}
+
+.graph__play-btn:active {
+  transform: scale(0.95);
+  animation: none;
+}
+
+.graph__play-btn svg {
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
+}
+
+@keyframes graph-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.3), 0 4px 24px rgba(0, 0, 0, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(78, 205, 196, 0.08), 0 4px 24px rgba(0, 0, 0, 0.4); }
+}
+
+.graph__idle-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* -------------------------------------------------------------------
+   Controls bar at bottom
+   ------------------------------------------------------------------- */
+
 .graph__controls {
   display: flex;
   align-items: center;
@@ -66,10 +140,15 @@
   transform: scale(0.95);
 }
 
-.graph__btn.active {
-  background: var(--color-accent-dim);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+.graph__btn--stop {
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
+.graph__btn--stop:hover {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
 }
 
 .graph__btn svg {
@@ -99,7 +178,10 @@
   border-color: var(--color-accent);
 }
 
-/* View switcher tab bar */
+/* -------------------------------------------------------------------
+   View switcher tab bar
+   ------------------------------------------------------------------- */
+
 .view-switcher {
   display: flex;
   position: fixed;
@@ -156,12 +238,16 @@
   bottom: calc(48px + env(safe-area-inset-bottom));
 }
 
-/* Current note mini-display in graph controls */
+/* -------------------------------------------------------------------
+   Current note display in controls
+   ------------------------------------------------------------------- */
+
 .graph__current-note {
   font-size: var(--font-size-lg);
   font-weight: 700;
+  font-family: var(--font-mono);
   color: var(--color-text-dim);
-  min-width: 48px;
+  min-width: 56px;
   text-align: center;
   transition: color var(--transition-fast);
 }
@@ -175,4 +261,3 @@
   font-weight: 400;
   color: var(--color-text-muted);
 }
-

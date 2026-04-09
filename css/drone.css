@@ -1,110 +1,168 @@
+/* ===================================================================
+   Drone View — Button Grid UI
+   =================================================================== */
+
 #drone-view {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-xl);
-  gap: var(--space-lg);
   background: var(--color-bg);
 }
 
-#drone-view[hidden] {
-  display: none !important;
-}
-
-.drone-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  text-align: center;
-}
-
-.drone-controls {
+.drone-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-lg) var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  width: 100%;
-  max-width: 320px;
+  gap: var(--space-lg);
 }
 
-.drone-row {
+/* -------------------------------------------------------------------
+   Sections
+   ------------------------------------------------------------------- */
+
+.drone-section {
   display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
-  align-items: center;
 }
 
-.drone-row label {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  min-width: 50px;
-  text-align: right;
+.drone-section-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-left: var(--space-xs);
 }
 
-.drone-select {
-  flex: 1;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: 16px; /* prevent iOS zoom */
-  padding: 10px 12px;
+/* -------------------------------------------------------------------
+   Grid buttons (shared)
+   ------------------------------------------------------------------- */
+
+.drone-grid-btn {
+  min-width: 44px;
   min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-family: var(--font-family);
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23999' stroke-width='1.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.drone-select:focus {
-  outline: none;
+.drone-grid-btn:active {
+  transform: scale(0.93);
+}
+
+/* Selected state (key + octave) */
+.drone-grid-btn.selected {
+  background: var(--color-accent-dim);
   border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
-.drone-play-btn,
-.drone-stop-btn {
-  width: 100%;
-  max-width: 320px;
+/* -------------------------------------------------------------------
+   Key grid — 4 columns, naturals and sharps
+   ------------------------------------------------------------------- */
+
+.drone-key-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.drone-key-btn.sharp {
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+}
+
+.drone-key-btn.sharp.selected {
+  color: var(--color-accent);
+}
+
+/* -------------------------------------------------------------------
+   Octave grid — single row
+   ------------------------------------------------------------------- */
+
+.drone-octave-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+/* -------------------------------------------------------------------
+   Chord grid — big tappable buttons
+   ------------------------------------------------------------------- */
+
+.drone-chord-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.drone-chord-btn {
   min-height: 56px;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 18px;
+  font-size: var(--font-size-base);
   font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.1s;
+  border-radius: var(--radius-md);
 }
 
-.drone-play-btn:active,
-.drone-stop-btn:active {
-  transform: scale(0.97);
+/* Jolt flash */
+.drone-chord-btn.flash {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
-.drone-play-btn {
+/* Sustained drone active */
+.drone-chord-btn.droning {
   background: var(--color-accent);
+  border-color: var(--color-accent);
   color: var(--color-bg);
+  animation: drone-glow 2s ease-in-out infinite;
 }
 
-.drone-stop-btn {
-  background: rgba(255, 107, 107, 0.85);
-  color: #fff;
+@keyframes drone-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(78, 205, 196, 0.1); }
 }
 
-.drone-play-btn[hidden],
-.drone-stop-btn[hidden] {
-  display: none !important;
-}
+/* -------------------------------------------------------------------
+   Status + hint
+   ------------------------------------------------------------------- */
 
 .drone-status {
-  font-size: 20px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
   text-align: center;
   min-height: 28px;
-  transition: color 0.2s;
+  transition: color var(--transition-base);
 }
 
 .drone-status.active {
   color: var(--color-accent);
+}
+
+.drone-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
+  text-align: center;
+  letter-spacing: 0.02em;
+  opacity: 0.6;
 }

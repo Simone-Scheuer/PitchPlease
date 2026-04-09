@@ -17,7 +17,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // View management
-let activeViewId = 'practice-view';
+let activeViewId = 'graph-view';
 
 function switchView(viewId) {
   // Map play-view tab to practice-view
@@ -69,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
   journalView.init();
   gameView.init();
   sessionView.init();
+
+  // Activate the default view (graph)
+  graphView.activate();
 
   // View switcher tabs
   for (const tab of qsa('.view-switcher__tab')) {

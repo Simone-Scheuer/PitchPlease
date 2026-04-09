@@ -12,6 +12,7 @@
 
 import { bus } from '../utils/event-bus.js';
 import { createExerciseRuntime } from './exercise-runtime.js';
+import { createMeasurement } from './measurements.js';
 import { createTargetAccuracyEvaluator } from './evaluators/target-accuracy.js';
 import { createStabilityEvaluator } from './evaluators/stability.js';
 import { createPhraseMatchEvaluator } from './evaluators/phrase-match.js';
@@ -292,13 +293,16 @@ export function createSessionRunner(sessionConfig) {
       currentRenderer.destroy();
     }
 
-    // Store block result
+    // Store block result — standardize via createMeasurement for skill tracking
     const block = currentBlock();
+    const exercise = block?.exercise ?? {};
+    const standardized = createMeasurement(exercise, measurements, blockElapsed);
+
     const result = {
       blockIndex,
       label: block?.label ?? '',
       phase: block?.phase ?? '',
-      measurements,
+      measurements: standardized,
       elapsed: Math.round(blockElapsed),
     };
     blockResults.push(result);
@@ -307,7 +311,7 @@ export function createSessionRunner(sessionConfig) {
     bus.emit('session:block-end', {
       blockIndex,
       label: block?.label ?? '',
-      measurements,
+      measurements: standardized,
     });
 
     // Clean up current block state
@@ -505,15 +509,17 @@ export function createSessionRunner(sessionConfig) {
           exerciseCompleteUnsub = null;
         }
 
-        const measurements = currentRuntime.stop();
+        const rawMeasurements = currentRuntime.stop();
         const block = currentBlock();
         blockElapsed = performance.now() - blockStartTime;
+        const exercise = block?.exercise ?? {};
+        const standardized = createMeasurement(exercise, rawMeasurements, blockElapsed);
 
         blockResults.push({
           blockIndex,
           label: block?.label ?? '',
           phase: block?.phase ?? '',
-          measurements,
+          measurements: standardized,
           elapsed: Math.round(blockElapsed),
         });
       }

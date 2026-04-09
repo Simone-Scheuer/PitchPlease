@@ -51,7 +51,8 @@ import { SKILL_DIMENSIONS } from './exercise-schema.js';
  * @returns {Measurement}
  */
 export function createMeasurement(config, evaluatorOutput, elapsed) {
-  const perNote = evaluatorOutput?.perNote ?? [];
+  const rawPerNote = evaluatorOutput?.perNote ?? [];
+  const perNote = normalizePerNote(rawPerNote);
   const metrics = extractMetrics(evaluatorOutput, perNote, elapsed);
   const skills = computeSkillDeltas(metrics, config);
 
@@ -78,10 +79,31 @@ export function createMeasurement(config, evaluatorOutput, elapsed) {
  * @param {number} elapsed
  * @returns {Object}
  */
+/**
+ * Normalize per-note data from different evaluator formats into a
+ * consistent shape that the rest of the pipeline can consume.
+ *
+ * Target-accuracy evaluator uses: avgCents, holdTimeMs, timeToHitMs, score, midi
+ * Stability evaluator uses: avgDeviation, maxSteadyMs, timeLockedPct, midi
+ *
+ * @param {Object[]} rawPerNote
+ * @returns {Object[]}
+ */
+function normalizePerNote(rawPerNote) {
+  return rawPerNote.map(n => ({
+    ...n,
+    // Map stability field names to standard names (keep originals if present)
+    avgCents: n.avgCents ?? n.avgDeviation ?? 0,
+    holdTimeMs: n.holdTimeMs ?? n.maxSteadyMs ?? undefined,
+    score: n.score ?? (n.timeLockedPct != null ? (n.timeLockedPct > 0 ? n.timeLockedPct : 0) : undefined),
+    midi: n.midi ?? undefined,
+  }));
+}
+
 function extractMetrics(evaluatorOutput, perNote, elapsed) {
   const metrics = {};
 
-  // Direct pass-through from evaluator
+  // Direct pass-through from evaluator (target-accuracy format)
   if (evaluatorOutput?.['cents-avg'] != null) {
     metrics['cents-avg'] = evaluatorOutput['cents-avg'];
   }
@@ -92,7 +114,16 @@ function extractMetrics(evaluatorOutput, perNote, elapsed) {
     metrics['time-to-hit-ms'] = evaluatorOutput['time-to-hit-ms'];
   }
 
+  // Pass-through from stability evaluator format
+  if (evaluatorOutput?.avgDeviation != null && metrics['cents-avg'] == null) {
+    metrics['cents-avg'] = Math.round(evaluatorOutput.avgDeviation);
+  }
+  if (evaluatorOutput?.maxSteadyStreakMs != null) {
+    metrics['hold-steady-ms'] = evaluatorOutput.maxSteadyStreakMs;
+  }
+
   // Compute from per-note data if evaluator didn't provide
+  // perNote is expected to be already normalized via normalizePerNote()
   if (perNote.length > 0) {
     // cents-avg
     if (metrics['cents-avg'] == null) {
@@ -115,11 +146,13 @@ function extractMetrics(evaluatorOutput, perNote, elapsed) {
     }
 
     // hold-steady-ms (average hold time across notes)
-    const holdTimes = perNote.filter(n => n.holdTimeMs != null);
-    if (holdTimes.length > 0) {
-      metrics['hold-steady-ms'] = Math.round(
-        holdTimes.reduce((s, n) => s + n.holdTimeMs, 0) / holdTimes.length
-      );
+    if (metrics['hold-steady-ms'] == null) {
+      const holdTimes = perNote.filter(n => n.holdTimeMs != null);
+      if (holdTimes.length > 0) {
+        metrics['hold-steady-ms'] = Math.round(
+          holdTimes.reduce((s, n) => s + n.holdTimeMs, 0) / holdTimes.length
+        );
+      }
     }
 
     // reaction-ms (average time-to-hit)
