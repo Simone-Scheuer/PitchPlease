@@ -12,10 +12,61 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: var(--space-lg) var(--space-md);
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
+}
+
+/* -------------------------------------------------------------------
+   Now playing header
+   ------------------------------------------------------------------- */
+
+.drone-now-playing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+}
+
+.drone-now-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.drone-status {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+  text-align: center;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-base);
+}
+
+.drone-status:empty::after {
+  content: '\2014'; /* em dash as placeholder */
+  opacity: 0.3;
+}
+
+.drone-status.active {
+  color: var(--color-accent);
+}
+
+.drone-now-playing.playing {
+  background: rgba(78, 205, 196, 0.04);
+  border-radius: var(--radius-md);
+}
+
+.drone-now-playing.playing .drone-now-label {
+  color: var(--color-accent);
 }
 
 /* -------------------------------------------------------------------
@@ -35,6 +86,12 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding-left: var(--space-xs);
+}
+
+/* Pads section gets more vertical space */
+.drone-section--pads {
+  flex: 1;
+  gap: var(--space-sm);
 }
 
 /* -------------------------------------------------------------------
@@ -59,7 +116,8 @@
     background var(--transition-fast),
     color var(--transition-fast),
     border-color var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -76,93 +134,99 @@
 }
 
 /* -------------------------------------------------------------------
-   Key grid — 4 columns, naturals and sharps
+   Key grid — 6 columns for compact layout
    ------------------------------------------------------------------- */
 
 .drone-key-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+
+.drone-key-btn {
+  min-height: 40px;
+  font-size: var(--font-size-xs);
 }
 
 .drone-key-btn.sharp {
   color: var(--color-text-dim);
-  font-size: var(--font-size-xs);
+  background: var(--color-bg);
 }
 
 .drone-key-btn.sharp.selected {
   color: var(--color-accent);
+  background: var(--color-accent-dim);
 }
 
 /* -------------------------------------------------------------------
-   Octave grid — single row
+   Octave grid — compact row directly below key grid
    ------------------------------------------------------------------- */
 
 .drone-octave-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 5px;
+}
+
+.drone-octave-btn {
+  min-height: 36px;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
 }
 
 /* -------------------------------------------------------------------
-   Chord grid — big tappable buttons
+   Chord grid — big tappable pads, the main instrument
    ------------------------------------------------------------------- */
 
 .drone-chord-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 8px;
+  flex: 1;
 }
 
 .drone-chord-btn {
-  min-height: 56px;
-  font-size: var(--font-size-base);
+  min-height: 72px;
+  font-size: clamp(0.875rem, 2.5vw, 1.125rem);
   font-weight: 700;
   border-radius: var(--radius-md);
+  border-width: 1.5px;
 }
 
-/* Jolt flash */
+/* Jolt flash — bright border pulse */
 .drone-chord-btn.flash {
   background: var(--color-accent-dim);
   border-color: var(--color-accent);
   color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(78, 205, 196, 0.2);
 }
 
-/* Sustained drone active */
+/* Sustained drone active — solid accent, breathing glow */
 .drone-chord-btn.droning {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-bg);
-  animation: drone-glow 2s ease-in-out infinite;
+  animation: drone-glow 2.5s ease-in-out infinite;
 }
 
 @keyframes drone-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.3); }
-  50% { box-shadow: 0 0 0 6px rgba(78, 205, 196, 0.1); }
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.35), 0 2px 12px rgba(78, 205, 196, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(78, 205, 196, 0.08), 0 2px 20px rgba(78, 205, 196, 0.25);
+  }
 }
 
 /* -------------------------------------------------------------------
-   Status + hint
+   Hint
    ------------------------------------------------------------------- */
-
-.drone-status {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  font-family: var(--font-mono);
-  color: var(--color-text-dim);
-  text-align: center;
-  min-height: 28px;
-  transition: color var(--transition-base);
-}
-
-.drone-status.active {
-  color: var(--color-accent);
-}
 
 .drone-hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-dim);
   text-align: center;
   letter-spacing: 0.02em;
-  opacity: 0.6;
+  opacity: 0.5;
+  padding-top: var(--space-xs);
 }

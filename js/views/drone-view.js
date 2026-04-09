@@ -33,9 +33,12 @@ class DroneView {
   // Double-tap tracking per chord button
   #lastTapTime = {};
 
+  #nowPlayingEl;
+
   init() {
     this.#viewEl = qs('#drone-view');
     this.#statusEl = qs('#drone-status');
+    this.#nowPlayingEl = qs('#drone-now-playing');
 
     this.#buildKeyGrid();
     this.#buildOctaveGrid();
@@ -231,6 +234,9 @@ class DroneView {
     if (!this.#statusEl) return;
     this.#statusEl.textContent = text;
     this.#statusEl.classList.toggle('active', text.length > 0);
+    if (this.#nowPlayingEl) {
+      this.#nowPlayingEl.classList.toggle('playing', this.#droneHandles !== null);
+    }
   }
 
   #flashChordBtn(chordKey) {

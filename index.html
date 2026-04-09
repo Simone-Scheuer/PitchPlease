@@ -202,23 +202,25 @@
     <!-- Drone View -->
     <div id="drone-view" class="view">
       <div class="drone-scroll">
-        <div class="drone-section">
-          <div class="drone-section-label">Key</div>
-          <div class="drone-key-grid" id="drone-key-grid"></div>
+        <!-- Now playing header -->
+        <div class="drone-now-playing" id="drone-now-playing">
+          <div class="drone-now-label">Drone</div>
+          <div class="drone-status" id="drone-status"></div>
         </div>
 
+        <!-- Root: key + octave side by side -->
         <div class="drone-section">
-          <div class="drone-section-label">Octave</div>
+          <div class="drone-section-label">Root</div>
+          <div class="drone-key-grid" id="drone-key-grid"></div>
           <div class="drone-octave-grid" id="drone-octave-grid"></div>
         </div>
 
-        <div class="drone-section">
+        <!-- Chord pads — the main instrument -->
+        <div class="drone-section drone-section--pads">
           <div class="drone-section-label">Chord</div>
           <div class="drone-chord-grid" id="drone-chord-grid"></div>
+          <div class="drone-hint">tap = jolt &middot; double-tap = hold</div>
         </div>
-
-        <div class="drone-status" id="drone-status"></div>
-        <div class="drone-hint">tap = jolt &middot; double-tap = hold</div>
       </div>
     </div>
 
