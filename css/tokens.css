@@ -1,31 +1,82 @@
+/* ===================================================================
+   Design Tokens — Light theme (default), Dark theme via [data-theme="dark"]
+   =================================================================== */
+
 :root {
+  /* ---------------------------------------------------------------
+     Light Theme — Memphis-inspired: warm, playful, bold
+     --------------------------------------------------------------- */
+
   /* Background */
-  --color-bg: #0d0d0d;
-  --color-bg-elevated: #1a1a1a;
-  --color-bg-surface: #242424;
+  --color-bg: #FDF6EE;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-surface: #F5EDE4;
+  --color-bg-surface-hover: #EDE4DA;
 
   /* Text */
-  --color-text: #f0f0f0;
-  --color-text-dim: #666;
-  --color-text-muted: #999;
+  --color-text: #1A1A2E;
+  --color-text-dim: #9E9EB0;
+  --color-text-muted: #6B6B80;
 
-  /* Accent */
-  --color-accent: #4ecdc4;
-  --color-accent-dim: rgba(78, 205, 196, 0.15);
+  /* Accent — teal, kept from dark theme but slightly bolder */
+  --color-accent: #1AAFA5;
+  --color-accent-hover: #16C4B8;
+  --color-accent-dim: rgba(26, 175, 165, 0.1);
+  --color-accent-glow: rgba(26, 175, 165, 0.06);
 
   /* Tuner feedback */
-  --color-in-tune: #4ecdc4;
-  --color-close: #ffe66d;
-  --color-off: #ff6b6b;
+  --color-in-tune: #1AAFA5;
+  --color-close: #E8A820;
+  --color-off: #E85454;
 
   /* Borders */
-  --color-border: #333;
-  --color-border-subtle: #1f1f1f;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-subtle: rgba(0, 0, 0, 0.04);
+  --color-border-accent: rgba(26, 175, 165, 0.35);
+
+  /* Shadows — lighter, warmer */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.07), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.05);
+  --shadow-glow-accent: 0 0 16px rgba(26, 175, 165, 0.12), 0 0 32px rgba(26, 175, 165, 0.04);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  /* Canvas-specific colors */
+  --color-canvas-bg: #FDF6EE;
+  --color-canvas-grid: rgba(0, 0, 0, 0.06);
+  --color-canvas-grid-bold: rgba(0, 0, 0, 0.12);
+  --color-canvas-label: #9E9EB0;
+  --color-canvas-label-active: #1A1A2E;
+  --color-canvas-scale-highlight: rgba(26, 175, 165, 0.06);
+  --color-canvas-pitch-dot: #1AAFA5;
+  --color-canvas-pitch-dot-off: #E8A820;
+  --color-canvas-pitch-line: rgba(26, 175, 165, 0.3);
+  --color-canvas-current-note-bg: rgba(26, 175, 165, 0.08);
+  --color-canvas-playhead: rgba(26, 175, 165, 0.25);
+
+  /* Drone pad tints */
+  --pad-bg-from: rgba(240, 235, 228, 0.98);
+  --pad-bg-to: rgba(230, 224, 216, 0.98);
+  --pad-border: rgba(0, 0, 0, 0.08);
+  --pad-text: #6B6B80;
+  --pad-text-hover: #1A1A2E;
+  --pad-major-border: rgba(232, 168, 32, 0.2);
+  --pad-major-bg-from: rgba(255, 248, 235, 0.98);
+  --pad-minor-border: rgba(100, 140, 220, 0.18);
+  --pad-minor-bg-from: rgba(240, 244, 255, 0.98);
+
+  /* Tab bar */
+  --tab-bg: rgba(253, 246, 238, 0.88);
+
+  /* ---------------------------------------------------------------
+     Non-theme tokens (shared)
+     --------------------------------------------------------------- */
 
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
+  --font-size-2xs: clamp(0.5625rem, 1.2vw, 0.625rem);
   --font-size-xs: clamp(0.625rem, 1.5vw, 0.75rem);
   --font-size-sm: clamp(0.75rem, 2vw, 0.875rem);
   --font-size-base: clamp(0.875rem, 2.5vw, 1rem);
@@ -43,7 +94,7 @@
   --space-2xl: 48px;
 
   /* Radius */
-  --radius-sm: 6px;
+  --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
   --radius-full: 9999px;
@@ -58,4 +109,62 @@
   --z-elevated: 10;
   --z-overlay: 100;
   --z-toast: 1000;
+}
+
+/* ===================================================================
+   Dark Theme
+   =================================================================== */
+
+[data-theme="dark"] {
+  --color-bg: #0a0a0b;
+  --color-bg-elevated: #141416;
+  --color-bg-surface: #1c1c20;
+  --color-bg-surface-hover: #242428;
+
+  --color-text: #ececf0;
+  --color-text-dim: #5a5a66;
+  --color-text-muted: #8888a0;
+
+  --color-accent: #4ecdc4;
+  --color-accent-hover: #5dd9d0;
+  --color-accent-dim: rgba(78, 205, 196, 0.12);
+  --color-accent-glow: rgba(78, 205, 196, 0.06);
+
+  --color-in-tune: #4ecdc4;
+  --color-close: #ffe66d;
+  --color-off: #ff6b6b;
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-border-accent: rgba(78, 205, 196, 0.3);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-glow-accent: 0 0 20px rgba(78, 205, 196, 0.15), 0 0 40px rgba(78, 205, 196, 0.05);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  --color-canvas-bg: #0a0a0b;
+  --color-canvas-grid: #1f1f1f;
+  --color-canvas-grid-bold: #333;
+  --color-canvas-label: #666;
+  --color-canvas-label-active: #f0f0f0;
+  --color-canvas-scale-highlight: rgba(78, 205, 196, 0.04);
+  --color-canvas-pitch-dot: #4ecdc4;
+  --color-canvas-pitch-dot-off: #ffe66d;
+  --color-canvas-pitch-line: rgba(78, 205, 196, 0.35);
+  --color-canvas-current-note-bg: rgba(78, 205, 196, 0.08);
+  --color-canvas-playhead: rgba(78, 205, 196, 0.3);
+
+  --pad-bg-from: rgba(34, 34, 40, 0.98);
+  --pad-bg-to: rgba(20, 20, 24, 0.98);
+  --pad-border: rgba(255, 255, 255, 0.08);
+  --pad-text: rgba(255, 255, 255, 0.55);
+  --pad-text-hover: rgba(255, 255, 255, 0.8);
+  --pad-major-border: rgba(255, 230, 109, 0.12);
+  --pad-major-bg-from: rgba(40, 38, 32, 0.98);
+  --pad-minor-border: rgba(130, 170, 255, 0.12);
+  --pad-minor-bg-from: rgba(30, 33, 42, 0.98);
+
+  --tab-bg: rgba(14, 14, 16, 0.85);
 }

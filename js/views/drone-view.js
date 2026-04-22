@@ -1,6 +1,6 @@
 import { mic } from '../audio/mic.js';
 import { startDrone, playNote } from '../audio/synth.js';
-import { qs } from '../utils/dom.js';
+import { qs, qsa } from '../utils/dom.js';
 import { NOTE_NAMES } from '../utils/constants.js';
 
 const CHORD_TYPES = [
@@ -20,29 +20,30 @@ const DOUBLE_TAP_MS = 300;
 class DroneView {
   #viewEl;
   #statusEl;
+  #headerEl;
 
   // Current selection
   #selectedRoot = 'C';
   #selectedOctave = 4;
   #selectedChord = 'single';
+  #selectedVoice = 'triangle';
 
   // Active drone state
   #droneHandles = null;
-  #droneChordKey = null; // which chord button is droning
+  #droneChordKey = null;
 
   // Double-tap tracking per chord button
   #lastTapTime = {};
 
-  #nowPlayingEl;
-
   init() {
     this.#viewEl = qs('#drone-view');
     this.#statusEl = qs('#drone-status');
-    this.#nowPlayingEl = qs('#drone-now-playing');
+    this.#headerEl = qs('#drone-now-playing');
 
     this.#buildKeyGrid();
     this.#buildOctaveGrid();
     this.#buildChordGrid();
+    this.#initVoiceButtons();
 
     window.addEventListener('beforeunload', () => this.#stopDrone());
   }
@@ -52,8 +53,26 @@ class DroneView {
   }
 
   deactivate() {
-    // Drone persists across tab switches intentionally
     this.#viewEl.classList.remove('active');
+  }
+
+  // -------------------------------------------------------------------------
+  // Voice selection
+  // -------------------------------------------------------------------------
+
+  #initVoiceButtons() {
+    const btns = qsa('.drone-voice-btn');
+    for (const btn of btns) {
+      btn.addEventListener('click', () => {
+        const voice = btn.dataset.voice;
+        this.#selectedVoice = voice;
+        for (const b of btns) b.classList.toggle('selected', b === btn);
+        // If droning, restart with new voice
+        if (this.#droneHandles) {
+          this.#startDrone(this.#droneChordKey);
+        }
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -68,9 +87,7 @@ class DroneView {
       btn.dataset.note = name;
       btn.textContent = name;
       if (name === this.#selectedRoot) btn.classList.add('selected');
-      // Sharps get a subtle style
       if (name.includes('#')) btn.classList.add('sharp');
-
       btn.addEventListener('click', () => this.#selectRoot(name));
       grid.appendChild(btn);
     }
@@ -84,7 +101,6 @@ class DroneView {
       btn.dataset.octave = oct;
       btn.textContent = oct;
       if (oct === this.#selectedOctave) btn.classList.add('selected');
-
       btn.addEventListener('click', () => this.#selectOctave(oct));
       grid.appendChild(btn);
     }
@@ -97,7 +113,6 @@ class DroneView {
       btn.className = 'drone-grid-btn drone-chord-btn';
       btn.dataset.chord = chord.key;
       btn.textContent = chord.label;
-
       btn.addEventListener('click', () => this.#handleChordTap(chord.key));
       grid.appendChild(btn);
     }
@@ -113,7 +128,6 @@ class DroneView {
     for (const btn of grid.children) {
       btn.classList.toggle('selected', btn.dataset.note === name);
     }
-    // If droning, restart with new root
     if (this.#droneHandles) {
       this.#startDrone(this.#droneChordKey);
     }
@@ -125,7 +139,6 @@ class DroneView {
     for (const btn of grid.children) {
       btn.classList.toggle('selected', Number(btn.dataset.octave) === oct);
     }
-    // If droning, restart with new octave
     if (this.#droneHandles) {
       this.#startDrone(this.#droneChordKey);
     }
@@ -143,17 +156,13 @@ class DroneView {
     const isDoubleTap = (now - lastTap) < DOUBLE_TAP_MS;
 
     if (isDoubleTap) {
-      // Double-tap: toggle sustained drone
       if (this.#droneHandles && this.#droneChordKey === chordKey) {
         this.#stopDrone();
       } else {
         this.#startDrone(chordKey);
       }
-      // Reset so a third tap doesn't re-trigger
       this.#lastTapTime[chordKey] = 0;
     } else {
-      // Single tap: jolt (brief tone)
-      // If already droning this chord, stop instead
       if (this.#droneHandles && this.#droneChordKey === chordKey) {
         this.#stopDrone();
       } else {
@@ -174,13 +183,11 @@ class DroneView {
 
     for (const interval of intervals) {
       const midi = rootMidi + interval;
-      playNote(midi, JOLT_MS, { voice: 'triangle', gain: 0.7 });
+      playNote(midi, JOLT_MS, { voice: this.#selectedVoice, gain: 0.7 });
       noteNames.push(NOTE_NAMES[midi % 12] + Math.floor(midi / 12 - 1));
     }
 
     this.#showStatus(noteNames.join(' \u00b7 '));
-
-    // Brief highlight on the chord button
     this.#flashChordBtn(chordKey);
   }
 
@@ -197,7 +204,7 @@ class DroneView {
 
     for (const interval of intervals) {
       const midi = rootMidi + interval;
-      const handle = startDrone(midi, { voice: 'triangle', gain: 0.8 });
+      const handle = startDrone(midi, { voice: this.#selectedVoice, gain: 0.8 });
       if (handle) this.#droneHandles.push(handle);
       noteNames.push(NOTE_NAMES[midi % 12] + Math.floor(midi / 12 - 1));
     }
@@ -234,8 +241,8 @@ class DroneView {
     if (!this.#statusEl) return;
     this.#statusEl.textContent = text;
     this.#statusEl.classList.toggle('active', text.length > 0);
-    if (this.#nowPlayingEl) {
-      this.#nowPlayingEl.classList.toggle('playing', this.#droneHandles !== null);
+    if (this.#headerEl) {
+      this.#headerEl.classList.toggle('playing', this.#droneHandles !== null);
     }
   }
 

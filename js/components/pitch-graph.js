@@ -4,6 +4,7 @@ import { frequencyToMidi } from '../audio/note-math.js';
 import { mic } from '../audio/mic.js';
 import { playNote } from '../audio/synth.js';
 import { bus } from '../utils/event-bus.js';
+import { themeColors } from '../utils/theme-colors.js';
 
 const LABEL_WIDTH = 52;
 const MIN_MIDI = 36;  // C2
@@ -53,6 +54,9 @@ export class PitchGraph {
   #droneHandle = null;    // Active drone { stop } from sustained press
   #droneMidi = null;      // MIDI of currently droning note
 
+  // Scale-player guide: MIDI note currently being played by the guide
+  #guideMidi = null;
+
   // Noise filter: confirmation buffer to reject single-frame spikes
   #pendingPoint = null;   // Most recent unconfirmed pitch reading
   #confirmCount = 0;      // Consecutive similar readings count
@@ -63,19 +67,6 @@ export class PitchGraph {
   static #CONFIRM_THRESHOLD = 2;
   // Noise filter: maximum MIDI distance to consider readings "similar" (1 semitone)
   static #SIMILAR_THRESHOLD = 1.0;
-
-  // Colors
-  static #BG = '#0d0d0d';
-  static #GRID_LINE = '#1f1f1f';
-  static #GRID_LINE_C = '#333';
-  static #LABEL_TEXT = '#666';
-  static #LABEL_TEXT_ACTIVE = '#f0f0f0';
-  static #SCALE_HIGHLIGHT = 'rgba(78, 205, 196, 0.04)';
-  static #PITCH_DOT = '#4ecdc4';
-  static #PITCH_DOT_OFF = '#ffe66d';
-  static #PITCH_LINE = 'rgba(78, 205, 196, 0.35)';
-  static #CURRENT_NOTE_BG = 'rgba(78, 205, 196, 0.08)';
-  static #PLAYHEAD = 'rgba(78, 205, 196, 0.3)';
 
   constructor(canvas, buffer) {
     this.#canvas = canvas;
@@ -322,6 +313,11 @@ export class PitchGraph {
     if (!this.#active) this.drawStatic();
   }
 
+  setGuideMidi(midi) {
+    this.#guideMidi = midi;
+    if (!this.#active) this.drawStatic();
+  }
+
   setRange(lowMidi, highMidi) {
     this.#midiLow = Math.max(MIN_MIDI, lowMidi);
     this.#midiHigh = Math.min(MAX_MIDI, highMidi);
@@ -395,7 +391,7 @@ export class PitchGraph {
     const h = this.#height;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = PitchGraph.#BG;
+    ctx.fillStyle = themeColors.canvasBg;
     ctx.fillRect(0, 0, w, h);
 
     const graphLeft = LABEL_WIDTH;
@@ -425,7 +421,7 @@ export class PitchGraph {
     this.#drawLabels(ctx, graphRight, w, h, 'left');
 
     // Draw playhead line
-    ctx.strokeStyle = PitchGraph.#PLAYHEAD;
+    ctx.strokeStyle = themeColors.canvasPlayhead;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -435,7 +431,7 @@ export class PitchGraph {
     ctx.setLineDash([]);
 
     // Draw separator lines between labels and graph
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = themeColors.canvasGridBold;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(graphLeft, 0);
@@ -448,6 +444,16 @@ export class PitchGraph {
   #drawGrid(ctx, left, right, h) {
     const graphW = right - left;
 
+    // Guide band — horizontal stripe at the note the scale player is sounding
+    if (this.#guideMidi !== null) {
+      const yTop = this.#midiToY(this.#guideMidi + 0.5);
+      const yBot = this.#midiToY(this.#guideMidi - 0.5);
+      ctx.fillStyle = themeColors.close;
+      ctx.globalAlpha = 0.10;
+      ctx.fillRect(left, yTop, graphW, yBot - yTop);
+      ctx.globalAlpha = 1;
+    }
+
     for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
       const y = this.#midiToY(midi);
       const noteIndex = ((midi % 12) + 12) % 12;
@@ -459,16 +465,16 @@ export class PitchGraph {
       if (this.#scaleNotes && this.#scaleNotes.has(noteIndex)) {
         const yTop = this.#midiToY(midi + 0.5);
         const yBot = this.#midiToY(midi - 0.5);
-        ctx.fillStyle = PitchGraph.#SCALE_HIGHLIGHT;
+        ctx.fillStyle = themeColors.canvasScaleHighlight;
         ctx.fillRect(left, yTop, graphW, yBot - yTop);
       }
 
       // Grid lines — C notes are bold, E/B are subtle divisions
       if (isC) {
-        ctx.strokeStyle = PitchGraph.#GRID_LINE_C;
+        ctx.strokeStyle = themeColors.canvasGridBold;
         ctx.lineWidth = 1.5;
       } else {
-        ctx.strokeStyle = PitchGraph.#GRID_LINE;
+        ctx.strokeStyle = themeColors.canvasGrid;
         ctx.lineWidth = 0.5;
       }
 
@@ -487,7 +493,7 @@ export class PitchGraph {
     ctx.textBaseline = 'middle';
 
     // Background for label column
-    ctx.fillStyle = PitchGraph.#BG;
+    ctx.fillStyle = themeColors.canvasBg;
     ctx.fillRect(areaLeft, 0, areaW, h);
 
     // Get current detected note for highlighting
@@ -504,21 +510,21 @@ export class PitchGraph {
       const octave = Math.floor(midi / 12) - 1;
       const noteName = NOTE_NAMES[noteIndex];
       const isC = noteIndex === 0;
-      const isNatural = !noteName.includes('#');
+      const isSharp = noteName.includes('#');
       const isCurrent = currentMidi === midi;
       const isTapped = this.#tappedMidi === midi;
+      const isGuide = this.#guideMidi === midi;
+      const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
 
-      // Only label naturals + C octave markers to avoid clutter
-      if (!isNatural && !isCurrent) continue;
-
-      // Store hit target for tap-to-play
+      // Register hit target for every note so sharps can be tapped/droned
       this.#labelHitTargets.push({ midi, y, areaLeft, areaRight });
 
-      // Tap flash highlight
+      // Tap flash highlight (double-painted current-note bg for stronger feedback)
       if (isTapped) {
         const yTop = this.#midiToY(midi + 0.5);
         const yBot = this.#midiToY(midi - 0.5);
-        ctx.fillStyle = 'rgba(78, 205, 196, 0.18)';
+        ctx.fillStyle = themeColors.canvasCurrentNoteBg;
+        ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
         ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
       }
 
@@ -526,20 +532,46 @@ export class PitchGraph {
       if (isCurrent) {
         const yTop = this.#midiToY(midi + 0.5);
         const yBot = this.#midiToY(midi - 0.5);
-        ctx.fillStyle = PitchGraph.#CURRENT_NOTE_BG;
+        ctx.fillStyle = themeColors.canvasCurrentNoteBg;
         ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
       }
 
-      // Label text
+      // Guide-note (scale player) highlight
+      if (isGuide) {
+        const yTop = this.#midiToY(midi + 0.5);
+        const yBot = this.#midiToY(midi - 0.5);
+        ctx.fillStyle = themeColors.close;
+        ctx.globalAlpha = 0.22;
+        ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
+        ctx.globalAlpha = 1;
+      }
+
+      // Label text — sharps render smaller/dimmer so naturals still read clean
       const label = isC ? `${noteName}${octave}` : noteName;
-      ctx.fillStyle = isTapped ? '#4ecdc4'
-        : isCurrent ? PitchGraph.#LABEL_TEXT_ACTIVE
-        : isC ? '#999'
-        : PitchGraph.#LABEL_TEXT;
-      ctx.font = isTapped ? 'bold 12px system-ui, sans-serif'
-        : isCurrent ? 'bold 12px system-ui, sans-serif'
-        : isC ? 'bold 11px system-ui, sans-serif'
-        : '11px system-ui, sans-serif';
+      let fill;
+      let font;
+      if (isTapped) {
+        fill = themeColors.accent;
+        font = 'bold 12px system-ui, sans-serif';
+      } else if (isGuide) {
+        fill = themeColors.close;
+        font = 'bold 12px system-ui, sans-serif';
+      } else if (isCurrent) {
+        fill = themeColors.canvasLabelActive;
+        font = 'bold 12px system-ui, sans-serif';
+      } else if (isC) {
+        fill = themeColors.textMuted;
+        font = 'bold 11px system-ui, sans-serif';
+      } else if (isSharp) {
+        fill = themeColors.canvasLabel;
+        ctx.globalAlpha = inScale ? 0.75 : 0.55;
+        font = '9px system-ui, sans-serif';
+      } else {
+        fill = themeColors.canvasLabel;
+        font = '11px system-ui, sans-serif';
+      }
+      ctx.fillStyle = fill;
+      ctx.font = font;
 
       if (align === 'right') {
         ctx.textAlign = 'right';
@@ -548,6 +580,7 @@ export class PitchGraph {
         ctx.textAlign = 'left';
         ctx.fillText(label, areaLeft + padding, y);
       }
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -593,7 +626,7 @@ export class PitchGraph {
       if (prevX !== null && prevY !== null) {
         const dist = Math.abs(x - prevX);
         if (dist < 50) {
-          ctx.strokeStyle = PitchGraph.#PITCH_LINE;
+          ctx.strokeStyle = themeColors.canvasPitchLine;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(prevX, prevY);
@@ -604,9 +637,9 @@ export class PitchGraph {
 
       // Draw dot
       const absCents = Math.abs(point.cents);
-      ctx.fillStyle = absCents <= 10 ? PitchGraph.#PITCH_DOT
-        : absCents <= 25 ? PitchGraph.#PITCH_DOT_OFF
-        : '#ff6b6b';
+      ctx.fillStyle = absCents <= 10 ? themeColors.canvasPitchDot
+        : absCents <= 25 ? themeColors.canvasPitchDotOff
+        : themeColors.off;
 
       const dotSize = absCents <= 10 ? 3 : 2.5;
       ctx.beginPath();

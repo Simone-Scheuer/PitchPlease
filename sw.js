@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v14';
+const CACHE_NAME = 'pitchplease-v21';
 
 const STATIC_ASSETS = [
   './',
@@ -13,7 +13,6 @@ const STATIC_ASSETS = [
   './css/game.css',
   './css/session.css',
   './css/practice.css',
-  './css/journal.css',
   './css/drone.css',
   // JS — app entry
   './js/app.js',
@@ -24,6 +23,7 @@ const STATIC_ASSETS = [
   './js/audio/pitch-buffer.js',
   './js/audio/song-engine.js',
   './js/audio/synth.js',
+  './js/audio/scale-player.js',
   // JS — views
   './js/views/tuner-view.js',
   './js/views/graph-view.js',
@@ -31,7 +31,6 @@ const STATIC_ASSETS = [
   './js/views/game-view.js',
   './js/views/practice-view.js',
   './js/views/session-view.js',
-  './js/views/journal-view.js',
   './js/views/drone-view.js',
   // JS — components
   './js/components/needle.js',
@@ -68,6 +67,7 @@ const STATIC_ASSETS = [
   './js/utils/exercise-generator.js',
   './js/utils/store.js',
   './js/utils/harmonica.js',
+  './js/utils/theme-colors.js',
   // JS — profile
   './js/profile/profile.js',
   './js/profile/history.js',

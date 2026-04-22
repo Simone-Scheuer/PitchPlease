@@ -82,7 +82,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(13, 13, 13, 0.85);
+  background: color-mix(in srgb, var(--color-bg) 85%, transparent);
   z-index: var(--z-overlay);
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -194,7 +194,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-  background: rgba(13, 13, 13, 0.95);
+  background: color-mix(in srgb, var(--color-bg) 95%, transparent);
   z-index: var(--z-overlay);
   padding: var(--space-xl);
   animation: session-summary-fade-in 0.4s ease-out;

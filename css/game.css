@@ -29,7 +29,7 @@
   font-size: clamp(5rem, 20vw, 10rem);
   font-weight: 700;
   color: var(--color-accent);
-  background: rgba(13, 13, 13, 0.7);
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
   z-index: var(--z-overlay);
   opacity: 0;
   pointer-events: none;
@@ -294,7 +294,7 @@
 .results-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(13, 13, 13, 0.95);
+  background: color-mix(in srgb, var(--color-bg) 95%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;

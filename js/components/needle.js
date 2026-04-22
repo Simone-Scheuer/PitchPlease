@@ -1,4 +1,5 @@
 import { CENTS_IN_TUNE, CENTS_CLOSE, SMOOTHING_FACTOR } from '../utils/constants.js';
+import { themeColors } from '../utils/theme-colors.js';
 
 export class Needle {
   #canvas;
@@ -10,16 +11,6 @@ export class Needle {
   #targetCents = 0;
   #rafId = null;
   #active = false;
-
-  // Colors (matching CSS tokens)
-  static #COLOR_IN_TUNE = '#4ecdc4';
-  static #COLOR_CLOSE = '#ffe66d';
-  static #COLOR_OFF = '#ff6b6b';
-  static #COLOR_NEEDLE = '#f0f0f0';
-  static #COLOR_SCALE = '#666';
-  static #COLOR_SCALE_LABEL = '#999';
-  static #COLOR_CENTER_ZONE = 'rgba(78, 205, 196, 0.08)';
-  static #COLOR_CENTER_LINE = 'rgba(78, 205, 196, 0.4)';
 
   constructor(canvas) {
     this.#canvas = canvas;
@@ -93,9 +84,9 @@ export class Needle {
 
   #getColor(cents) {
     const abs = Math.abs(cents);
-    if (abs <= CENTS_IN_TUNE) return Needle.#COLOR_IN_TUNE;
-    if (abs <= CENTS_CLOSE) return Needle.#COLOR_CLOSE;
-    return Needle.#COLOR_OFF;
+    if (abs <= CENTS_IN_TUNE) return themeColors.inTune;
+    if (abs <= CENTS_CLOSE) return themeColors.close;
+    return themeColors.off;
   }
 
   #draw(cents) {
@@ -114,7 +105,7 @@ export class Needle {
     // Draw center zone highlight (-10 to +10)
     const zoneLeft = this.#centsToX(-CENTS_IN_TUNE);
     const zoneRight = this.#centsToX(CENTS_IN_TUNE);
-    ctx.fillStyle = Needle.#COLOR_CENTER_ZONE;
+    ctx.fillStyle = themeColors.canvasCurrentNoteBg;
     ctx.fillRect(zoneLeft, barY - 20, zoneRight - zoneLeft, 40);
 
     // Draw scale marks
@@ -129,7 +120,7 @@ export class Needle {
       const isMajor = labelMarks.includes(mark);
       const tickH = isMajor ? 12 : 8;
 
-      ctx.strokeStyle = mark === 0 ? Needle.#COLOR_CENTER_LINE : Needle.#COLOR_SCALE;
+      ctx.strokeStyle = mark === 0 ? themeColors.canvasPlayhead : themeColors.canvasLabel;
       ctx.lineWidth = mark === 0 ? 2 : 1;
       ctx.beginPath();
       ctx.moveTo(x, scaleY - tickH);
@@ -137,7 +128,7 @@ export class Needle {
       ctx.stroke();
 
       if (isMajor) {
-        ctx.fillStyle = Needle.#COLOR_SCALE_LABEL;
+        ctx.fillStyle = themeColors.textMuted;
         const label = mark === 0 ? '0' : (mark > 0 ? `+${mark}` : `${mark}`);
         ctx.fillText(label, x, scaleY + tickH + 4);
       }
@@ -153,7 +144,7 @@ export class Needle {
     ctx.globalAlpha = 1;
 
     // Draw needle line
-    ctx.strokeStyle = Needle.#COLOR_NEEDLE;
+    ctx.strokeStyle = themeColors.canvasLabelActive;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(needleX, barY - 18);
@@ -167,7 +158,7 @@ export class Needle {
     ctx.fill();
 
     // Draw center diamond
-    ctx.fillStyle = Needle.#COLOR_CENTER_LINE;
+    ctx.fillStyle = themeColors.canvasPlayhead;
     ctx.beginPath();
     ctx.moveTo(centerX, barY - 6);
     ctx.lineTo(centerX + 4, barY);
