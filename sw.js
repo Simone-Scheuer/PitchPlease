@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v24';
+const CACHE_NAME = 'pitchplease-v25';
 
 const STATIC_ASSETS = [
   './',
@@ -33,7 +33,7 @@ const STATIC_ASSETS = [
   './js/views/session-view.js',
   './js/views/drone-view.js',
   // JS — components
-  './js/components/needle.js',
+  './js/components/pitch-strip.js',
   './js/components/note-display.js',
   './js/components/frequency-display.js',
   './js/components/pitch-graph.js',

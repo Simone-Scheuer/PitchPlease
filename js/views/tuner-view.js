@@ -2,13 +2,13 @@ import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { bus } from '../utils/event-bus.js';
 import { qs, showToast } from '../utils/dom.js';
-import { Needle } from '../components/needle.js';
+import { PitchStrip } from '../components/pitch-strip.js';
 import { NoteDisplay } from '../components/note-display.js';
 import { FrequencyDisplay } from '../components/frequency-display.js';
 import { CENTS_IN_TUNE, CENTS_CLOSE } from '../utils/constants.js';
 
 class TunerView {
-  #needle;
+  #strip;
   #noteDisplay;
   #freqDisplay;
   #centsEl;
@@ -18,7 +18,7 @@ class TunerView {
   #silenceTimeout = null;
 
   init() {
-    this.#needle = new Needle(qs('#tuner-needle'));
+    this.#strip = new PitchStrip(qs('#tuner-strip'));
     this.#noteDisplay = new NoteDisplay(qs('#note-name'));
     this.#freqDisplay = new FrequencyDisplay(qs('#tuner-frequency'));
     this.#centsEl = qs('#tuner-cents');
@@ -44,7 +44,7 @@ class TunerView {
       this.#micBtn.classList.remove('error');
       await mic.start();
       detector.start();
-      this.#needle.start();
+      this.#strip.start();
       this.#active = true;
       this.#micBtn.classList.add('active');
       this.#hintEl.classList.add('hidden');
@@ -67,7 +67,7 @@ class TunerView {
   #stop() {
     detector.stop();
     mic.stop();
-    this.#needle.stop();
+    this.#strip.stop();
     this.#active = false;
     this.#micBtn.classList.remove('active');
     this.#hintEl.classList.remove('hidden');
@@ -84,7 +84,7 @@ class TunerView {
     }
 
     this.#noteDisplay.update(data);
-    this.#needle.update(data.cents);
+    this.#strip.update(data);
     this.#freqDisplay.update(data);
     this.#updateCents(data.cents);
   }
@@ -95,7 +95,7 @@ class TunerView {
       this.#silenceTimeout = setTimeout(() => {
         this.#noteDisplay.clear();
         this.#freqDisplay.clear();
-        this.#needle.update(0);
+        this.#strip.update(null);
         this.#updateCents(null);
         this.#silenceTimeout = null;
       }, 300);

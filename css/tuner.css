@@ -68,15 +68,15 @@
 }
 
 /* Needle canvas area */
-.tuner__needle-wrap {
+.tuner__strip-wrap {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   padding: var(--space-sm) 0;
 }
 
-.tuner__needle-canvas {
+.tuner__strip-canvas {
   width: 100%;
-  height: 80px;
+  height: 104px;
 }
 
 /* Cents readout */
@@ -202,11 +202,11 @@
 
 /* Responsive — larger screens */
 @media (min-width: 768px) {
-  .tuner__needle-wrap {
-    max-width: 500px;
+  .tuner__strip-wrap {
+    max-width: 520px;
   }
 
-  .tuner__needle-canvas {
-    height: 100px;
+  .tuner__strip-canvas {
+    height: 120px;
   }
 }
