@@ -10,3 +10,6 @@
 - Hard constraints: fully client-side, no backend, no accounts, no data leaves the device. Works offline as a PWA. No build step (native ES modules).
 - Deployed on Netlify; ships under the "made by mona" credit (simonescheuer.com).
 - Target instruments are monophonic: harmonica, voice, whistle, guitar (single-note), trumpet.
+- Simone's actual instruments: singing, mouth trumpet, and now primarily **harmonica (C diatonic, Richter tuning)**. Her practice goal: read harmonica tabs fluently — memorized hole numbers, effortless mouth movement across holes 1–10.
+- Reliability is the adoption threshold: she stopped opening the app because of bugs (worst: all screens rendering at once), not missing features. A flaky feature is worse than no feature.
+- Taste signal: untimed verify-then-advance games feel right; timed/scrolling pressure feels clunky and annoying. The bend trainer and pitch viewer are the proven-loved parts.
