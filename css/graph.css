@@ -19,6 +19,44 @@
   display: block;
 }
 
+/* Tap-to-pause flash — ⏸ / ▶ that pulses in the canvas center on toggle */
+.graph__pause-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 88px;
+  height: 88px;
+  margin: -44px 0 0 -44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  color: var(--color-text);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.graph__pause-flash svg {
+  width: 44px;
+  height: 44px;
+  fill: currentColor;
+}
+
+.graph__pause-flash.flash {
+  animation: graph-pause-flash 0.5s ease-out;
+}
+
+@keyframes graph-pause-flash {
+  0% { opacity: 0; transform: scale(0.7); }
+  30% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph__pause-flash.flash { animation-duration: 0.01s; }
+}
+
 /* -------------------------------------------------------------------
    Idle overlay — centered play button over the graph
    ------------------------------------------------------------------- */

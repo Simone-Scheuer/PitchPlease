@@ -12,6 +12,10 @@ const MAX_MIDI = 96;  // C8
 const SCROLL_SPEEDS = [0.5, 1, 1.5, 2, 3];
 const DEFAULT_SPEED_INDEX = 1;
 
+// Center tap-to-pause: thresholds that separate a quick tap from a hold/drag
+const TAP_MAX_MS = 400;    // press longer than this is a hold, not a tap
+const TAP_MAX_MOVE = 12;   // moved farther than this (px) is a drag, not a tap
+
 export class PitchGraph {
   #canvas;
   #ctx;
@@ -54,6 +58,10 @@ export class PitchGraph {
   #droneHandle = null;    // Active drone { stop } from sustained press
   #droneMidi = null;      // MIDI of currently droning note
 
+  // Center tap-to-pause
+  #onCenterTap = null;    // Callback fired on a quick tap in the canvas center
+  #pointerDownPos = null; // { x, y, t, onLabel } captured on pointerdown
+
   // Scale-player guide: MIDI note currently being played by the guide
   #guideMidi = null;
 
@@ -89,13 +97,14 @@ export class PitchGraph {
     };
     this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
 
-    // Press-and-hold note labels to drone continuously (release to stop)
-    this._pointerDownHandler = (e) => this.#handleLabelDown(e);
-    this._pointerUpHandler = () => this.#handleLabelUp();
+    // Press-and-hold edge labels → drone; quick tap in the center → pause toggle
+    this._pointerDownHandler = (e) => this.#handlePointerDown(e);
+    this._pointerUpHandler = (e) => this.#handlePointerUp(e);
+    this._pointerCancelHandler = () => this.#handlePointerCancel();
     this.#canvas.addEventListener('pointerdown', this._pointerDownHandler);
     this.#canvas.addEventListener('pointerup', this._pointerUpHandler);
-    this.#canvas.addEventListener('pointerleave', this._pointerUpHandler);
-    this.#canvas.addEventListener('pointercancel', this._pointerUpHandler);
+    this.#canvas.addEventListener('pointerleave', this._pointerCancelHandler);
+    this.#canvas.addEventListener('pointercancel', this._pointerCancelHandler);
 
     // Noise filter: subscribe to pitch/silence events
     this._filterPitchHandler = (data) => this.#filterPitch(data);
@@ -173,7 +182,12 @@ export class PitchGraph {
     }
   }
 
-  #handleLabelDown(e) {
+  /** Register a handler fired on a quick tap in the canvas center (not on a label). */
+  setCenterTapHandler(fn) {
+    this.#onCenterTap = fn;
+  }
+
+  #handlePointerDown(e) {
     const rect = this.#canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
@@ -192,7 +206,12 @@ export class PitchGraph {
     }
 
     const semitoneHeight = this.#height / this.#semitoneRange;
-    if (!closestTarget || closestDist > semitoneHeight * 0.6) return;
+    const onLabel = !!closestTarget && closestDist <= semitoneHeight * 0.6;
+
+    // Remember where/when this press began so pointerup can tell a tap from a hold
+    this.#pointerDownPos = { x: clickX, y: clickY, t: performance.now(), onLabel };
+
+    if (!onLabel) return;
 
     // Stop any existing drone
     this.#stopDrone();
@@ -218,7 +237,31 @@ export class PitchGraph {
     if (!this.#active) this.drawStatic();
   }
 
-  #handleLabelUp() {
+  #handlePointerUp(e) {
+    const down = this.#pointerDownPos;
+    this.#pointerDownPos = null;
+
+    // Quick tap in the center (not on a label, short, didn't move) → pause toggle
+    if (down && !down.onLabel && this.#onCenterTap) {
+      const rect = this.#canvas.getBoundingClientRect();
+      const moved = Math.hypot(
+        (e.clientX - rect.left) - down.x,
+        (e.clientY - rect.top) - down.y,
+      );
+      if (performance.now() - down.t <= TAP_MAX_MS && moved <= TAP_MAX_MOVE) {
+        this.#onCenterTap();
+      }
+    }
+
+    this.#releaseDrone();
+  }
+
+  #handlePointerCancel() {
+    this.#pointerDownPos = null;
+    this.#releaseDrone();
+  }
+
+  #releaseDrone() {
     if (!this.#droneHandle) return;
 
     this.#stopDrone();
@@ -668,8 +711,8 @@ export class PitchGraph {
     this.#canvas.removeEventListener('wheel', this._wheelHandler);
     this.#canvas.removeEventListener('pointerdown', this._pointerDownHandler);
     this.#canvas.removeEventListener('pointerup', this._pointerUpHandler);
-    this.#canvas.removeEventListener('pointerleave', this._pointerUpHandler);
-    this.#canvas.removeEventListener('pointercancel', this._pointerUpHandler);
+    this.#canvas.removeEventListener('pointerleave', this._pointerCancelHandler);
+    this.#canvas.removeEventListener('pointercancel', this._pointerCancelHandler);
     this.#canvas.removeEventListener('mousemove', this._mousemoveHandler);
     this.#canvas = null;
     this.#ctx = null;

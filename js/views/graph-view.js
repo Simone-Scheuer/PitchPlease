@@ -23,6 +23,7 @@ class GraphView {
   #graph;
   #micToggle;
   #speedBtn;
+  #pauseFlashEl;
 
   #scaleRootSelect;
   #scaleTypeSelect;
@@ -49,9 +50,11 @@ class GraphView {
   init() {
     const canvas = qs('#graph-canvas');
     this.#graph = new PitchGraph(canvas, pitchBuffer);
+    this.#graph.setCenterTapHandler(() => this.#handleCenterTap());
 
     this.#micToggle = qs('#graph-mic-toggle');
     this.#speedBtn = qs('#graph-speed-btn');
+    this.#pauseFlashEl = qs('#graph-pause-flash');
 
     this.#scaleRootSelect = qs('#scale-root');
     this.#scaleTypeSelect = qs('#scale-type');
@@ -236,6 +239,24 @@ class GraphView {
     } else {
       await this.#startAll();
     }
+  }
+
+  // Tap anywhere in the center of the graph pauses/resumes — a big, hands-busy
+  // target that mirrors the mic button. Flash confirms the toggle was intentional.
+  async #handleCenterTap() {
+    const wasActive = this.#active;
+    await this.#toggleMic();
+    // Only flash when the state actually flipped (e.g. not on a denied-mic start)
+    if (this.#active !== wasActive) this.#showPauseFlash(this.#active);
+  }
+
+  #showPauseFlash(isPlaying) {
+    if (!this.#pauseFlashEl) return;
+    this.#pauseFlashEl.innerHTML = isPlaying ? PLAY_ICON : PAUSE_ICON;
+    this.#pauseFlashEl.classList.remove('flash');
+    // Force reflow so re-adding the class restarts the animation on rapid taps
+    void this.#pauseFlashEl.offsetWidth;
+    this.#pauseFlashEl.classList.add('flash');
   }
 
   async #startAll() {
