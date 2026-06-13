@@ -22,17 +22,23 @@ tags: [music, pwa, audio, ear-training]
 **Stakeholder:** Simone (no external stakeholder)
 
 ## Current Focus
-**Harmonica pivot** (set 2026-06-12). The app never got reliable enough for Simone to want to open it — worst offender is a bug where all screens render at once, which fries the session. The loved core is the pitch viewer; the bend trainer is "actually awesome"; the timed game modes felt clunky and unintuitive. Direction: (1) fix the all-screens-render-at-once bug first — reliability is the adoption threshold, no feature matters if she won't open the app; (2) build the **harmonica tab-reading trainer**: hole→pitch math for C diatonic Richter (bend maps from commit 15390d2 may already cover part of this), show a tab number, verify the played pitch, advance to the next — untimed, player-driven, "ball bouncing game" style.
+**Harmonica pivot** (set 2026-06-12). The reliability P0 is **fixed** (session-freeze / all-screens-render bug — activation token + mic timeout + End-always-exits). Polish on the loved core is also done this session: graph tap-to-pause, dark-mode default, tuner sliding pitch strip. Next big arc is the **harmonica tab-reading trainer**: hole→pitch math for C diatonic Richter (bend maps from commit 15390d2 may already cover part of this), show a tab number, verify the played pitch, advance to the next — untimed, player-driven, "ball bouncing game" style. Spec it via /build. Smaller open items (graph trace-preserve, drone redesign) in FIXES_running.
 
 ## Active Work
 *(🎯 in progress · 🅿️ parked · 🟡 blocked)*
-- 🎯 Repro + fix the all-screens-render-simultaneously bug (P0 — this is why the app doesn't get opened)
-- 🅿️ Harmonica tab-reading trainer (spec via /build once the P0 is dead)
+- 🅿️ Harmonica tab-reading trainer (spec via /build — the main feature arc)
+- 🅿️ Graph: preserve trace across pause/resume (offered, awaiting go — see FIXES_running)
 - 🅿️ Build out the pitch viewer further (loved core; no concrete asks yet)
+- 🅿️ Drone screen redesign (Simone: "stupid and ugly") — no spec yet
+
+> Verification caveat: this session's fixes were verified in Chrome via synthetic
+> events (the automation env has no mic). The mic happy-path for all three —
+> session start, tap-to-pause, tuner strip — still wants one manual check on a
+> real device before fully trusting them. Not yet pushed.
 
 ## Recent Wins
+- 2026-06-12 — P0 session-freeze fix (activation token, mic timeout, End-always-exits); graph tap-to-pause; dark-mode default; tuner sliding pitch strip. Org layer retrofitted.
 - 2026-04-21 — UI overhaul shipped: light theme, journal removed, scale settings, drone voices
-- 2026-03-19 — Drone got its own tab with chord drone player
 
 ## Open Questions
 - How does the all-screens-at-once bug reproduce? History of view-visibility fixes (hidden-attribute, z-index, display:none→flex) suggests the view-switching layer is fragile, not one-off. → answer at repro time; consider a structural fix over another patch.
@@ -57,4 +63,6 @@ tags: [music, pwa, audio, ear-training]
 | Mini-fix inbox | `context/FIXES_running.md` |
 
 ## Session Log (last ~5; trim older)
-**2026-06-12 — Retrofitted the org layer; harmonica pivot set.** Scaffolded AGENTS.md + context/ logs via /newproject, then Simone set direction: journal is dead, reliability (all-screens-render bug) blocks adoption, harmonica training is the next arc — tab-reading trainer on C diatonic, untimed and player-driven. **Pick up by:** reproducing the all-screens bug, then /build the tab trainer.
+**2026-06-12 — Retrofitted the org layer; harmonica pivot set.** Scaffolded AGENTS.md + context/ logs via /newproject, then Simone set direction: journal is dead, reliability blocks adoption, harmonica training is the next arc.
+
+**2026-06-12 (cont.) — Shipped the reliability P0 + three polish wins.** Fixed the session-freeze/all-screens bug (root-caused live: mic acquired before hiding the tab bar with no timeout, plus no cancellation of stale async activate()). Then: graph tap-to-pause w/ flash, dark-mode default, and the tuner sliding pitch strip (new PitchStrip replacing the needle). All verified in Chrome via synthetic events; mic happy-path unverified (no mic in automation); nothing pushed yet. Dev note: the service worker's cache-first + HTTP heuristic caching made iterative browser testing painful — needed fresh ports or `fetch(...,{cache:'reload'})` to bust stale modules. **Pick up by:** Simone manually checks the three fixes on a real mic; if good, push (Netlify auto-deploys, cache is v25). Then /build the harmonica tab trainer.
