@@ -42,6 +42,9 @@ class SessionView {
   #sessionConfig = null;
   #micStarted = false;
   #blocks = [];
+  // Bumped on every activate/deactivate; a pending activate() that awakes to a
+  // different id is stale and must abort instead of resurrecting the session.
+  #activationId = 0;
 
   // Bus unsubscribe handles
   #unsubs = [];
@@ -83,16 +86,13 @@ class SessionView {
   }
 
   async activate(sessionConfig) {
+    const token = ++this.#activationId;
     this.#blockResults = [];
     this.#paused = false;
     this.#sessionConfig = sessionConfig;
     document.addEventListener('keydown', this.#keyHandler);
     this.#blocks = sessionConfig.blocks ?? [];
 
-    // Hide tab bar (keep visible for standalone tool-mode exercises)
-    if (this.#tabBar && !sessionConfig.showTabBar) {
-      this.#tabBar.classList.add('tab-bar-hidden');
-    }
     // Shrink session view when tab bar is visible
     this.#viewEl.classList.toggle('with-tab-bar', !!sessionConfig.showTabBar);
 
@@ -107,16 +107,43 @@ class SessionView {
     this.#pauseIconEl.innerHTML = '\u23F8';
     this.#pauseTextEl.textContent = 'Pause';
     this.#progressEl.innerHTML = '';
-    this.#labelEl.textContent = '';
 
     // Build initial progress bar segments
     this.#buildProgressBar();
 
-    // Start mic
+    // Start mic BEFORE hiding the tab bar, so the user always has an exit
+    // while we wait \u2014 and a visible error instead of a blank screen on failure.
     if (!this.#micStarted) {
-      await mic.start();
+      this.#labelEl.textContent = 'Waiting for microphone\u2026';
+      const micPromise = mic.start();
+      try {
+        await Promise.race([
+          micPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('mic timeout')), 10000)),
+        ]);
+      } catch (err) {
+        // Release the stream if the prompt is granted after we gave up
+        micPromise.then(() => { if (!this.#micStarted) mic.stop(); }).catch(() => {});
+        if (token === this.#activationId) {
+          this.#labelEl.textContent = 'Microphone unavailable \u2014 check permissions, then try again.';
+        }
+        return;
+      }
+      if (token !== this.#activationId) {
+        // User left while the prompt was pending \u2014 don't resurrect the session
+        mic.stop();
+        return;
+      }
       detector.start();
       this.#micStarted = true;
+    }
+    if (token !== this.#activationId) return;
+    this.#labelEl.textContent = '';
+
+    // Hide tab bar (keep visible for standalone tool-mode exercises)
+    if (this.#tabBar && !sessionConfig.showTabBar) {
+      this.#tabBar.classList.add('tab-bar-hidden');
     }
 
     // Subscribe to session events
@@ -131,10 +158,14 @@ class SessionView {
     // Create and start runner (wait one frame for canvas to get layout dimensions)
     this.#runner = createSessionRunner(sessionConfig);
     await new Promise(resolve => requestAnimationFrame(resolve));
+    if (token !== this.#activationId) return;
     this.#runner.start(this.#canvasEl);
   }
 
   deactivate() {
+    // Invalidate any in-flight activate() so it can't resurrect the session
+    this.#activationId++;
+
     // Stop runner if still active
     if (this.#runner) {
       const runnerState = this.#runner.getState();
@@ -335,11 +366,16 @@ class SessionView {
   }
 
   #end() {
-    if (!this.#runner) return;
+    // No runner means the session never started (mic pending/denied) or is
+    // already done — End must still be an exit, never a no-op.
+    if (!this.#runner) {
+      this.#backToPractice();
+      return;
+    }
     const results = this.#runner.stop();
     // session:complete is emitted by the runner's stop(), which triggers #onComplete
     // If it didn't fire (already complete), show summary manually
-    if (results && !this.#summaryEl.hidden === true) {
+    if (results && this.#summaryEl.hidden) {
       this.#showSummary(results);
     }
   }

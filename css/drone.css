@@ -2,9 +2,9 @@
    Drone View — Button Grid Instrument
    =================================================================== */
 
+/* display + flex-direction come from .view / .view.active (layout.css) —
+   never redeclare display here; the ID selector would beat .view's hiding */
 #drone-view {
-  display: flex;
-  flex-direction: column;
   background: var(--color-bg);
 }
 

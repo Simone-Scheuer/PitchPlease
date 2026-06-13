@@ -1,16 +1,13 @@
-/* Session view fills the screen */
+/* Session view fills the screen.
+   display comes from .view / .view.active (layout.css) — never redeclare it
+   here; the ID selector would beat .view's hiding */
 #session-view {
-  display: flex;
-  flex-direction: column;
   height: 100dvh;
   background: var(--color-bg);
   position: relative;
 }
 #session-view.with-tab-bar {
   height: calc(100dvh - 48px - env(safe-area-inset-bottom));
-}
-#session-view[hidden] {
-  display: none !important;
 }
 
 /* Progress bar */

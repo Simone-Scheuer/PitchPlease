@@ -46,11 +46,14 @@ initTheme();
 // View management
 let activeViewId = 'graph-view';
 
-function switchView(viewId) {
+function switchView(viewId, sessionConfig) {
   // Map play-view tab to practice-view
   const resolvedId = viewId === 'play-view' ? 'practice-view' : viewId;
 
-  if (resolvedId === activeViewId) return;
+  // Session re-entry (start a new session while one is running) must fall
+  // through so the running session gets deactivated first
+  if (resolvedId === activeViewId && resolvedId !== 'session-view') return;
+  if (resolvedId === 'session-view' && !sessionConfig) return;
 
   // Deactivate old view
   const oldEl = qs(`#${activeViewId}`);
@@ -67,6 +70,8 @@ function switchView(viewId) {
     practiceView.activate();
   } else if (resolvedId === 'drone-view') {
     droneView.activate();
+  } else if (resolvedId === 'session-view') {
+    sessionView.activate(sessionConfig);
   } else {
     const newEl = qs(`#${resolvedId}`);
     if (newEl) newEl.classList.add('active');
@@ -76,10 +81,13 @@ function switchView(viewId) {
 
   activeViewId = resolvedId;
 
-  // Update tab active state (play-view tab maps to practice-view)
-  for (const tab of qsa('.view-switcher__tab')) {
-    const tabTarget = tab.dataset.view === 'play-view' ? 'practice-view' : tab.dataset.view;
-    tab.classList.toggle('active', tabTarget === resolvedId);
+  // Update tab active state (play-view tab maps to practice-view).
+  // Session keeps the previous tab highlight — it isn't a tab destination.
+  if (resolvedId !== 'session-view') {
+    for (const tab of qsa('.view-switcher__tab')) {
+      const tabTarget = tab.dataset.view === 'play-view' ? 'practice-view' : tab.dataset.view;
+      tab.classList.toggle('active', tabTarget === resolvedId);
+    }
   }
 }
 
@@ -118,17 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Session activation (from practice configurator)
   bus.on('session:activate', ({ config }) => {
-    // Deactivate current view before entering session
-    const oldEl = qs(`#${activeViewId}`);
-    if (oldEl) oldEl.classList.remove('active');
-    if (activeViewId === 'tuner-view') tunerView.deactivate();
-    if (activeViewId === 'graph-view') graphView.deactivate();
-    if (activeViewId === 'drone-view') droneView.deactivate();
-    if (activeViewId === 'practice-view') practiceView.deactivate();
-    if (activeViewId === 'game-view') gameView.deactivate();
-
-    // Track that we're in session mode so navigate back works
-    activeViewId = 'session-view';
-    sessionView.activate(config);
+    switchView('session-view', config);
   });
 });
