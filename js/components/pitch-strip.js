@@ -29,7 +29,6 @@ export class PitchStrip {
 
   #displayMidi = 60;   // smoothed continuous pitch that drives the scroll
   #targetMidi = 60;    // latest continuous pitch (rounded midi + cents/100)
-  #cents = 0;          // deviation of the nearest note, for color/zone
   #hasTarget = false;  // is a pitch currently detected?
   #snapNext = false;   // jump (no scroll) on the first pitch after (re)start
 
@@ -82,7 +81,6 @@ export class PitchStrip {
       return;
     }
     this.#targetMidi = data.midi + data.cents / 100;
-    this.#cents = data.cents;
     this.#hasTarget = true;
     if (!this.#active) this.start();
   }
@@ -123,7 +121,10 @@ export class PitchStrip {
     const pxps = this.#pxPerSemitone();
     const p = this.#displayMidi;
     const lit = this.#hasTarget;
-    const color = lit ? this.#stateColor(this.#cents) : themeColors.textDim;
+    // Color from the smoothed position, not the raw reading, so the crosshair
+    // doesn't flicker green/amber/red while it settles.
+    const dispCents = (p - Math.round(p)) * 100;
+    const color = lit ? this.#stateColor(dispCents) : themeColors.textDim;
 
     ctx.clearRect(0, 0, w, h);
 

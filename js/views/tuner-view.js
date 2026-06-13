@@ -5,7 +5,18 @@ import { qs, showToast } from '../utils/dom.js';
 import { PitchStrip } from '../components/pitch-strip.js';
 import { NoteDisplay } from '../components/note-display.js';
 import { FrequencyDisplay } from '../components/frequency-display.js';
-import { CENTS_IN_TUNE, CENTS_CLOSE } from '../utils/constants.js';
+import { CENTS_IN_TUNE, CENTS_CLOSE, NOTE_NAMES } from '../utils/constants.js';
+import { midiToFrequency } from '../audio/note-math.js';
+
+// Median window (frames) for steadying the raw per-frame pitch. At ~60fps this
+// is ~80ms: long enough to reject jitter and 1-2 frame octave spikes, short
+// enough that a real note change still registers almost immediately.
+const PITCH_WINDOW = 5;
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
 
 class TunerView {
   #strip;
@@ -16,6 +27,7 @@ class TunerView {
   #hintEl;
   #active = false;
   #silenceTimeout = null;
+  #pitchWindow = [];   // recent continuous-MIDI readings for median steadying
 
   init() {
     this.#strip = new PitchStrip(qs('#tuner-strip'));
@@ -68,6 +80,7 @@ class TunerView {
     detector.stop();
     mic.stop();
     this.#strip.stop();
+    this.#pitchWindow = [];
     this.#active = false;
     this.#micBtn.classList.remove('active');
     this.#hintEl.classList.remove('hidden');
@@ -83,16 +96,33 @@ class TunerView {
       this.#silenceTimeout = null;
     }
 
-    this.#noteDisplay.update(data);
-    this.#strip.update(data);
-    this.#freqDisplay.update(data);
-    this.#updateCents(data.cents);
+    // Steady the raw per-frame pitch with a short median window before it drives
+    // anything — this is what stops the readout flashing between notes.
+    this.#pitchWindow.push(data.midi + data.cents / 100);
+    if (this.#pitchWindow.length > PITCH_WINDOW) this.#pitchWindow.shift();
+    const steadyMidi = median(this.#pitchWindow);
+
+    const rounded = Math.round(steadyMidi);
+    const cents = Math.round((steadyMidi - rounded) * 100);
+    const reading = {
+      note: NOTE_NAMES[((rounded % 12) + 12) % 12],
+      octave: Math.floor(rounded / 12) - 1,
+      cents,
+      midi: rounded,
+      frequency: midiToFrequency(steadyMidi),
+    };
+
+    this.#noteDisplay.update(reading);
+    this.#strip.update(reading);
+    this.#freqDisplay.update(reading);
+    this.#updateCents(cents);
   }
 
   #onSilence() {
     // Delay clearing to avoid flicker during brief silences
     if (!this.#silenceTimeout) {
       this.#silenceTimeout = setTimeout(() => {
+        this.#pitchWindow = [];
         this.#noteDisplay.clear();
         this.#freqDisplay.clear();
         this.#strip.update(null);

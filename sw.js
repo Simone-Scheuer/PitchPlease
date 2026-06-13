@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v25';
+const CACHE_NAME = 'pitchplease-v26';
 
 const STATIC_ASSETS = [
   './',
