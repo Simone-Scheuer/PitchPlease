@@ -18,10 +18,12 @@ if ('serviceWorker' in navigator) {
 // Theme management
 function initTheme() {
   const saved = localStorage.getItem('pp:theme');
-  if (saved === 'dark') {
+  // Dark is the default; only an explicit 'light' choice opts out
+  if (saved !== 'light') {
     document.documentElement.dataset.theme = 'dark';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = '#0a0a0b';
   }
-  // Light is default (no data-theme attribute needed)
 }
 
 function toggleTheme() {
