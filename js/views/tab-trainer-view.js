@@ -23,7 +23,7 @@ import { createBendAccuracyEvaluator } from '../core/evaluators/bend-accuracy.js
 import { createTabReaderRenderer } from '../renderers/tab-reader.js';
 
 const MIC_TIMEOUT_MS = 10000;
-const HOLD_MS = 350; // sustained-in-tune to advance — the "bouncing ball" feel
+const HOLD_MS = 175; // sustained-in-tune to advance — the "bouncing ball" feel
 
 class TabTrainerView {
   #viewEl = null;
@@ -50,6 +50,8 @@ class TabTrainerView {
   #runtime = null;
   #renderer = null;
   #noteCount = 0;
+  #currentTokens = null;
+  #currentTitle = '';
 
   init() {
     this.#viewEl = qs('#tab-trainer-view');
@@ -177,6 +179,8 @@ class TabTrainerView {
    */
   async #start(tokens, title) {
     const token = ++this.#activationId;
+    this.#currentTokens = tokens;
+    this.#currentTitle = title;
     this.#noteCount = tokens.length;
 
     this.#playTitleEl.textContent = title;
@@ -203,21 +207,33 @@ class TabTrainerView {
       this.#micStarted = true;
     }
 
-    const config = buildConfig(tokens, title, this.#key);
-    const evaluator = createBendAccuracyEvaluator({
-      inTuneCents: 18,   // reading is hole-finding, not microtonal sculpting
-      closeCents: 45,
-      lockMs: 120,
-      holdMs: HOLD_MS,
-      playerDriven: true,
-    });
-    this.#renderer = createTabReaderRenderer();
-
     // Let the now-visible canvas get its layout before measuring it (the
     // display:none-at-init → width-0 trap the tuner strip also hit).
     await new Promise(r => requestAnimationFrame(r));
     if (token !== this.#activationId) return;
 
+    this.#buildAndStart();
+  }
+
+  /**
+   * Build a fresh runtime + renderer for the current tokens and start it.
+   * Used by both first start and restart — the runtime can't be reused after
+   * stop() (its cleanup unsubscribes the pitch listener for good), so a clean
+   * rebuild is the only correct restart. Assumes mic is already running and the
+   * play canvas is laid out.
+   */
+  #buildAndStart() {
+    this.#teardownRuntime();
+    const tokens = this.#currentTokens;
+    const config = buildConfig(tokens, this.#currentTitle, this.#key);
+    const evaluator = createBendAccuracyEvaluator({
+      inTuneCents: 18,   // reading is hole-finding, not microtonal sculpting
+      closeCents: 45,
+      lockMs: 90,
+      holdMs: HOLD_MS,
+      playerDriven: true,
+    });
+    this.#renderer = createTabReaderRenderer();
     this.#renderer.init(this.#canvasEl, config);
     this.#runtime = createExerciseRuntime(config, evaluator, this.#renderer);
     this.#unsubs.push(
@@ -225,6 +241,8 @@ class TabTrainerView {
         this.#playProgressEl.textContent = `${Math.min(cursor, noteCount)} / ${noteCount}`;
       }),
     );
+    this.#playProgressEl.textContent = `0 / ${tokens.length}`;
+    this.#pauseBtn.textContent = 'Pause';
     this.#statusEl.textContent = stringifyTab(tokens);
     this.#runtime.start(0); // no countdown — player-driven waits on the first note
   }
@@ -242,10 +260,8 @@ class TabTrainerView {
   }
 
   #restart() {
-    if (!this.#runtime) return;
-    this.#playProgressEl.textContent = `0 / ${this.#noteCount}`;
-    this.#pauseBtn.textContent = 'Pause';
-    this.#runtime.start(0);
+    if (!this.#micStarted || !this.#currentTokens) return;
+    this.#buildAndStart();
   }
 
   #toMenu() {
@@ -258,9 +274,8 @@ class TabTrainerView {
     this.#menuEl.hidden = false;
   }
 
-  /** Stop and release everything the playing state owns. Idempotent. */
-  #teardownEngine() {
-    this.#activationId++; // abort any in-flight #start continuation
+  /** Tear down the runtime + renderer (keeps the mic running). Idempotent. */
+  #teardownRuntime() {
     for (const unsub of this.#unsubs) unsub();
     this.#unsubs = [];
     if (this.#runtime) {
@@ -271,6 +286,12 @@ class TabTrainerView {
       try { this.#renderer.destroy(); } catch { /* already gone */ }
       this.#renderer = null;
     }
+  }
+
+  /** Stop and release everything the playing state owns, mic included. */
+  #teardownEngine() {
+    this.#activationId++; // abort any in-flight #start continuation
+    this.#teardownRuntime();
     if (this.#micStarted) {
       detector.stop();
       mic.stop();
@@ -287,6 +308,9 @@ function buildConfig(tokens, title, key) {
     name: title,
     description: 'Read the tab — hit each note to advance.',
     context: { notes: tokens, harpKey: key },
+    // Reading trainer: never sound the target — hearing it defeats the point,
+    // and the blip was bleeding into the mic and auto-advancing the first note.
+    audio: { playReference: false },
     evaluator: 'bend-accuracy',
     renderer: 'tab-reader',
     timing: { mode: 'player-driven', holdToAdvance: true, holdMs: HOLD_MS },
