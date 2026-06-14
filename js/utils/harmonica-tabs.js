@@ -58,6 +58,33 @@ export const STARTER_TABS = [
     tab: "4 -4 -4' -4 4 -4 -4' 4",
     note: "The -4' is a hole-4 draw bend down a semitone. Ease into it, then release.",
   },
+  {
+    id: 'country-roads',
+    title: 'Country Roads',
+    key: 'C',
+    difficulty: 'easy',
+    // Chorus. Sourced from a C-harp tab; ear-check against the song.
+    tab: '-5 6 -6 -6 -5 6 -6 6 -5 -5 7 -8 -8 -8 7 -6 -6 -5 6 -6 -6 6 -5 -5 6 -5',
+    note: 'The chorus hook, up in holes 5–8. All blow/draw — work the clean -6 ↔ 6 jumps.',
+  },
+  {
+    id: 'hallelujah',
+    title: 'Hallelujah',
+    key: 'C',
+    difficulty: 'easy',
+    // First verse + the "Hallelujah" line. Sourced from a C-harp tab.
+    tab: '5 6 6 6 6 -6 -6 -6 5 6 6 6 6 -6 -6 -6 5 6 -6 -6 -6 6 5 5',
+    note: 'Lots of repeated 6 and -6 — focus on clean single notes, no neighbours bleeding in.',
+  },
+  {
+    id: 'piano-man',
+    title: 'Piano Man',
+    key: 'C',
+    difficulty: 'easy',
+    // The harmonica riff. Beginner (bend-free) C-harp version.
+    tab: '6 -6 6 -5 5 4 5 -4 5 -5 6 -6 6 -5 5 4 -5 5 -4 4',
+    note: 'The riff. Quick blow/draw flips like -5→5 and -4→4 — all breath control, no bends.',
+  },
 ];
 
 /** Look up a starter tab by id. */
