@@ -53,6 +53,7 @@ tags: [music, pwa, audio, ear-training]
 |---|---|
 | Product requirements (living, adaptive) | `PRD.md` (root) |
 | Harmonica tab trainer spec | `context/TAB_TRAINER_PRD.md` |
+| Song tabs (raw staging for the library) | `context/SONG_LIBRARY.md` |
 | Build plan / refactor map | `IMPLEMENTATION_PLAN.md` (root) |
 | Tech stack, architecture, code style | `CLAUDE.md` (root) |
 | Feature request queue + 29 archived REQs | `do-work/` |
