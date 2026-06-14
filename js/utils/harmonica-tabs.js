@@ -63,27 +63,54 @@ export const STARTER_TABS = [
     title: 'Country Roads',
     key: 'C',
     difficulty: 'easy',
-    // Chorus. Sourced from a C-harp tab; ear-check against the song.
-    tab: '-5 6 -6 -6 -5 6 -6 6 -5 -5 7 -8 -8 -8 7 -6 -6 -5 6 -6 -6 6 -5 -5 6 -5',
-    note: 'The chorus hook, up in holes 5–8. All blow/draw — work the clean -6 ↔ 6 jumps.',
+    // "Country roads, take me home…" chorus, from harptabs. Ear-check.
+    tab: '7 -8 8 8 7 -8 8 -8 7 8 9 -10 -10 -10 9 8 8 -8 7 -8 8 -8 7 7 -8 7',
+    note: 'The chorus, up in holes 7–10. Big jumps to -10 — take them slow.',
   },
   {
     id: 'hallelujah',
     title: 'Hallelujah',
     key: 'C',
     difficulty: 'easy',
-    // First verse + the "Hallelujah" line. Sourced from a C-harp tab.
-    tab: '5 6 6 6 6 -6 -6 -6 5 6 6 6 6 -6 -6 -6 5 6 -6 -6 -6 6 5 5',
-    note: 'Lots of repeated 6 and -6 — focus on clean single notes, no neighbours bleeding in.',
+    // Full first verse + chorus, from harptabs. Ear-check.
+    tab: '5 6 6 6 6 -6 -6 -6 5 6 6 6 6 6 -6 -6 -6 6 -6 -6 -6 -6 -6 6 6 -5 6 6 5 6 6 6 6 -6 -6 -7 6 7 7 -6 7 7 -8 7 -8 -8 -8 -8 8 8 8 -8 -8 7 7 5 6 -6 -6 -6 6 5 5 5 6 -6 -6 -6 6 5 -5 5 -4 4 -3 4',
+    note: 'Long one. Sits mostly on 6 and -6 — clean single notes are the whole game.',
   },
   {
     id: 'piano-man',
     title: 'Piano Man',
     key: 'C',
     difficulty: 'easy',
-    // The harmonica riff. Beginner (bend-free) C-harp version.
-    tab: '6 -6 6 -5 5 4 5 -4 5 -5 6 -6 6 -5 5 4 -5 5 -4 4',
-    note: 'The riff. Quick blow/draw flips like -5→5 and -4→4 — all breath control, no bends.',
+    // Single-note melody (verses + chorus), from harptabs. Ear-check.
+    tab: '6 6 6 6 -5 5 -5 5 4 4 4 4 4 4 4 -4 -4 6 6 6 6 -5 5 -5 5 4 3 3 3 -5 -5 -5 5 4 4 9 9 9 9 9 9 -9 8 -9 8 7 7 7 7 7 7 -8 -8 -8',
+    note: 'Quick blow/draw flips like -5→5. The high run (9 9 9…-9) needs steady breath.',
+  },
+  {
+    id: 'over-the-rainbow',
+    title: 'Over the Rainbow',
+    key: 'C',
+    difficulty: 'easy',
+    // From harptabs. Ear-check.
+    tab: '4 7 -7 6 -6 -7 7 4 -6 6 4 -6 6 5 -5 6 -6 -4 -3 4 -4 5 4 6 5 6 5 6 5 6 5 6 -5 6 -5 6 -5 6 -5 6 -5 6 -6 -7',
+    note: 'That octave leap up to 7 at the start is the signature — nail the jump.',
+  },
+  {
+    id: 'blowin-in-the-wind',
+    title: "Blowin' in the Wind",
+    key: 'C',
+    difficulty: 'easy',
+    // From harptabs. Ear-check.
+    tab: '6 6 6 -6 6 -5 6 5 -4 4 5 6 6 -6 6 -5 6 5 -5 6 6 6 -6 6 -5 6 5 -4 4 5 6 5 -5 -5 5 -4 5 -5 6 6 6 -6 6 -5 6 6 5 -4 4',
+    note: 'Gentle, stepwise — good for smooth hole-to-hole movement.',
+  },
+  {
+    id: 'house-of-the-rising-sun',
+    title: 'House of the Rising Sun',
+    key: 'C',
+    difficulty: 'easy',
+    // First verse, from harptabs. Ear-check.
+    tab: '5 -6 -7 7 8 -8 -6 -6 -10 -10 -10 9 8 8 -10 -10 -10 -7 7 8 -8 -6 -6 -6 -6 -6 -6 -6 6 5 6 -6',
+    note: 'Ranges from hole 5 up to -10 — covers most of the harp.',
   },
 ];
 

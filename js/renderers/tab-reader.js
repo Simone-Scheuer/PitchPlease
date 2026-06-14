@@ -193,7 +193,9 @@ export function createTabReaderRenderer() {
       const cx = playheadX + (cursor - scroll) * SLOT_W;
       const offset = height * 0.13;
       const cy = note.direction === 'blow' ? centerY - offset : centerY + offset;
-      const progress = Math.max(0, Math.min(1, (ev?.holdMs ?? 0) / holdTargetMs));
+      const progress = tickState.holdProgress != null
+        ? Math.max(0, Math.min(1, tickState.holdProgress))
+        : Math.max(0, Math.min(1, (ev?.holdMs ?? 0) / holdTargetMs));
       drawHoldRing(cx, cy, progress, curColour);
       drawChip(note, cx, centerY, { active: true, done: false, absCents });
 

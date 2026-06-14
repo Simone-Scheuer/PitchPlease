@@ -343,24 +343,18 @@
           <p class="tt-menu__sub">Read a tab, play it, the ball moves on.<span class="tt-harp" id="tt-harp-key">C harp</span></p>
         </header>
 
-        <section class="tt-section">
-          <h2 class="tt-section__label">Starter tabs</h2>
-          <div class="tt-cards" id="tt-starter-cards"></div>
-        </section>
+        <input type="search" class="tt-search" id="tt-search" placeholder="Search songs…" autocomplete="off" spellcheck="false">
 
-        <section class="tt-section">
-          <h2 class="tt-section__label">Or improvise</h2>
-          <div class="tt-cards">
-            <button class="tt-card tt-card--random" id="tt-random">
-              <span class="tt-card__title">Random run</span>
-              <span class="tt-card__notation">8 notes · holes 1–6 · no bends</span>
-              <span class="tt-card__tag">generated</span>
-            </button>
-          </div>
-        </section>
+        <button class="tt-row tt-row--action" id="tt-random">
+          <span class="tt-row__title">Random run</span>
+          <span class="tt-row__meta">8 notes · holes 1–6</span>
+        </button>
 
-        <section class="tt-section">
-          <h2 class="tt-section__label">Paste your own</h2>
+        <ul class="tt-list" id="tt-song-list"></ul>
+        <p class="tt-empty" id="tt-empty" hidden>No songs match.</p>
+
+        <details class="tt-paste-wrap">
+          <summary class="tt-paste-summary">Paste your own tab</summary>
           <div class="tt-paste">
             <textarea class="tt-paste__input" id="tt-paste-input" rows="2" spellcheck="false" placeholder="4 -4 -4' 5 -5 6"></textarea>
             <div class="tt-paste__row">
@@ -368,7 +362,7 @@
               <button class="tt-btn tt-btn--accent" id="tt-paste-play">Play</button>
             </div>
           </div>
-        </section>
+        </details>
       </div>
 
       <div class="tt-play" id="tt-play" hidden>
@@ -381,9 +375,16 @@
         </header>
         <canvas id="tt-canvas"></canvas>
         <div class="tt-status" id="tt-status"></div>
+        <div class="tt-dial">
+          <label class="tt-dial__label" for="tt-hold">Note length</label>
+          <input type="range" class="tt-dial__range" id="tt-hold" min="100" max="800" step="50">
+          <span class="tt-dial__value" id="tt-hold-val">250ms</span>
+        </div>
         <div class="tt-controls">
+          <button class="tt-iconbtn tt-iconbtn--nav" id="tt-prev" aria-label="Previous note">&#9664;</button>
           <button class="tt-btn" id="tt-restart">Restart</button>
           <button class="tt-btn tt-btn--accent" id="tt-pause">Pause</button>
+          <button class="tt-iconbtn tt-iconbtn--nav" id="tt-next" aria-label="Next note">&#9654;</button>
         </div>
       </div>
     </div>

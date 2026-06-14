@@ -67,7 +67,7 @@
   padding: var(--space-xl) var(--space-lg) var(--space-2xl);
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-md);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -98,107 +98,106 @@
   font-weight: 600;
 }
 
-.tt-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-.tt-section__label {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--color-text-dim);
-}
+/* --- search ----------------------------------------------------------- */
 
-.tt-cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-/* --- a source card ---------------------------------------------------- */
-
-.tt-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "title tag"
-    "notation notation";
-  gap: var(--space-sm) var(--space-md);
+.tt-search {
   width: 100%;
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-md);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+.tt-search::placeholder { color: var(--color-text-dim); }
+.tt-search:focus { outline: none; border-color: var(--color-border-accent); }
+
+/* --- song list -------------------------------------------------------- */
+
+.tt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.tt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--transition-base), transform var(--transition-fast),
-    box-shadow var(--transition-base);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    transform var(--transition-fast);
 }
-.tt-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: var(--space-md);
-  bottom: var(--space-md);
-  width: 3px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent);
-  opacity: 0;
-  transition: opacity var(--transition-base);
-}
-.tt-card:hover {
-  border-color: var(--color-border-accent);
-  transform: translateX(2px);
-  box-shadow: var(--shadow-md);
-}
-.tt-card:hover::before { opacity: 1; }
-.tt-card:active { transform: scale(0.99); }
+.tt-row:hover { border-color: var(--color-border-accent); background: var(--color-bg-surface); }
+.tt-row:active { transform: scale(0.99); }
 
-.tt-card__title {
-  grid-area: title;
+.tt-row__title {
   font-size: var(--font-size-base);
-  font-weight: 650;
+  font-weight: 600;
   color: var(--color-text);
 }
-.tt-card__notation {
-  grid-area: notation;
+.tt-row__meta {
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  letter-spacing: 0.02em;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45em;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-dim);
 }
-.tt-card__tag {
-  grid-area: tag;
-  align-self: start;
+.tt-row__chips { display: flex; gap: var(--space-xs); flex-shrink: 0; }
+.tt-chip {
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
   font-size: var(--font-size-2xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
 }
-.tt-card__tag--easy { color: var(--color-in-tune); background: var(--color-accent-dim); }
-.tt-card__tag--medium { color: var(--color-close); }
+.tt-chip--key { font-family: var(--font-mono); color: var(--color-accent); background: var(--color-accent-dim); }
+.tt-chip--easy { color: var(--color-in-tune); }
+.tt-chip--medium { color: var(--color-close); }
 
-.tt-card--random .tt-card__notation { color: var(--color-text-dim); }
+.tt-row--action {
+  border-style: dashed;
+  border-color: var(--color-border);
+}
+.tt-row--action .tt-row__title { color: var(--color-accent); }
 
-/* --- blow / draw / bend color language (shared with the ribbon) ------- */
+.tt-empty {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-dim);
+}
 
-.tt-tok { white-space: nowrap; }
-.tt-tok--blow { color: var(--color-accent); }
-.tt-tok--draw { color: var(--color-text-muted); }
-.tt-tok--bend { font-style: italic; }
+/* --- paste box (collapsed by default) --------------------------------- */
 
-/* --- paste box -------------------------------------------------------- */
+.tt-paste-wrap { margin-top: var(--space-sm); }
+.tt-paste-summary {
+  cursor: pointer;
+  padding: var(--space-sm) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  list-style-position: inside;
+}
+.tt-paste-summary:hover { color: var(--color-text); }
+.tt-paste-wrap[open] .tt-paste-summary { color: var(--color-text); }
 
 .tt-paste {
+  margin-top: var(--space-sm);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -285,12 +284,46 @@
   letter-spacing: 0.03em;
 }
 
+.tt-dial {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+}
+.tt-dial__label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+.tt-dial__range {
+  flex: 1;
+  accent-color: var(--color-accent);
+  min-height: 44px;
+}
+.tt-dial__value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  min-width: 4ch;
+  text-align: right;
+}
+
 .tt-controls {
   display: flex;
+  align-items: center;
   gap: var(--space-sm);
   justify-content: center;
   padding: var(--space-md);
 }
+.tt-iconbtn--nav {
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+}
+.tt-iconbtn--nav:hover { color: var(--color-accent); border-color: var(--color-border-accent); }
 
 /* Wider screens: cards breathe into a centered column. */
 @media (min-width: 600px) {
