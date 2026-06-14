@@ -77,7 +77,7 @@ A tab is **whitespace-separated tokens**. Each token:
 
 v1 ships three; all return `Token[]` (or a string the parser turns into `Token[]`):
 
-1. **Built-in tabs** (`js/data/harmonica-tabs.js`) — 2–3 short starter melodies written in the notation. Mostly blow/draw with **one gentle hole-4 draw bend**, so a beginner isn't wall-climbing on day one but bends aren't hidden either.
+1. **Built-in tabs** (`js/utils/harmonica-tabs.js`) — 2–3 short starter melodies written in the notation. Mostly blow/draw with **one gentle hole-4 draw bend**, so a beginner isn't wall-climbing on day one but bends aren't hidden either.
 2. **Random sequence** — `randomSequence({ holeRange, includeBends = false, length })`. Generates a fresh token sequence within constraints. Cheap (pure config generation) and high-value for drilling. `includeBends` defaults off.
 3. **Paste-a-tab** — a textarea where the player types/pastes notation and hits go; feeds `parseTab` directly with a visible parse-error state. ~20 lines, but it's what makes "run your own tab" real in v1 without a file-format rabbit hole.
 
