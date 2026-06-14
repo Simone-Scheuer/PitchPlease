@@ -3,18 +3,27 @@
  *
  * Two states in one view:
  *   - Menu:    pick a source (starter tab, random run, or pasted notation).
- *   - Playing: read the tab on a scrolling breath-ribbon, ball advances on each
- *              note you hit. (Engine wiring lands in step 3b.)
+ *   - Playing: read the tab on the breath-ribbon; the ball advances each note
+ *              you hit, reusing the exercise-runtime + bend-accuracy verify loop.
  *
  * Modeled on the post-P0-fix session-view: activation token guards every async
- * continuation, mic acquired with a visible wait + timeout before entering the
- * playing UI, one visibility mechanism (.active), all bus subs torn down.
+ * continuation, mic acquired with a visible wait + timeout before the engine
+ * starts, one visibility mechanism, all bus subs and audio torn down on exit.
  */
 
 import { qs } from '../utils/dom.js';
+import { bus } from '../utils/event-bus.js';
+import { mic } from '../audio/mic.js';
+import { detector } from '../audio/detector.js';
 import { getHarmonicaKey } from '../profile/profile.js';
 import { STARTER_TABS, randomSequence } from '../utils/harmonica-tabs.js';
 import { parseTab, stringifyTab, TabParseError } from '../utils/harmonica-tab.js';
+import { createExerciseRuntime } from '../core/exercise-runtime.js';
+import { createBendAccuracyEvaluator } from '../core/evaluators/bend-accuracy.js';
+import { createTabReaderRenderer } from '../renderers/tab-reader.js';
+
+const MIC_TIMEOUT_MS = 10000;
+const HOLD_MS = 350; // sustained-in-tune to advance — the "bouncing ball" feel
 
 class TabTrainerView {
   #viewEl = null;
@@ -35,6 +44,12 @@ class TabTrainerView {
   #pauseBtn = null;
 
   #key = 'C';
+  #activationId = 0;
+  #unsubs = [];
+  #micStarted = false;
+  #runtime = null;
+  #renderer = null;
+  #noteCount = 0;
 
   init() {
     this.#viewEl = qs('#tab-trainer-view');
@@ -58,6 +73,8 @@ class TabTrainerView {
     this.#pastePlayBtn.addEventListener('click', () => this.#startPaste());
     this.#pasteInput.addEventListener('input', () => this.#clearPasteError());
     this.#backBtn.addEventListener('click', () => this.#toMenu());
+    this.#restartBtn.addEventListener('click', () => this.#restart());
+    this.#pauseBtn.addEventListener('click', () => this.#togglePause());
   }
 
   activate() {
@@ -69,9 +86,9 @@ class TabTrainerView {
   }
 
   deactivate() {
-    // Engine teardown (mic/detector/runner/bus) lands in 3b; menu state is sync.
+    this.#teardownEngine();
     this.#viewEl.classList.remove('active');
-    this.#toMenu();
+    this.#showMenu();
   }
 
   // --- menu ---------------------------------------------------------------
@@ -116,7 +133,7 @@ class TabTrainerView {
   #startStarter(id) {
     const tab = STARTER_TABS.find(t => t.id === id);
     if (!tab) return;
-    // Starter tabs are written for C; honor their own key, not the profile's.
+    // Starter tabs are written for their own key, not the profile's.
     this.#start(parseTab(tab.tab, tab.key), tab.title);
   }
 
@@ -152,27 +169,136 @@ class TabTrainerView {
   // --- playing ------------------------------------------------------------
 
   /**
-   * Enter the playing state with a parsed token sequence.
-   * 3a: swaps to the play panel and shows the source. The mic/runtime/renderer
-   * wiring lands in 3b — for now this proves the menu→play transition.
+   * Enter the playing state with a parsed token sequence: acquire the mic
+   * (with timeout + visible state), build the engine, and start.
    *
    * @param {import('../utils/harmonica-tab.js').TabToken[]} tokens
    * @param {string} title
    */
-  #start(tokens, title) {
+  async #start(tokens, title) {
+    const token = ++this.#activationId;
+    this.#noteCount = tokens.length;
+
     this.#playTitleEl.textContent = title;
     this.#playProgressEl.textContent = `0 / ${tokens.length}`;
-    this.#statusEl.textContent = stringifyTab(tokens);
+    this.#statusEl.textContent = 'Waiting for microphone…';
+    this.#pauseBtn.textContent = 'Pause';
     this.#menuEl.hidden = true;
     this.#playEl.hidden = false;
-    // eslint-disable-next-line no-console
-    console.log('[tab-trainer] start', title, tokens);
+
+    if (!this.#micStarted) {
+      const micPromise = mic.start();
+      try {
+        await Promise.race([micPromise, rejectAfter(MIC_TIMEOUT_MS)]);
+      } catch {
+        // Release the stream if the prompt is granted after we gave up.
+        micPromise.then(() => { if (!this.#micStarted) mic.stop(); }).catch(() => {});
+        if (token === this.#activationId) {
+          this.#statusEl.textContent = 'Microphone unavailable — check permissions, then go back and retry.';
+        }
+        return;
+      }
+      if (token !== this.#activationId) { mic.stop(); return; }
+      detector.start();
+      this.#micStarted = true;
+    }
+
+    const config = buildConfig(tokens, title, this.#key);
+    const evaluator = createBendAccuracyEvaluator({
+      inTuneCents: 18,   // reading is hole-finding, not microtonal sculpting
+      closeCents: 45,
+      lockMs: 120,
+      holdMs: HOLD_MS,
+      playerDriven: true,
+    });
+    this.#renderer = createTabReaderRenderer();
+
+    // Let the now-visible canvas get its layout before measuring it (the
+    // display:none-at-init → width-0 trap the tuner strip also hit).
+    await new Promise(r => requestAnimationFrame(r));
+    if (token !== this.#activationId) return;
+
+    this.#renderer.init(this.#canvasEl, config);
+    this.#runtime = createExerciseRuntime(config, evaluator, this.#renderer);
+    this.#unsubs.push(
+      bus.on('exercise:note-complete', ({ cursor, noteCount }) => {
+        this.#playProgressEl.textContent = `${Math.min(cursor, noteCount)} / ${noteCount}`;
+      }),
+    );
+    this.#statusEl.textContent = stringifyTab(tokens);
+    this.#runtime.start(0); // no countdown — player-driven waits on the first note
+  }
+
+  #togglePause() {
+    if (!this.#runtime) return;
+    const state = this.#runtime.getState();
+    if (state === 'paused') {
+      this.#runtime.resume();
+      this.#pauseBtn.textContent = 'Pause';
+    } else if (state === 'running' || state === 'countdown') {
+      this.#runtime.pause();
+      this.#pauseBtn.textContent = 'Resume';
+    }
+  }
+
+  #restart() {
+    if (!this.#runtime) return;
+    this.#playProgressEl.textContent = `0 / ${this.#noteCount}`;
+    this.#pauseBtn.textContent = 'Pause';
+    this.#runtime.start(0);
   }
 
   #toMenu() {
+    this.#teardownEngine();
+    this.#showMenu();
+  }
+
+  #showMenu() {
     this.#playEl.hidden = true;
     this.#menuEl.hidden = false;
   }
+
+  /** Stop and release everything the playing state owns. Idempotent. */
+  #teardownEngine() {
+    this.#activationId++; // abort any in-flight #start continuation
+    for (const unsub of this.#unsubs) unsub();
+    this.#unsubs = [];
+    if (this.#runtime) {
+      try { this.#runtime.destroy(); } catch { /* already gone */ }
+      this.#runtime = null;
+    }
+    if (this.#renderer) {
+      try { this.#renderer.destroy(); } catch { /* already gone */ }
+      this.#renderer = null;
+    }
+    if (this.#micStarted) {
+      detector.stop();
+      mic.stop();
+      this.#micStarted = false;
+    }
+  }
+}
+
+/** Build an exercise config the runtime can drive directly from tab tokens. */
+function buildConfig(tokens, title, key) {
+  return {
+    id: `tab-${Date.now()}`,
+    type: 'sequence',
+    name: title,
+    description: 'Read the tab — hit each note to advance.',
+    context: { notes: tokens, harpKey: key },
+    evaluator: 'bend-accuracy',
+    renderer: 'tab-reader',
+    timing: { mode: 'player-driven', holdToAdvance: true, holdMs: HOLD_MS },
+    loop: true,
+    measures: [],
+    skills: [],
+  };
+}
+
+/** A promise that rejects after ms — for racing mic.start() against a timeout. */
+function rejectAfter(ms) {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 }
 
 /**
