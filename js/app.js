@@ -5,6 +5,7 @@ import { libraryView } from './views/library-view.js';
 import { practiceView } from './views/practice-view.js';
 import { gameView } from './views/game-view.js';
 import { sessionView } from './views/session-view.js';
+import { tabTrainerView } from './views/tab-trainer-view.js';
 import { bus } from './utils/event-bus.js';
 import { qs, qsa } from './utils/dom.js';
 
@@ -66,6 +67,7 @@ function switchView(viewId, sessionConfig) {
   if (activeViewId === 'practice-view') practiceView.deactivate();
   if (activeViewId === 'game-view') gameView.deactivate();
   if (activeViewId === 'session-view') sessionView.deactivate();
+  if (activeViewId === 'tab-trainer-view') tabTrainerView.deactivate();
 
   // Activate new view
   if (resolvedId === 'practice-view') {
@@ -74,6 +76,8 @@ function switchView(viewId, sessionConfig) {
     droneView.activate();
   } else if (resolvedId === 'session-view') {
     sessionView.activate(sessionConfig);
+  } else if (resolvedId === 'tab-trainer-view') {
+    tabTrainerView.activate();
   } else {
     const newEl = qs(`#${resolvedId}`);
     if (newEl) newEl.classList.add('active');
@@ -102,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
   practiceView.init();
   gameView.init();
   sessionView.init();
+  tabTrainerView.init();
 
   // Activate the default view (graph)
   graphView.activate();

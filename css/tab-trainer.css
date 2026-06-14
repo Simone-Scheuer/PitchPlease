@@ -1,0 +1,298 @@
+/* ===================================================================
+   Tab Trainer — harmonica tab-reading view
+   Dark-first (app default), light-aware via shared tokens. No hardcoded
+   colors or sizes: everything routes through css/tokens.css.
+   =================================================================== */
+
+#tab-trainer-view {
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+/* The hidden attribute must win over the flex display below it. ID-scoped so
+   it out-specifies .tt-menu/.tt-play without !important — the P0 lesson:
+   never let a display rule defeat a visibility toggle. */
+#tab-trainer-view [hidden] { display: none; }
+
+/* --- shared controls -------------------------------------------------- */
+
+.tt-btn {
+  min-height: 44px;
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+.tt-btn:hover { background: var(--color-bg-surface-hover); }
+.tt-btn:active { transform: scale(0.97); }
+
+.tt-btn--accent {
+  background: var(--color-accent);
+  border-color: transparent;
+  color: var(--color-bg);
+}
+.tt-btn--accent:hover { background: var(--color-accent-hover); }
+
+.tt-iconbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.tt-iconbtn:hover { color: var(--color-text); background: var(--color-bg-surface); }
+
+/* === MENU ============================================================= */
+
+.tt-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xl) var(--space-lg) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  -webkit-overflow-scrolling: touch;
+}
+
+.tt-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.tt-menu__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+.tt-menu__sub {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+.tt-harp {
+  display: inline-block;
+  margin-left: var(--space-xs);
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.tt-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.tt-section__label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-dim);
+}
+
+.tt-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* --- a source card ---------------------------------------------------- */
+
+.tt-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title tag"
+    "notation notation";
+  gap: var(--space-sm) var(--space-md);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-base), transform var(--transition-fast),
+    box-shadow var(--transition-base);
+}
+.tt-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-md);
+  bottom: var(--space-md);
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+.tt-card:hover {
+  border-color: var(--color-border-accent);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-md);
+}
+.tt-card:hover::before { opacity: 1; }
+.tt-card:active { transform: scale(0.99); }
+
+.tt-card__title {
+  grid-area: title;
+  font-size: var(--font-size-base);
+  font-weight: 650;
+  color: var(--color-text);
+}
+.tt-card__notation {
+  grid-area: notation;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.02em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+}
+.tt-card__tag {
+  grid-area: tag;
+  align-self: start;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+}
+.tt-card__tag--easy { color: var(--color-in-tune); background: var(--color-accent-dim); }
+.tt-card__tag--medium { color: var(--color-close); }
+
+.tt-card--random .tt-card__notation { color: var(--color-text-dim); }
+
+/* --- blow / draw / bend color language (shared with the ribbon) ------- */
+
+.tt-tok { white-space: nowrap; }
+.tt-tok--blow { color: var(--color-accent); }
+.tt-tok--draw { color: var(--color-text-muted); }
+.tt-tok--bend { font-style: italic; }
+
+/* --- paste box -------------------------------------------------------- */
+
+.tt-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.tt-paste__input {
+  width: 100%;
+  resize: none;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  letter-spacing: 0.03em;
+  transition: border-color var(--transition-fast);
+}
+.tt-paste__input::placeholder { color: var(--color-text-dim); }
+.tt-paste__input:focus {
+  outline: none;
+  border-color: var(--color-border-accent);
+}
+.tt-paste__input--error { border-color: var(--color-off); }
+
+.tt-paste__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.tt-paste__error {
+  flex: 1;
+  font-size: var(--font-size-xs);
+  color: var(--color-off);
+  min-height: 1em;
+}
+
+/* === PLAYING ========================================================== */
+
+.tt-play {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-play__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tt-play__meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.tt-play__title {
+  font-size: var(--font-size-base);
+  font-weight: 650;
+  color: var(--color-text);
+}
+.tt-play__progress {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+#tt-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: block;
+}
+
+.tt-status {
+  min-height: 1.4em;
+  padding: 0 var(--space-md);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.tt-controls {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+/* Wider screens: cards breathe into a centered column. */
+@media (min-width: 600px) {
+  .tt-menu { max-width: 540px; margin: 0 auto; width: 100%; }
+}
