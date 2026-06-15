@@ -16,7 +16,7 @@ import { store } from '../utils/store.js';
 import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { getHarmonicaKey } from '../profile/profile.js';
-import { STARTER_TABS, randomSequence } from '../utils/harmonica-tabs.js';
+import { STARTER_TABS, getStarterTab, randomSequence } from '../utils/harmonica-tabs.js';
 import { parseTab, TabParseError } from '../utils/harmonica-tab.js';
 import { createTabRunner } from '../core/tab-runner.js';
 import { createTabReaderRenderer } from '../renderers/tab-reader.js';
@@ -179,7 +179,7 @@ class TabTrainerView {
   // --- source selection ---------------------------------------------------
 
   #startStarter(id) {
-    const song = STARTER_TABS.find(t => t.id === id);
+    const song = getStarterTab(id);
     if (!song) return;
     this.#start(parseTab(song.tab, song.key), song.title, song.note ?? '');
   }
@@ -252,7 +252,7 @@ class TabTrainerView {
     const tokens = this.#currentTokens;
 
     this.#renderer = createTabReaderRenderer();
-    this.#renderer.init(this.#canvasEl, { context: { notes: tokens }, timing: { holdMs: this.#holdMs } });
+    this.#renderer.init(this.#canvasEl, { context: { notes: tokens } });
 
     this.#runner = createTabRunner(tokens, {
       tolerance: TOLERANCE,
@@ -286,14 +286,10 @@ class TabTrainerView {
       const target = this.#currentTokens[rs.cursor] ?? null;
       this.#renderer.update({
         cursor: rs.cursor,
-        noteCount: rs.noteCount,
         targetNote: target,
         pitchData: this.#lastPitchData,
         holdProgress: rs.holdProgress,
-        evaluatorResult: rs.absCents != null
-          ? { absCents: rs.absCents, inTune: rs.absCents <= TOLERANCE }
-          : null,
-        exerciseState: this.#paused ? 'paused' : 'running',
+        evaluatorResult: rs.absCents != null ? { absCents: rs.absCents } : null,
       });
     };
     this.#rafId = requestAnimationFrame(loop);

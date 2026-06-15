@@ -30,7 +30,6 @@ export function createTabReaderRenderer() {
   let resizeObserver = null;
 
   let notes = [];
-  let holdTargetMs = 350;
   let theme = null;
 
   let scroll = 0;        // eased scroll position (in note-index units)
@@ -193,9 +192,7 @@ export function createTabReaderRenderer() {
       const cx = playheadX + (cursor - scroll) * SLOT_W;
       const offset = height * 0.13;
       const cy = note.direction === 'blow' ? centerY - offset : centerY + offset;
-      const progress = tickState.holdProgress != null
-        ? Math.max(0, Math.min(1, tickState.holdProgress))
-        : Math.max(0, Math.min(1, (ev?.holdMs ?? 0) / holdTargetMs));
+      const progress = Math.max(0, Math.min(1, tickState.holdProgress ?? 0));
       drawHoldRing(cx, cy, progress, curColour);
       drawChip(note, cx, centerY, { active: true, done: false, absCents });
 
@@ -236,7 +233,6 @@ export function createTabReaderRenderer() {
       height = setup.height;
       theme = readTheme();
       notes = [...(config.context?.notes ?? [])];
-      holdTargetMs = config.timing?.holdMs ?? 350;
       scroll = 0;
       cursor = 0;
       lastEval = null;

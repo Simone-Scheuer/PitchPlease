@@ -6,6 +6,7 @@
 
 ---
 
+- **2026-06-15** — Harmonica tab trainer v1 (merged to main): tab-notation parser, onset-gated `tab-runner` controller, breath-ribbon renderer, searchable 9-song library + random + paste, note-length dial, arrow/button nav. 35 unit tests. Reliability P0 + tuner/graph polish from 06-12 also shipped this stretch.
 - **2026-04-21** — UI overhaul: light theme, journal removed, scale settings, drone voices
 - **2026-04-08** — Netlify deploy live; drone UI polish; practice overlay + DPR fixes; guitar bends exercise; "made by mona" credit
 - **2026-03-19/20** — Dedicated drone tab with chord drone player; pitch spike filters; echo mode rework (untimed note matching)

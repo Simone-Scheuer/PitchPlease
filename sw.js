@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v26';
+const CACHE_NAME = 'pitchplease-v27';
 
 const STATIC_ASSETS = [
   './',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
   './css/session.css',
   './css/practice.css',
   './css/drone.css',
+  './css/tab-trainer.css',
   // JS — app entry
   './js/app.js',
   // JS — audio
@@ -32,6 +33,7 @@ const STATIC_ASSETS = [
   './js/views/practice-view.js',
   './js/views/session-view.js',
   './js/views/drone-view.js',
+  './js/views/tab-trainer-view.js',
   // JS — components
   './js/components/pitch-strip.js',
   './js/components/note-display.js',
@@ -44,6 +46,7 @@ const STATIC_ASSETS = [
   './js/core/session-runner.js',
   './js/core/session-templates.js',
   './js/core/measurements.js',
+  './js/core/tab-runner.js',
   // JS — core evaluators
   './js/core/evaluators/target-accuracy.js',
   './js/core/evaluators/stability.js',
@@ -58,6 +61,7 @@ const STATIC_ASSETS = [
   './js/renderers/bend-meter.js',
   './js/renderers/pitch-trace.js',
   './js/renderers/pitch-trail.js',
+  './js/renderers/tab-reader.js',
   // JS — utils
   './js/utils/constants.js',
   './js/utils/dom.js',
@@ -67,6 +71,8 @@ const STATIC_ASSETS = [
   './js/utils/exercise-generator.js',
   './js/utils/store.js',
   './js/utils/harmonica.js',
+  './js/utils/harmonica-tab.js',
+  './js/utils/harmonica-tabs.js',
   './js/utils/theme-colors.js',
   // JS — profile
   './js/profile/profile.js',

@@ -325,7 +325,7 @@
 }
 .tt-iconbtn--nav:hover { color: var(--color-accent); border-color: var(--color-border-accent); }
 
-/* Wider screens: cards breathe into a centered column. */
+/* Wider screens: the menu breathes into a centered column. */
 @media (min-width: 600px) {
   .tt-menu { max-width: 540px; margin: 0 auto; width: 100%; }
 }
