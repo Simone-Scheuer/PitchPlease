@@ -4,6 +4,7 @@
 
 ---
 
+- **2026-07-09 — Chord drone is a graph layer (bottom sheet), and it outlives the mic.** The dial orders roots by fifths (musical neighbors adjacent), progressions schedule on the audio clock, and `mic.stop()` no longer closes the AudioContext so drones keep sounding through pause/tab switches. Revisit the fifths ordering only if she reads the ring as "alphabet soup."
 - **2026-07-09 — Full rebuild: the graph is the app; the session machine is cut, not quarantined.** Three product generations of evidence (journal dead, timed games annoying, tab trainer unloved, graph/tuner/bends loved) say Simone wants an instrument-aware pitch mirror, not a curriculum. Deleted the game cluster, session/profile/generator/evaluator/renderer machinery, drone tab, and tab trainer (git keeps history). Revisit only if she asks for guided practice again — that's a rebuild, priced in.
 - **2026-07-09 — Instrument-native rails replace the tab trainer.** The graph's left rail speaks the instrument (harp hole tokens incl. bends, whistle fingerings); a corner HUD names the live note both ways plus harp position. Reading practice = read paper tabs, glance at the mirror. Revisit (tab-as-target-layer) only if this proves insufficient in real use.
 - **2026-07-09 — Skins are whole-app looks, not canvas-only themes.** press (ecru print) / neon (phosphor) / riso (violet duotone) each restyle chrome AND canvas via `data-skin` tokens; the old light/dark toggle is gone. Chosen for coherence — a neon trail on paper chrome reads broken. Revisit if she wants to mix.
