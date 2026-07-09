@@ -79,9 +79,12 @@ export class PitchGraph {
 
   // Instrument
   #nativeMap = new Map();
+  #instrument = 'voice';
+  #instrumentKey = null;
 
-  // Scale overlay
+  // Scale overlay + drone chord tones
   #scaleNotes = null;
+  #chordNotes = null;
 
   // Label interactions
   #labelHitTargets = [];
@@ -117,17 +120,21 @@ export class PitchGraph {
 
     this._wheelHandler = (e) => {
       e.preventDefault();
-      this.#yOffset += e.deltaY > 0 ? -2 : 2;
-      this.#yOffset = Math.max(-24, Math.min(24, this.#yOffset));
+      // Proportional pan: a mouse notch (deltaY ~100) moves ~2 semitones,
+      // trackpad pixel deltas move smoothly instead of jumping per event.
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      this.#yOffset = Math.max(-24, Math.min(24, this.#yOffset - dy * 0.02));
       this.#updateRange();
       if (!this.#running) this.drawStatic();
     };
     this.#canvas.addEventListener('wheel', this._wheelHandler, { passive: false });
 
     this._pointerDownHandler = (e) => this.#handlePointerDown(e);
+    this._pointerMoveHandler = (e) => this.#handlePointerMove(e);
     this._pointerUpHandler = (e) => this.#handlePointerUp(e);
     this._pointerCancelHandler = () => this.#handlePointerCancel();
     this.#canvas.addEventListener('pointerdown', this._pointerDownHandler);
+    this.#canvas.addEventListener('pointermove', this._pointerMoveHandler);
     this.#canvas.addEventListener('pointerup', this._pointerUpHandler);
     this.#canvas.addEventListener('pointerleave', this._pointerCancelHandler);
     this.#canvas.addEventListener('pointercancel', this._pointerCancelHandler);
@@ -151,14 +158,27 @@ export class PitchGraph {
   // -------------------------------------------------------------------------
 
   setInstrument(instrument, key) {
+    this.#instrument = instrument;
+    this.#instrumentKey = key;
     this.#nativeMap = getNativeMap(instrument, key);
-    const range = getDefaultRange(instrument, key);
+    this.recenter();
+  }
+
+  /** Snap the view back to the instrument's home range. */
+  recenter() {
+    const range = getDefaultRange(this.#instrument, this.#instrumentKey);
     this.#baseLow = range.low;
     this.#baseHigh = range.high;
     this.#detectedMidiMin = range.low + 2;
     this.#detectedMidiMax = range.high - 2;
     this.#yOffset = 0;
     this.#updateRange();
+    if (!this.#running) this.drawStatic();
+  }
+
+  /** Note classes (0–11) of the droning chord, or null. Marked on the rails. */
+  setChordNotes(noteClasses) {
+    this.#chordNotes = noteClasses && noteClasses.size ? noteClasses : null;
     if (!this.#running) this.drawStatic();
   }
 
@@ -343,11 +363,27 @@ export class PitchGraph {
     if (!this.#running) this.drawStatic();
   }
 
+  /** Vertical drag in the graph area pans the Y range (finger or mouse). */
+  #handlePointerMove(e) {
+    const down = this.#pointerDownPos;
+    if (!down || down.onLabel) return;
+    const rect = this.#canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const dy = y - (down.lastY ?? down.y);
+    down.lastY = y;
+    if (!down.panning && Math.abs(y - down.y) <= TAP_MAX_MOVE) return;
+    down.panning = true;
+    const semiPerPx = this.#semitoneRange / this.#height;
+    this.#yOffset = Math.max(-24, Math.min(24, this.#yOffset + dy * semiPerPx));
+    this.#updateRange();
+    if (!this.#running) this.drawStatic();
+  }
+
   #handlePointerUp(e) {
     const down = this.#pointerDownPos;
     this.#pointerDownPos = null;
 
-    if (down && !down.onLabel && this.#onCenterTap) {
+    if (down && !down.onLabel && !down.panning && this.#onCenterTap) {
       const rect = this.#canvas.getBoundingClientRect();
       const moved = Math.hypot((e.clientX - rect.left) - down.x, (e.clientY - rect.top) - down.y);
       if (performance.now() - down.t <= TAP_MAX_MS && moved <= TAP_MAX_MOVE) {
@@ -666,6 +702,12 @@ export class PitchGraph {
       this.#drawRowBands(ctx, midi, areaLeft, areaW);
       const { isCurrent, isTapped } = this.#rowHighlights(midi);
 
+      // Droning chord tones get a pixel tick at the rail's inner edge
+      if (this.#chordNotes?.has(noteIndex)) {
+        ctx.fillStyle = themeColors.accent2;
+        ctx.fillRect(areaRight - 6, y - 2, 4, 4);
+      }
+
       if (!hasNative) {
         // Voice: mirror the note rail on the left too
         this.#drawNoteLabel(ctx, midi, areaLeft + 8, y, 'left', isCurrent, isTapped, inScale);
@@ -759,6 +801,10 @@ export class PitchGraph {
       const { isCurrent, isTapped } = this.#rowHighlights(midi);
       const noteIndex = ((midi % 12) + 12) % 12;
       const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
+      if (this.#chordNotes?.has(noteIndex)) {
+        ctx.fillStyle = themeColors.accent2;
+        ctx.fillRect(areaLeft + 2, y - 2, 4, 4);
+      }
       this.#drawNoteLabel(ctx, midi, areaRight - 8, y, 'right', isCurrent, isTapped, inScale);
     }
   }
@@ -776,6 +822,7 @@ export class PitchGraph {
     window.removeEventListener('resize', this._resizeHandler);
     this.#canvas.removeEventListener('wheel', this._wheelHandler);
     this.#canvas.removeEventListener('pointerdown', this._pointerDownHandler);
+    this.#canvas.removeEventListener('pointermove', this._pointerMoveHandler);
     this.#canvas.removeEventListener('pointerup', this._pointerUpHandler);
     this.#canvas.removeEventListener('pointerleave', this._pointerCancelHandler);
     this.#canvas.removeEventListener('pointercancel', this._pointerCancelHandler);

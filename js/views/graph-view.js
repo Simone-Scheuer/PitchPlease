@@ -13,9 +13,8 @@ import { bus } from '../utils/event-bus.js';
 import { qs, showToast, setStatus } from '../utils/dom.js';
 import { PitchGraph } from '../components/pitch-graph.js';
 import { SCALE_LABELS, ROOT_NAMES, isInScale } from '../utils/scales.js';
-import { NOTE_NAMES } from '../utils/constants.js';
 import { scalePlayer } from '../audio/scale-player.js';
-import { startDrone } from '../audio/synth.js';
+import { droneSheet } from './drone-sheet.js';
 import { settings } from '../utils/settings.js';
 import { describePitch, harpPosition, getDefaultRange } from '../utils/instruments.js';
 
@@ -59,7 +58,6 @@ class GraphView {
 
   // Drone
   #droneBtn;
-  #droneHandle = null;
 
   #active = false;        // mic running
   #started = false;       // a session has begun (trace exists)
@@ -107,10 +105,11 @@ class GraphView {
 
     this.#micToggle.addEventListener('click', () => this.#toggleMic());
     this.#speedBtn.addEventListener('click', () => this.#cycleSpeed());
+    qs('#graph-recenter').addEventListener('click', () => this.#graph.recenter());
     this.#scaleRootSelect.addEventListener('change', () => this.#onScaleSelect());
     this.#scaleTypeSelect.addEventListener('change', () => this.#onScaleSelect());
     this.#playScaleBtn.addEventListener('click', () => this.#togglePlayScale());
-    this.#droneBtn.addEventListener('click', () => this.#toggleDrone());
+    this.#droneBtn.addEventListener('click', () => droneSheet.toggle());
     this.#loopBtn.addEventListener('click', () => {
       this.#loop = !this.#loop;
       this.#loopBtn.classList.toggle('active', this.#loop);
@@ -129,9 +128,15 @@ class GraphView {
     bus.on('silence', () => this.#onSilence());
     bus.on('settings:changed', ({ key }) => this.#onSettingsChanged(key));
 
+    // Drone state → button label + chord tones on the rails
+    bus.on('drone:state', ({ playing, label, noteClasses }) => {
+      this.#droneBtn.textContent = playing ? `▪ ${label}` : 'DRONE';
+      this.#droneBtn.classList.toggle('active', playing);
+      this.#graph.setChordNotes(playing ? noteClasses : null);
+    });
+
     this.#speedBtn.textContent = this.#graph.speedLabel;
     this.#playScaleBtn.innerHTML = `${PLAY_ICON}PLAY SCALE`;
-    this.#updateDroneLabel();
   }
 
   /** Dev/test introspection. */
@@ -148,11 +153,12 @@ class GraphView {
   }
 
   deactivate() {
-    // Leaving the tab releases the mic (pause semantics: trace is held)
+    // Leaving the tab releases the mic (pause semantics: trace is held).
+    // The chord drone keeps sounding on purpose — tune against it, come back.
     if (this.#active) this.#pauseAll();
     this.#graph.stopRendering();
     this.#stopPlayScale();
-    this.#stopDrone();
+    droneSheet.close();
   }
 
   // -------------------------------------------------------------------------
@@ -192,12 +198,9 @@ class GraphView {
     this.#graph.setScale(hasScale ? root : null, hasScale ? type : null);
     this.#inKeyEl.hidden = !hasScale;
     this.#scaleSettingsEl.hidden = !hasScale;
-    this.#droneBtn.disabled = !hasScale;
     this.#updatePosChip();
-    this.#updateDroneLabel();
     this.#resetInKey();
     this.#stopPlayScale();
-    if (!hasScale) this.#stopDrone();
   }
 
   #updatePosChip() {
@@ -216,8 +219,6 @@ class GraphView {
     if (key === 'instrument' || key === 'harpKey' || key === 'whistleKey') {
       this.#graph.setInstrument(settings.get('instrument'), settings.instrumentKey);
       this.#updatePosChip();
-      this.#stopDrone();
-      this.#updateDroneLabel();
     }
     if (key === 'skin' && !this.#active) {
       // themeColors refreshes on the attribute flip; repaint the held frame
@@ -307,54 +308,6 @@ class GraphView {
     this.#graph.setGuideMidi(null);
     this.#playScaleBtn.classList.remove('active');
     this.#playScaleBtn.innerHTML = `${PLAY_ICON}PLAY SCALE`;
-  }
-
-  // -------------------------------------------------------------------------
-  // Drone
-  // -------------------------------------------------------------------------
-
-  /** Scale root droned near the bottom of the instrument's range. */
-  #droneRootMidi() {
-    const root = this.#scaleRootSelect.value;
-    if (!root) return null;
-    const range = getDefaultRange(settings.get('instrument'), settings.instrumentKey);
-    const rootIndex = ROOT_NAMES.indexOf(root);
-    let midi = Math.floor((range.low + 2) / 12) * 12 + rootIndex;
-    if (midi < range.low) midi += 12;
-    return midi;
-  }
-
-  /** The button says what it will do: "DRONE G3", not just "DRONE". */
-  #updateDroneLabel() {
-    const midi = this.#droneRootMidi();
-    if (midi === null) {
-      this.#droneBtn.textContent = 'DRONE';
-      return;
-    }
-    const name = NOTE_NAMES[((midi % 12) + 12) % 12];
-    const octave = Math.floor(midi / 12) - 1;
-    this.#droneBtn.textContent = `DRONE ${name}${octave}`;
-  }
-
-  async #toggleDrone() {
-    if (this.#droneHandle) {
-      this.#stopDrone();
-      return;
-    }
-    const midi = this.#droneRootMidi();
-    if (midi === null) return;
-
-    await mic.ensureAudioContext();
-    this.#droneHandle = startDrone(midi, { voice: settings.get('droneVoice'), gain: 0.55 });
-    this.#droneBtn.classList.add('active');
-  }
-
-  #stopDrone() {
-    if (this.#droneHandle) {
-      this.#droneHandle.stop();
-      this.#droneHandle = null;
-    }
-    this.#droneBtn.classList.remove('active');
   }
 
   // -------------------------------------------------------------------------

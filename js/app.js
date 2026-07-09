@@ -9,6 +9,7 @@
 import { graphView } from './views/graph-view.js';
 import { tunerView } from './views/tuner-view.js';
 import { bendsView } from './views/bends-view.js';
+import { droneSheet } from './views/drone-sheet.js';
 import { settingsDrawer, applySkin } from './views/settings-drawer.js';
 import { settings } from './utils/settings.js';
 import { refresh as refreshThemeColors } from './utils/theme-colors.js';
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   graphView.init();
   tunerView.init();
   bendsView.init();
+  droneSheet.init();
   settingsDrawer.init();
 
   for (const tab of qsa('.dock__tab')) {

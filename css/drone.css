@@ -1,0 +1,225 @@
+/* ==========================================================================
+   drone.css — Chord drone sheet + radial dial.
+   ========================================================================== */
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  background: var(--color-bg);
+  border-top: var(--border-w) solid var(--color-text);
+  transform: translateY(103%);
+  transition: transform 0.28s var(--ease-snap);
+  max-height: 72dvh;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheet.open {
+  transform: translateY(0);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px dashed var(--color-text-muted);
+  font-size: var(--text-small);
+  letter-spacing: var(--track-wider);
+  position: sticky;
+  top: 0;
+  background: var(--color-bg);
+}
+
+.sheet__hint {
+  margin-left: auto;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  letter-spacing: var(--track-wide);
+}
+
+.sheet__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.sheet__controls {
+  flex: 1;
+  min-width: 250px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sheet__row {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.sheet__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet__field .select {
+  width: 100%;
+}
+
+.sheet__next {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wider);
+  color: var(--color-text-dim);
+  min-height: 1.4em;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chips .btn {
+  min-height: 38px;
+  padding: var(--space-1) var(--space-3);
+}
+
+/* ---- Volume range ---- */
+
+.range {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 6px;
+  background-image: radial-gradient(circle, var(--color-text-muted) 1px, transparent 1.2px);
+  background-size: 5px 5px;
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius);
+}
+
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  background: var(--chip-bg);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.range::-moz-range-track {
+  height: 6px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius);
+}
+
+.range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--chip-bg);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Radial chord dial (SVG)
+   ========================================================================== */
+
+.dial {
+  width: min(320px, 88vw);
+  flex: 0 0 auto;
+}
+
+.dial__seg path {
+  fill: var(--color-bg-elevated);
+  stroke: var(--color-text);
+  stroke-width: 1.2;
+  cursor: pointer;
+  transition: fill 0.12s;
+}
+
+.dial__seg text {
+  fill: var(--color-text-dim);
+  font-family: var(--font-px);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dial__seg--qual text {
+  font-size: 9px;
+  fill: var(--color-text-muted);
+}
+
+@media (hover: hover) {
+  .dial__seg:hover path {
+    fill: var(--color-accent-dim);
+  }
+}
+
+.dial__seg.selected path {
+  fill: var(--chip-bg);
+}
+
+.dial__seg.selected text {
+  fill: var(--chip-text);
+}
+
+.dial__marker {
+  fill: var(--color-accent);
+}
+
+.dial__center circle {
+  fill: var(--color-bg);
+  stroke: var(--color-text);
+  stroke-width: var(--border-w);
+  cursor: pointer;
+  transition: fill 0.15s;
+}
+
+.dial__center text {
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-px);
+}
+
+.dial__chord {
+  font-size: 26px;
+  fill: var(--color-text);
+}
+
+.dial__sub {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  fill: var(--color-text-muted);
+}
+
+.dial--playing .dial__center circle {
+  fill: var(--chip-bg);
+}
+
+.dial--playing .dial__chord {
+  fill: var(--chip-text);
+}
+
+.dial--playing .dial__sub {
+  fill: var(--chip-text);
+  opacity: 0.7;
+}

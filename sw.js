@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v30';
+const CACHE_NAME = 'pitchplease-v31';
 
 const STATIC_ASSETS = [
   './',
@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
   './css/graph.css',
   './css/tuner.css',
   './css/bends.css',
+  './css/drone.css',
   // JS — app entry
   './js/app.js',
   // JS — audio
@@ -18,15 +19,18 @@ const STATIC_ASSETS = [
   './js/audio/detector.js',
   './js/audio/note-math.js',
   './js/audio/synth.js',
+  './js/audio/drone-synth.js',
   './js/audio/scale-player.js',
   // JS — views
   './js/views/graph-view.js',
   './js/views/tuner-view.js',
   './js/views/bends-view.js',
+  './js/views/drone-sheet.js',
   './js/views/settings-drawer.js',
   // JS — components
   './js/components/pitch-graph.js',
   './js/components/pitch-strip.js',
+  './js/components/chord-dial.js',
   // JS — utils
   './js/utils/constants.js',
   './js/utils/dom.js',

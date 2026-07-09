@@ -17,6 +17,11 @@ const DEFAULTS = Object.freeze({
   a4: 440,                   // reference pitch in Hz
   skin: 'press',             // 'press' | 'neon' | 'riso'
   droneVoice: 'triangle',
+  droneChordRoot: 7,         // note class 0-11 (G — cross harp home on a C harp)
+  droneChordQuality: 'maj',
+  droneProgression: 'hold',  // 'hold' | key of PROGRESSIONS
+  droneBarMs: 4000,
+  droneVolume: 0.6,
   scaleRoot: '',             // '' = no scale overlay
   scaleType: 'major',
 });
