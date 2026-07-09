@@ -16,7 +16,7 @@ const DEFAULTS = Object.freeze({
   whistleKey: 'D',
   a4: 440,                   // reference pitch in Hz
   skin: 'press',             // 'press' | 'neon' | 'riso'
-  droneVoice: 'triangle',
+  droneVoice: 'piano',       // sample voice (piano/epiano/guitar) or oscillator wave
   droneChordRoot: 7,         // note class 0-11 (G — cross harp home on a C harp)
   droneChordQuality: 'maj',
   droneProgression: 'hold',  // 'hold' | key of PROGRESSIONS

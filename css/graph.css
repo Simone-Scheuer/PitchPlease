@@ -83,6 +83,7 @@
 .hud__sub .in-tune { color: var(--color-in-tune); }
 .hud__sub .close   { color: var(--color-close); }
 .hud__sub .off     { color: var(--color-off); }
+.hud__sub .on-chord { color: var(--accent-2); }
 
 .hud__hold {
   font-size: var(--text-micro);
@@ -126,6 +127,49 @@
   top: var(--space-3);
   right: var(--space-3);
   pointer-events: none;
+}
+
+/* ---- Now-playing strip: current chord → next, with bar progress ---- */
+
+.graph__now {
+  position: absolute;
+  top: calc(var(--space-3) + 34px); /* below the paused tag's row */
+  right: calc(60px + var(--space-3)); /* clear of the note rail */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+  background: var(--color-bg-elevated);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+
+.graph__now-chord {
+  font-size: var(--text-big);
+  color: var(--color-text);
+}
+
+.graph__now-bar {
+  width: 54px;
+  height: 6px;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.graph__now-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--color-accent);
+}
+
+.graph__now-next {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
+  color: var(--color-text-dim);
 }
 
 /* ---- Control bar ---- */

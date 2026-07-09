@@ -80,25 +80,35 @@
   min-height: 1.4em;
 }
 
-/* "KEY OF G" selector inside the PROGRESSION label */
-.sheet__key {
-  color: var(--color-accent);
-  background: var(--color-bg);
+/* KEY OF G stepper inside the PROGRESSION label — steps by fifths */
+.keyctl {
+  display: inline-flex;
+  align-items: stretch;
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
-  padding: 2px 18px 2px 6px;
-  font: inherit;
-  font-size: var(--text-micro);
-  letter-spacing: var(--track-wide);
+  overflow: hidden;
+}
+
+.keyctl__btn {
+  min-width: 28px;
+  min-height: 26px;
+  color: var(--color-accent);
+  font-size: 9px;
+}
+
+.keyctl__btn:active {
+  background: var(--color-accent-dim);
+}
+
+.keyctl__value {
+  color: var(--color-accent);
+  font-weight: 400;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 49%, currentColor 50%),
-    linear-gradient(-45deg, transparent 49%, currentColor 50%);
-  background-position: calc(100% - 10px) 55%, calc(100% - 6px) 55%;
-  background-size: 4px 4px;
-  background-repeat: no-repeat;
-  cursor: pointer;
-  min-height: 24px;
+  border-left: 1px solid var(--color-accent);
+  border-right: 1px solid var(--color-accent);
 }
 
 .sheet__val {

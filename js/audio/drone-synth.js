@@ -119,6 +119,17 @@ export function chordLabel(rootIndex, qualityKey) {
   return `${name}${CHORD_QUALITIES[qualityKey]?.suffix ?? ''}`;
 }
 
+/** Sampled voices (bundled FluidR3 notes) vs oscillator waves. */
+export const SAMPLE_VOICES = Object.freeze({
+  piano: { label: 'PIANO', url: 'assets/samples/piano.json' },
+  epiano: { label: 'KEYS', url: 'assets/samples/epiano.json' },
+  guitar: { label: 'GUITAR', url: 'assets/samples/guitar.json' },
+});
+
+export function isSampleVoice(voice) {
+  return voice in SAMPLE_VOICES;
+}
+
 /** Note classes (0–11) sounding in a chord. */
 export function chordNoteClasses(rootIndex, qualityKey) {
   const intervals = CHORD_QUALITIES[qualityKey]?.intervals ?? [];
@@ -143,6 +154,49 @@ function rootMidiFor(rootIndex) {
   const midi = 48 + rootIndex; // C3..B3
   const low = rootIndex > 7 ? midi - 12 : midi;
   return settings.get('droneRegister') === 'high' ? low + 12 : low;
+}
+
+// ---------------------------------------------------------------------------
+// Sample banks — lazy-loaded, decoded once, cached across contexts
+// ---------------------------------------------------------------------------
+
+const bankCache = new Map();   // voice -> Map<midi, AudioBuffer>
+const bankLoading = new Map(); // voice -> Promise
+
+function base64ToArrayBuffer(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function loadBank(voice, ctx) {
+  if (bankCache.has(voice)) return bankCache.get(voice);
+  if (!bankLoading.has(voice)) {
+    bankLoading.set(voice, (async () => {
+      const res = await fetch(SAMPLE_VOICES[voice].url);
+      const json = await res.json();
+      const bank = new Map();
+      await Promise.all(Object.entries(json).map(async ([midi, b64]) => {
+        const buf = await ctx.decodeAudioData(base64ToArrayBuffer(b64));
+        bank.set(Number(midi), buf);
+      }));
+      bankCache.set(voice, bank);
+      return bank;
+    })());
+  }
+  return bankLoading.get(voice);
+}
+
+/** Nearest sampled midi to a target frequency (samples are A440-tuned). */
+function nearestSample(bank, targetHz) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const midi of bank.keys()) {
+    const dist = Math.abs(midiToFrequency(midi) - targetHz);
+    if (dist < bestDist) { bestDist = dist; best = midi; }
+  }
+  return best;
 }
 
 /** Synthetic impulse response: decaying noise burst = a soft, cheap room. */
@@ -180,6 +234,10 @@ class DroneSynth {
   #nextChangeAt = 0;   // audio-clock seconds
   #onChordChange = null;
   #progKey = null;
+
+  // HOLD-mode sample restrike
+  #strikeTimer = null;
+  #nextStrikeAt = 0;
 
   get isPlaying() {
     return this.#chain !== null;
@@ -283,7 +341,7 @@ class DroneSynth {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = settings.get('droneCutoff');
-    filter.Q.value = 0.4;
+    filter.Q.value = 0.7;
     this.#lfoGain.connect(filter.frequency);
     filter.connect(chainGain);
     chainGain.connect(this.#master);
@@ -296,36 +354,84 @@ class DroneSynth {
       rootHz * 2,
     ];
 
-    const oscs = [];
-    const addOsc = (hz, type, gainValue, detune) => {
-      const osc = ctx.createOscillator();
-      osc.type = type;
-      osc.frequency.value = hz;
-      osc.detune.value = detune;
-      const g = ctx.createGain();
-      g.gain.value = gainValue;
-      osc.connect(g);
-      g.connect(filter);
-      osc.start(t);
-      oscs.push(osc);
-    };
+    if (isSampleVoice(voice)) {
+      const bank = await loadBank(voice, ctx);
+      this.#chain = { gain: chainGain, filter, oscs: [], sources: [], bank, tonesHz };
+      this.#strikeInto(this.#chain, ctx.currentTime);
+      this.#armStrikes();
+    } else {
+      this.#disarmStrikes();
+      const oscs = [];
+      const addOsc = (hz, type, gainValue, detune) => {
+        const osc = ctx.createOscillator();
+        osc.type = type;
+        osc.frequency.value = hz;
+        osc.detune.value = detune;
+        const g = ctx.createGain();
+        g.gain.value = gainValue;
+        osc.connect(g);
+        g.connect(filter);
+        osc.start(t);
+        oscs.push(osc);
+      };
 
-    addOsc(rootHz / 2, 'sine', SUB_GAIN, 0); // sub always sine
-    for (const hz of tonesHz) {
-      if (voice === 'sine') {
-        // Pure organ: one osc per tone. Detuned sine pairs just tremolo.
-        addOsc(hz, voice, TONE_GAIN * 1.6, 0);
-      } else {
-        addOsc(hz, voice, TONE_GAIN, -DETUNE_CENTS);
-        addOsc(hz, voice, TONE_GAIN, DETUNE_CENTS);
+      addOsc(rootHz / 2, 'sine', SUB_GAIN, 0); // sub always sine
+      for (const hz of tonesHz) {
+        if (voice === 'sine') {
+          // Pure organ: one osc per tone. Detuned sine pairs just tremolo.
+          addOsc(hz, voice, TONE_GAIN * 1.6, 0);
+        } else {
+          addOsc(hz, voice, TONE_GAIN, -DETUNE_CENTS);
+          addOsc(hz, voice, TONE_GAIN, DETUNE_CENTS);
+        }
       }
+      this.#chain = { gain: chainGain, filter, oscs, sources: [] };
     }
 
-    this.#chain = { gain: chainGain, filter, oscs };
     this.#current = { rootIndex: ((rootIndex % 12) + 12) % 12, quality: qualityKey };
 
     // Fade out and dismantle the previous chord
     if (old) this.#dismantle(old, t);
+  }
+
+  /** One strike of the current chord's samples into a chain. */
+  #strikeInto(chain, when) {
+    for (const hz of chain.tonesHz) {
+      const sampleMidi = nearestSample(chain.bank, hz);
+      const buf = chain.bank.get(sampleMidi);
+      if (!buf) continue;
+      const src = this.#ctx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = hz / midiToFrequency(sampleMidi);
+      const g = this.#ctx.createGain();
+      g.gain.value = 0.55;
+      src.connect(g);
+      g.connect(chain.filter);
+      src.start(when);
+      chain.sources.push(src);
+      if (chain.sources.length > 48) chain.sources.splice(0, chain.sources.length - 48);
+    }
+  }
+
+  /** HOLD mode: re-strike sampled voices every bar so the chord keeps ringing. */
+  #armStrikes() {
+    this.#disarmStrikes();
+    if (this.#progSteps) return; // progressions strike on every chord change
+    this.#nextStrikeAt = this.#ctx.currentTime + settings.get('droneBarMs') / 1000;
+    this.#strikeTimer = setInterval(() => {
+      if (!this.#chain?.bank || !this.#ctx) return;
+      if (this.#ctx.currentTime >= this.#nextStrikeAt - 0.05) {
+        this.#strikeInto(this.#chain, this.#ctx.currentTime);
+        this.#nextStrikeAt += settings.get('droneBarMs') / 1000;
+      }
+    }, PROG_TICK_MS);
+  }
+
+  #disarmStrikes() {
+    if (this.#strikeTimer) {
+      clearInterval(this.#strikeTimer);
+      this.#strikeTimer = null;
+    }
   }
 
   #dismantle(chain, t) {
@@ -333,6 +439,9 @@ class DroneSynth {
       chain.gain.gain.setValueAtTime(chain.gain.gain.value, t);
       chain.gain.gain.linearRampToValueAtTime(0, t + FADE_S);
       for (const osc of chain.oscs) osc.stop(t + FADE_S + 0.05);
+      for (const src of chain.sources ?? []) {
+        try { src.stop(t + FADE_S + 0.05); } catch { /* already ended */ }
+      }
       setTimeout(() => {
         try {
           this.#lfoGain?.disconnect(chain.filter.frequency);
@@ -345,11 +454,19 @@ class DroneSynth {
 
   stop() {
     this.stopProgression();
+    this.#disarmStrikes();
     if (this.#chain && this.#ctx) {
       this.#dismantle(this.#chain, this.#ctx.currentTime);
     }
     this.#chain = null;
     this.#current = null;
+  }
+
+  /** 0–1 through the current bar of a progression, or null when holding. */
+  get barProgress() {
+    if (!this.#ctx || !this.#progSteps) return null;
+    const barS = this.#progBarMs / 1000;
+    return Math.max(0, Math.min(1, 1 - (this.#nextChangeAt - this.#ctx.currentTime) / barS));
   }
 
   // -------------------------------------------------------------------------

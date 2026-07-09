@@ -733,9 +733,11 @@ export class PitchGraph {
       }
 
       const isBend = entry.kind === 'bend';
+      const isChordTone = this.#chordNotes?.has(noteIndex) ?? false;
       let fill;
       if (isTapped) fill = themeColors.accent;
       else if (isCurrent) fill = themeColors.canvasLabelActive;
+      else if (isChordTone) fill = themeColors.accent2;
       else if (isBend) fill = themeColors.nativeLabel;
       else if (entry.kind === 'draw') fill = themeColors.textDim;
       else fill = themeColors.canvasLabelActive;

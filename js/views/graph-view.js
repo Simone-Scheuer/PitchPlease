@@ -15,6 +15,7 @@ import { PitchGraph } from '../components/pitch-graph.js';
 import { SCALE_LABELS, ROOT_NAMES, isInScale } from '../utils/scales.js';
 import { scalePlayer } from '../audio/scale-player.js';
 import { droneSheet } from './drone-sheet.js';
+import { droneSynth } from '../audio/drone-synth.js';
 import { settings } from '../utils/settings.js';
 import { describePitch, harpPosition, getDefaultRange } from '../utils/instruments.js';
 
@@ -58,6 +59,12 @@ class GraphView {
 
   // Drone
   #droneBtn;
+  #droneChord = null;   // { rootIndex, quality, label, noteClasses } while playing
+  #nowEl;
+  #nowChordEl;
+  #nowNextEl;
+  #nowFillEl;
+  #nowTimer = null;
 
   #active = false;        // mic running
   #started = false;       // a session has begun (trace exists)
@@ -128,11 +135,36 @@ class GraphView {
     bus.on('silence', () => this.#onSilence());
     bus.on('settings:changed', ({ key }) => this.#onSettingsChanged(key));
 
-    // Drone state → button label + chord tones on the rails
-    bus.on('drone:state', ({ playing, label, noteClasses }) => {
+    this.#nowEl = qs('#graph-now');
+    this.#nowChordEl = qs('#graph-now-chord');
+    this.#nowNextEl = qs('#graph-now-next');
+    this.#nowFillEl = qs('#graph-now-fill');
+
+    // Drone state → button label, rail marks, now-playing strip, HUD role
+    bus.on('drone:state', (state) => {
+      const { playing, label, noteClasses, nextLabel } = state;
+      this.#droneChord = playing ? state : null;
       this.#droneBtn.textContent = playing ? `▪ ${label}` : 'DRONE';
       this.#droneBtn.classList.toggle('active', playing);
       this.#graph.setChordNotes(playing ? noteClasses : null);
+
+      if (playing && nextLabel) {
+        this.#nowEl.hidden = false;
+        this.#nowChordEl.textContent = label;
+        this.#nowNextEl.textContent = `→ ${nextLabel}`;
+        if (!this.#nowTimer) {
+          this.#nowTimer = setInterval(() => {
+            const p = droneSynth.barProgress;
+            this.#nowFillEl.style.width = p === null ? '0%' : `${Math.round(p * 100)}%`;
+          }, 150);
+        }
+      } else {
+        this.#nowEl.hidden = true;
+        if (this.#nowTimer) {
+          clearInterval(this.#nowTimer);
+          this.#nowTimer = null;
+        }
+      }
     });
 
     this.#speedBtn.textContent = this.#graph.speedLabel;
@@ -404,11 +436,20 @@ class GraphView {
     }
     this.#hudNativeEl.classList.toggle('hud__native--dots', native?.kind === 'fingering');
 
-    // Sub line: signed cents + native description
+    // Sub line: signed cents + native description + chord role while droning
     const centsClass = Math.abs(data.cents) <= 10 ? 'in-tune' : Math.abs(data.cents) <= 25 ? 'close' : 'off';
     const sign = data.cents > 0 ? '+' : '';
     const parts = [`<span class="${centsClass}">${sign}${data.cents}&cent;</span>`];
     if (native?.desc) parts.push(native.desc);
+    if (this.#droneChord?.noteClasses) {
+      const noteClass = ((data.midi % 12) + 12) % 12;
+      if (this.#droneChord.noteClasses.has(noteClass)) {
+        const interval = ((noteClass - this.#droneChord.rootIndex) + 12) % 12;
+        const ROLES = { 0: 'ROOT', 3: '♭3RD', 4: '3RD', 5: '4TH', 6: '♭5TH', 7: '5TH', 9: '6TH', 10: '♭7TH', 11: '7TH' };
+        const role = ROLES[interval];
+        if (role) parts.push(`<span class="on-chord">${role} OF ${this.#droneChord.label}</span>`);
+      }
+    }
     this.#hudSubEl.innerHTML = parts.join(' &middot; ');
 
     // Hold tracking

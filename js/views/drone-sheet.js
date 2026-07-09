@@ -41,17 +41,14 @@ class DroneSheet {
 
     qs('#drone-sheet-close').addEventListener('click', () => this.close());
 
-    // Key selector — the direct way to set the progression's home key.
+    // Key stepper — steps by fifths (musical neighbors), no native picker.
     // Ring taps still work; this one stays put while the highlight walks.
-    for (let i = 0; i < 12; i++) {
-      const opt = document.createElement('option');
-      opt.value = String(i);
-      opt.textContent = `KEY OF ${NOTE_NAMES[i]}`;
-      this.#keyEl.appendChild(opt);
-    }
-    this.#keyEl.addEventListener('change', () => {
-      this.#select(Number(this.#keyEl.value), settings.get('droneChordQuality'));
-    });
+    const stepKey = (fifths) => {
+      const next = ((settings.get('droneChordRoot') + fifths * 7) % 12 + 12) % 12;
+      this.#select(next, settings.get('droneChordQuality'));
+    };
+    qs('#drone-key-prev').addEventListener('click', () => stepKey(-1));
+    qs('#drone-key-next').addEventListener('click', () => stepKey(1));
 
     // Progression chips
     const chips = qs('#drone-prog-chips');
@@ -76,8 +73,8 @@ class DroneSheet {
       this.#renderBarVal();
     });
 
-    // Voice — revoices the sounding chord immediately
-    for (const btn of qsa('#drone-voice-seg .seg__btn')) {
+    // Voice (samples + waves) — revoices the sounding chord immediately
+    for (const btn of qsa('#drone-sample-seg .seg__btn, #drone-voice-seg .seg__btn')) {
       btn.addEventListener('click', () => {
         settings.set('droneVoice', btn.dataset.voice);
         this.#renderControls();
@@ -229,14 +226,15 @@ class DroneSheet {
     this.#dial.setSelection(chord.rootIndex, chord.quality);
     this.#dial.setCenterLabel(chordLabel(chord.rootIndex, chord.quality));
     const steps = PROGRESSIONS[progKey]?.steps;
+    let nextLabel = null;
     if (steps) {
       const numeral = steps[stepIndex]?.numeral ?? '';
       const next = steps[(stepIndex + 1) % steps.length];
       const home = settings.get('droneChordRoot');
-      this.#nextEl.textContent =
-        `${numeral} · NEXT: ${chordLabel((home + next.offset) % 12, next.quality)}`;
+      nextLabel = chordLabel((home + next.offset) % 12, next.quality);
+      this.#nextEl.textContent = `${numeral} · NEXT: ${nextLabel}`;
     }
-    this.#announceChord(chord);
+    this.#announceChord(chord, nextLabel);
   }
 
   // -------------------------------------------------------------------------
@@ -244,10 +242,13 @@ class DroneSheet {
   // -------------------------------------------------------------------------
 
   /** Announce from the given chord (droneSynth.current lags async play). */
-  #announceChord(chord) {
+  #announceChord(chord, nextLabel = null) {
     bus.emit('drone:state', {
       playing: true,
       label: chordLabel(chord.rootIndex, chord.quality),
+      rootIndex: chord.rootIndex,
+      quality: chord.quality,
+      nextLabel,
       noteClasses: chordNoteClasses(chord.rootIndex, chord.quality),
     });
   }
@@ -258,7 +259,21 @@ class DroneSheet {
   }
 
   #renderKey() {
-    this.#keyEl.value = String(((settings.get('droneChordRoot') % 12) + 12) % 12);
+    const root = ((settings.get('droneChordRoot') % 12) + 12) % 12;
+    this.#keyEl.textContent = `KEY OF ${NOTE_NAMES[root]}`;
+    // Progression chips speak in actual chords for this key
+    for (const btn of qsa('#drone-prog-chips .btn')) {
+      const prog = PROGRESSIONS[btn.dataset.prog];
+      if (!prog) continue; // HOLD
+      const seen = new Set();
+      const chords = [];
+      for (const step of prog.steps) {
+        const label = chordLabel((root + step.offset) % 12, step.quality);
+        if (!seen.has(label)) { seen.add(label); chords.push(label); }
+      }
+      btn.textContent = chords.join('·');
+      btn.title = `${prog.label} — ${prog.steps.map(s => s.numeral).join(' ')}`;
+    }
   }
 
   #renderBarVal() {
@@ -270,7 +285,7 @@ class DroneSheet {
     for (const btn of qsa('#drone-prog-chips .btn')) {
       btn.classList.toggle('active', btn.dataset.prog === prog);
     }
-    for (const btn of qsa('#drone-voice-seg .seg__btn')) {
+    for (const btn of qsa('#drone-sample-seg .seg__btn, #drone-voice-seg .seg__btn')) {
       btn.classList.toggle('active', btn.dataset.voice === settings.get('droneVoice'));
     }
     for (const btn of qsa('#drone-register-seg .seg__btn')) {

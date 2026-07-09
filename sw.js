@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pitchplease-v33';
+const CACHE_NAME = 'pitchplease-v34';
 
 const STATIC_ASSETS = [
   './',
@@ -43,6 +43,9 @@ const STATIC_ASSETS = [
   './js/utils/theme-colors.js',
   // Assets
   './assets/fonts/DepartureMono-Regular.woff2',
+  './assets/samples/piano.json',
+  './assets/samples/epiano.json',
+  './assets/samples/guitar.json',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-192-maskable.png',

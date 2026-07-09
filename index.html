@@ -51,6 +51,11 @@
             <div class="hud__hold" id="hud-hold"></div>
           </div>
           <div class="graph__paused-tag chip chip--solid" id="graph-paused-tag" hidden>PAUSED — TRACE HELD</div>
+          <div class="graph__now" id="graph-now" hidden>
+            <span class="graph__now-chord" id="graph-now-chord">G7</span>
+            <span class="graph__now-bar"><i id="graph-now-fill"></i></span>
+            <span class="graph__now-next" id="graph-now-next">C7</span>
+          </div>
           <div class="graph__pause-flash" id="graph-pause-flash" aria-hidden="true"></div>
         </div>
 
@@ -250,7 +255,13 @@
       <svg id="chord-dial" aria-label="Chord selector: outer ring roots, inner ring qualities, center plays"></svg>
       <div class="sheet__controls">
         <div>
-          <div class="drawer__label">PROGRESSION <select class="sheet__key" id="drone-key" aria-label="Progression key"></select></div>
+          <div class="drawer__label">PROGRESSION
+            <span class="keyctl">
+              <button class="keyctl__btn" id="drone-key-prev" aria-label="Key down a fifth">&#9664;</button>
+              <b class="keyctl__value" id="drone-key">KEY OF G</b>
+              <button class="keyctl__btn" id="drone-key-next" aria-label="Key up a fifth">&#9654;</button>
+            </span>
+          </div>
           <div class="chips" id="drone-prog-chips"></div>
         </div>
         <div class="sheet__row">
@@ -268,7 +279,12 @@
         </div>
         <div>
           <div class="drawer__label">VOICE</div>
-          <div class="seg" id="drone-voice-seg">
+          <div class="seg" id="drone-sample-seg">
+            <button class="seg__btn" data-voice="piano">PIANO</button>
+            <button class="seg__btn" data-voice="epiano">KEYS</button>
+            <button class="seg__btn" data-voice="guitar">GUITAR</button>
+          </div>
+          <div class="seg" id="drone-voice-seg" style="margin-top: var(--space-2);">
             <button class="seg__btn" data-voice="sine">SIN</button>
             <button class="seg__btn" data-voice="triangle">TRI</button>
             <button class="seg__btn" data-voice="square">SQR</button>
@@ -278,7 +294,7 @@
         <div class="sheet__row">
           <div class="sheet__field">
             <div class="drawer__label">WARMTH</div>
-            <input type="range" class="range" id="drone-cutoff" min="450" max="4000" step="50" aria-label="Filter cutoff">
+            <input type="range" class="range" id="drone-cutoff" min="150" max="5000" step="50" aria-label="Filter cutoff">
           </div>
           <div class="sheet__field">
             <div class="drawer__label">SPACE</div>
