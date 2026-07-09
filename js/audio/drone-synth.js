@@ -144,7 +144,10 @@ const FADE_STRIKE_S = 0.3;
 const FADE_FLOW_S = 0.9;    // chords bloom into each other in FLOW style
 const FADE_FAST_S = 0.1;    // user-triggered changes land immediately
 const STAGGER_S = 0.055;    // FLOW strikes roll gently instead of hitting as a block
-const PAD_GAIN = 0.05;      // FLOW's sustained layer under the sample strikes
+const PAD_GAIN = 0.028;     // FLOW's pad: measured 2026-07-09 — at 0.05 it
+                            // buried the piano strikes by >20 dB (spectral
+                            // analysis, tools/analyze-audio.mjs). Keep the pad
+                            // a floor under the strikes, never the ceiling.
 const STRIKE_RELEASE_S = 0.3; // strikes release INTO the bar boundary
 const DETUNE_CENTS = 2.0;   // enough width to feel alive, no wub-wub beating
 
@@ -261,6 +264,12 @@ class DroneSynth {
   }
 
   #wet = null;
+  #out = null;
+
+  /** Everything the drone makes leaves through this node (analysis tap). */
+  get output() {
+    return this.#out;
+  }
 
   async #ensure() {
     await mic.ensureAudioContext();
@@ -268,16 +277,18 @@ class DroneSynth {
     if (this.#ctx !== ctx) {
       // Fresh context — rebuild master chain: master → dry + reverb-wet → out
       this.#ctx = ctx;
+      this.#out = ctx.createGain();
+      this.#out.connect(ctx.destination);
       this.#master = ctx.createGain();
       this.#master.gain.value = settings.get('droneVolume');
-      this.#master.connect(ctx.destination); // dry
+      this.#master.connect(this.#out); // dry
       const convolver = ctx.createConvolver();
       convolver.buffer = makeImpulse(ctx);
       this.#wet = ctx.createGain();
       this.#wet.gain.value = settings.get('droneSpace');
       this.#master.connect(convolver);
       convolver.connect(this.#wet);
-      this.#wet.connect(ctx.destination);
+      this.#wet.connect(this.#out);
       this.#lfo = ctx.createOscillator();
       this.#lfo.frequency.value = FILTER_LFO_HZ;
       this.#lfoGain = ctx.createGain();
@@ -385,7 +396,7 @@ class DroneSynth {
           osc.start(t);
           oscs.push(osc);
         };
-        addPad(rootHz / 2, PAD_GAIN * 1.4);
+        addPad(rootHz / 2, PAD_GAIN * 0.9); // sub pad measured loudest-in-mix at 1.4x — keep it under the chord
         for (const hz of tonesHz) addPad(hz, PAD_GAIN);
       }
       this.#chain = { gain: chainGain, filter, oscs, sources: [], bank, tonesHz };
@@ -432,7 +443,12 @@ class DroneSynth {
    * the bar boundary (pedal up on the change), so tails never stack.
    */
   #strikeInto(chain, when) {
-    const stagger = settings.get('droneStyle') === 'flow' ? STAGGER_S : 0;
+    const flow = settings.get('droneStyle') === 'flow';
+    const stagger = flow ? STAGGER_S : 0;
+    // In FLOW the strikes compete with the sustained pad — give them
+    // more level so the attack reads (measured: at equal gain the pad
+    // time-averages louder and the strikes disappear).
+    const strikeGain = flow ? 0.9 : 0.55;
     const barS = Math.max(0.5, settings.get('droneBarMs') / 1000);
     const release = Math.min(STRIKE_RELEASE_S, barS * 0.4);
     chain.tonesHz.forEach((hz, i) => {
@@ -444,8 +460,8 @@ class DroneSynth {
       src.playbackRate.value = hz / midiToFrequency(sampleMidi);
       const g = this.#ctx.createGain();
       const t0 = when + i * stagger; // FLOW rolls the chord gently
-      g.gain.setValueAtTime(0.55, t0);
-      g.gain.setValueAtTime(0.55, t0 + barS - release);
+      g.gain.setValueAtTime(strikeGain, t0);
+      g.gain.setValueAtTime(strikeGain, t0 + barS - release);
       g.gain.linearRampToValueAtTime(0.0001, t0 + barS);
       src.connect(g);
       g.connect(chain.filter);

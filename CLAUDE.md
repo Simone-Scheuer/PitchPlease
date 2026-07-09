@@ -56,3 +56,11 @@ A pitch mirror that knows the player's instruments. Detects the note in real tim
 - Manual testing: open in browser, use Chrome DevTools device simulation
 - PWA: Lighthouse audit for installability and offline support
 - Audio: test with real microphone input across devices
+- **Spectral analysis** (Claude's "ears", built 2026-07-09): start the drone,
+  then in the page `const { captureDrone } = await import('/tools/audio-capture.js'); window.__cap = await captureDrone(8);`
+  → eval `window.__cap.pcm16b64` (oversized result lands in a tool-results
+  file), base64-decode to `.pcm16`, then
+  `node tools/analyze-audio.mjs <file> <rate> --chord G:dom7 --register low --bar 2000`.
+  Reports JI tuning deviations, beating, RMS envelope/onsets, band-energy mud
+  metrics. Caveats: modulation at the bar rate is the strike envelope, not
+  beating; piano partials read a few cents sharp (real string inharmonicity).
