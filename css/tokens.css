@@ -1,170 +1,192 @@
-/* ===================================================================
-   Design Tokens — Light theme (default), Dark theme via [data-theme="dark"]
-   =================================================================== */
+/* ==========================================================================
+   tokens.css — Design tokens for the three skins.
 
-:root {
-  /* ---------------------------------------------------------------
-     Light Theme — Memphis-inspired: warm, playful, bold
-     --------------------------------------------------------------- */
+   The skin is a whole-app look, set as data-skin on <html>:
+     press (default) — ecru paper, warm ink, chartreuse. Offset-print zine.
+     neon            — near-black, glowing chartreuse + magenta. Phosphor.
+     riso            — two-ink violet duotone on paper. Risograph master.
 
-  /* Background */
-  --color-bg: #FDF6EE;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-surface: #F5EDE4;
-  --color-bg-surface-hover: #EDE4DA;
+   Canvas code reads the --color-canvas-* group via theme-colors.js;
+   keep those names stable.
+   ========================================================================== */
 
-  /* Text */
-  --color-text: #1A1A2E;
-  --color-text-dim: #9E9EB0;
-  --color-text-muted: #6B6B80;
-
-  /* Accent — teal, kept from dark theme but slightly bolder */
-  --color-accent: #1AAFA5;
-  --color-accent-hover: #16C4B8;
-  --color-accent-dim: rgba(26, 175, 165, 0.1);
-  --color-accent-glow: rgba(26, 175, 165, 0.06);
-
-  /* Tuner feedback */
-  --color-in-tune: #1AAFA5;
-  --color-close: #E8A820;
-  --color-off: #E85454;
-
-  /* Borders */
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-subtle: rgba(0, 0, 0, 0.04);
-  --color-border-accent: rgba(26, 175, 165, 0.35);
-
-  /* Shadows — lighter, warmer */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.07), 0 4px 16px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.05);
-  --shadow-glow-accent: 0 0 16px rgba(26, 175, 165, 0.12), 0 0 32px rgba(26, 175, 165, 0.04);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-
-  /* Canvas-specific colors */
-  --color-canvas-bg: #FDF6EE;
-  --color-canvas-grid: rgba(0, 0, 0, 0.06);
-  --color-canvas-grid-bold: rgba(0, 0, 0, 0.12);
-  --color-canvas-label: #9E9EB0;
-  --color-canvas-label-active: #1A1A2E;
-  --color-canvas-scale-highlight: rgba(26, 175, 165, 0.06);
-  --color-canvas-pitch-dot: #1AAFA5;
-  --color-canvas-pitch-dot-off: #E8A820;
-  --color-canvas-pitch-line: rgba(26, 175, 165, 0.3);
-  --color-canvas-current-note-bg: rgba(26, 175, 165, 0.08);
-  --color-canvas-playhead: rgba(26, 175, 165, 0.25);
-
-  /* Drone pad tints */
-  --pad-bg-from: rgba(240, 235, 228, 0.98);
-  --pad-bg-to: rgba(230, 224, 216, 0.98);
-  --pad-border: rgba(0, 0, 0, 0.08);
-  --pad-text: #6B6B80;
-  --pad-text-hover: #1A1A2E;
-  --pad-major-border: rgba(232, 168, 32, 0.2);
-  --pad-major-bg-from: rgba(255, 248, 235, 0.98);
-  --pad-minor-border: rgba(100, 140, 220, 0.18);
-  --pad-minor-bg-from: rgba(240, 244, 255, 0.98);
-
-  /* Tab bar */
-  --tab-bg: rgba(253, 246, 238, 0.88);
-
-  /* ---------------------------------------------------------------
-     Non-theme tokens (shared)
-     --------------------------------------------------------------- */
-
-  /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-
-  --font-size-2xs: clamp(0.5625rem, 1.2vw, 0.625rem);
-  --font-size-xs: clamp(0.625rem, 1.5vw, 0.75rem);
-  --font-size-sm: clamp(0.75rem, 2vw, 0.875rem);
-  --font-size-base: clamp(0.875rem, 2.5vw, 1rem);
-  --font-size-lg: clamp(1rem, 3vw, 1.25rem);
-  --font-size-xl: clamp(1.25rem, 4vw, 1.75rem);
-  --font-size-note: clamp(4rem, 15vw, 8rem);
-  --font-size-octave: clamp(1.5rem, 5vw, 2.5rem);
-
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-full: 9999px;
-
-  /* Transitions */
-  --transition-fast: 100ms ease-out;
-  --transition-base: 200ms ease-out;
-  --transition-slow: 400ms ease-out;
-
-  /* Z-index layers */
-  --z-base: 0;
-  --z-elevated: 10;
-  --z-overlay: 100;
-  --z-toast: 1000;
+@font-face {
+  font-family: 'Departure Mono';
+  src: url('../assets/fonts/DepartureMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* ===================================================================
-   Dark Theme
-   =================================================================== */
+:root {
+  /* ---- type ---- */
+  --font-px: 'Departure Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --text-micro: 0.625rem;      /* 10px chrome microcopy */
+  --text-small: 0.75rem;
+  --text-body: 0.875rem;
+  --text-big: 1.125rem;
+  --track-wide: 0.08em;
+  --track-wider: 0.14em;
 
-[data-theme="dark"] {
-  --color-bg: #0a0a0b;
-  --color-bg-elevated: #141416;
-  --color-bg-surface: #1c1c20;
-  --color-bg-surface-hover: #242428;
+  /* ---- shape: print = square ---- */
+  --radius: 2px;
+  --border-w: 1.5px;
 
-  --color-text: #ececf0;
-  --color-text-dim: #5a5a66;
-  --color-text-muted: #8888a0;
+  /* ---- spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 
-  --color-accent: #4ecdc4;
-  --color-accent-hover: #5dd9d0;
-  --color-accent-dim: rgba(78, 205, 196, 0.12);
-  --color-accent-glow: rgba(78, 205, 196, 0.06);
+  --tap-min: 44px;
 
-  --color-in-tune: #4ecdc4;
-  --color-close: #ffe66d;
-  --color-off: #ff6b6b;
+  /* ---- motion ---- */
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.25, 1);
+}
 
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-subtle: rgba(255, 255, 255, 0.04);
-  --color-border-accent: rgba(78, 205, 196, 0.3);
+/* ==========================================================================
+   PRESS — ecru paper, warm ink, chartreuse (default)
+   ========================================================================== */
+:root,
+:root[data-skin='press'] {
+  --paper: #e9e5d8;
+  --paper-high: #f2efe5;
+  --ink: #171512;
+  --ink-soft: #4c483d;
+  --ink-faint: #8b8676;
+  --accent: #a8b820;         /* chartreuse, inked down for contrast on paper */
+  --accent-bright: #c9d64b;
+  --accent-wash: #dde4a3;
+  --accent-2: #8d84e0;       /* lavender secondary */
+  --hot: #d4472f;            /* vermillion — "off" */
+  --warm: #c07b18;           /* amber — "close" */
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
-  --shadow-glow-accent: 0 0 20px rgba(78, 205, 196, 0.15), 0 0 40px rgba(78, 205, 196, 0.05);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --color-bg: var(--paper);
+  --color-bg-elevated: var(--paper-high);
+  --color-bg-surface: #e0dbc9;
+  --color-text: var(--ink);
+  --color-text-dim: var(--ink-soft);
+  --color-text-muted: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-wash);
+  --color-in-tune: var(--accent);
+  --color-close: var(--warm);
+  --color-off: var(--hot);
 
-  --color-canvas-bg: #0a0a0b;
-  --color-canvas-grid: #1f1f1f;
-  --color-canvas-grid-bold: #333;
-  --color-canvas-label: #666;
-  --color-canvas-label-active: #f0f0f0;
-  --color-canvas-scale-highlight: rgba(78, 205, 196, 0.04);
-  --color-canvas-pitch-dot: #4ecdc4;
-  --color-canvas-pitch-dot-off: #ffe66d;
-  --color-canvas-pitch-line: rgba(78, 205, 196, 0.35);
-  --color-canvas-current-note-bg: rgba(78, 205, 196, 0.08);
-  --color-canvas-playhead: rgba(78, 205, 196, 0.3);
+  --color-canvas-bg: var(--paper);
+  --color-canvas-grid: rgba(23, 21, 18, 0.10);
+  --color-canvas-grid-bold: rgba(23, 21, 18, 0.42);
+  --color-canvas-label: #6b6657;
+  --color-canvas-label-active: var(--ink);
+  --color-canvas-scale-highlight: rgba(168, 184, 32, 0.13);
+  --color-canvas-pitch-dot: var(--ink);
+  --color-canvas-pitch-dot-off: var(--warm);
+  --color-canvas-pitch-line: rgba(23, 21, 18, 0.82);
+  --color-canvas-current-note-bg: rgba(201, 214, 75, 0.30);
+  --color-canvas-playhead: rgba(23, 21, 18, 0.55);
+  --color-canvas-glow: transparent;
+  --color-native-label: #77821a;
 
-  --pad-bg-from: rgba(34, 34, 40, 0.98);
-  --pad-bg-to: rgba(20, 20, 24, 0.98);
-  --pad-border: rgba(255, 255, 255, 0.08);
-  --pad-text: rgba(255, 255, 255, 0.55);
-  --pad-text-hover: rgba(255, 255, 255, 0.8);
-  --pad-major-border: rgba(255, 230, 109, 0.12);
-  --pad-major-bg-from: rgba(40, 38, 32, 0.98);
-  --pad-minor-border: rgba(130, 170, 255, 0.12);
-  --pad-minor-bg-from: rgba(30, 33, 42, 0.98);
+  --chip-bg: var(--ink);
+  --chip-text: var(--paper);
+  --shadow-press: 3px 3px 0 rgba(23, 21, 18, 0.9);
+  color-scheme: light;
+}
 
-  --tab-bg: rgba(14, 14, 16, 0.85);
+/* ==========================================================================
+   NEON — phosphor dark, glowing trail
+   ========================================================================== */
+:root[data-skin='neon'] {
+  --paper: #0b0b10;
+  --paper-high: #14141c;
+  --ink: #e9e7da;
+  --ink-soft: #a9a795;
+  --ink-faint: #67655a;
+  --accent: #d4ff3f;
+  --accent-bright: #e6ff7a;
+  --accent-wash: rgba(212, 255, 63, 0.16);
+  --accent-2: #ff4fd8;       /* magenta */
+  --hot: #ff5a47;
+  --warm: #ffc24b;
+
+  --color-bg: var(--paper);
+  --color-bg-elevated: var(--paper-high);
+  --color-bg-surface: #1b1b26;
+  --color-text: var(--ink);
+  --color-text-dim: var(--ink-soft);
+  --color-text-muted: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-wash);
+  --color-in-tune: var(--accent);
+  --color-close: var(--warm);
+  --color-off: var(--hot);
+
+  --color-canvas-bg: var(--paper);
+  --color-canvas-grid: rgba(233, 231, 218, 0.07);
+  --color-canvas-grid-bold: rgba(233, 231, 218, 0.22);
+  --color-canvas-label: #7a7869;
+  --color-canvas-label-active: var(--accent);
+  --color-canvas-scale-highlight: rgba(212, 255, 63, 0.07);
+  --color-canvas-pitch-dot: var(--accent);
+  --color-canvas-pitch-dot-off: var(--warm);
+  --color-canvas-pitch-line: rgba(212, 255, 63, 0.9);
+  --color-canvas-current-note-bg: rgba(212, 255, 63, 0.14);
+  --color-canvas-playhead: rgba(233, 231, 218, 0.4);
+  --color-canvas-glow: rgba(212, 255, 63, 0.55);
+  --color-native-label: var(--accent-2);
+
+  --chip-bg: var(--accent);
+  --chip-text: #0b0b10;
+  --shadow-press: 0 0 14px rgba(212, 255, 63, 0.35);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   RISO — two-ink violet duotone on paper
+   ========================================================================== */
+:root[data-skin='riso'] {
+  --paper: #ece7dc;
+  --paper-high: #f4f0e7;
+  --ink: #34309b;            /* blue-violet riso ink */
+  --ink-soft: #5c58ae;
+  --ink-faint: #9591c9;
+  --accent: #6e63e8;
+  --accent-bright: #8d84f2;
+  --accent-wash: rgba(110, 99, 232, 0.16);
+  --accent-2: #ff5a47;       /* fluoro red, the classic second drum */
+  --hot: #ff5a47;
+  --warm: #d98a2b;
+
+  --color-bg: var(--paper);
+  --color-bg-elevated: var(--paper-high);
+  --color-bg-surface: #e2dccd;
+  --color-text: var(--ink);
+  --color-text-dim: var(--ink-soft);
+  --color-text-muted: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-wash);
+  --color-in-tune: var(--accent);
+  --color-close: var(--warm);
+  --color-off: var(--hot);
+
+  --color-canvas-bg: var(--paper);
+  --color-canvas-grid: rgba(52, 48, 155, 0.10);
+  --color-canvas-grid-bold: rgba(52, 48, 155, 0.38);
+  --color-canvas-label: #7d79bd;
+  --color-canvas-label-active: var(--ink);
+  --color-canvas-scale-highlight: rgba(110, 99, 232, 0.11);
+  --color-canvas-pitch-dot: var(--ink);
+  --color-canvas-pitch-dot-off: var(--warm);
+  --color-canvas-pitch-line: rgba(52, 48, 155, 0.85);
+  --color-canvas-current-note-bg: rgba(110, 99, 232, 0.20);
+  --color-canvas-playhead: rgba(52, 48, 155, 0.5);
+  --color-canvas-glow: transparent;
+  --color-native-label: var(--accent-2);
+
+  --chip-bg: var(--ink);
+  --chip-text: var(--paper);
+  --shadow-press: 3px 3px 0 rgba(255, 90, 71, 0.55);
+  color-scheme: light;
 }

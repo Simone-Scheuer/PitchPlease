@@ -2,6 +2,7 @@ import { PitchDetector } from 'https://esm.sh/pitchy@4';
 import { mic } from './mic.js';
 import { frequencyToNoteData } from './note-math.js';
 import { bus } from '../utils/event-bus.js';
+import { settings } from '../utils/settings.js';
 import {
   CLARITY_THRESHOLD, HIGH_FREQ_CLARITY_THRESHOLD, HIGH_FREQ_BOUNDARY,
   MIN_FREQUENCY, MAX_FREQUENCY, FFT_SIZE,
@@ -36,7 +37,7 @@ class PitchDetectorEngine {
         frequency >= MIN_FREQUENCY &&
         frequency <= MAX_FREQUENCY
       ) {
-        const noteData = frequencyToNoteData(frequency);
+        const noteData = frequencyToNoteData(frequency, settings.get('a4'));
         bus.emit('pitch', {
           ...noteData,
           clarity,

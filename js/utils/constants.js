@@ -6,7 +6,6 @@ export const MIN_FREQUENCY = 60;
 export const MAX_FREQUENCY = 4200;
 export const A4_FREQUENCY = 440;
 export const SMOOTHING_FACTOR = 0.3;
-export const NOTE_DEBOUNCE_FRAMES = 3;
 
 export const NOTE_NAMES = [
   'C', 'C#', 'D', 'D#', 'E', 'F',

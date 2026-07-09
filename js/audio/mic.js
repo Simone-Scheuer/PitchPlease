@@ -42,6 +42,7 @@ class Mic {
   }
 
   async start() {
+    if (this.#stream) return; // already listening — never double-acquire
     this.#stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,

@@ -22,6 +22,9 @@ const PROPERTY_MAP = {
   '--color-canvas-pitch-line':      'canvasPitchLine',
   '--color-canvas-current-note-bg': 'canvasCurrentNoteBg',
   '--color-canvas-playhead':        'canvasPlayhead',
+  '--color-canvas-glow':            'canvasGlow',
+  '--color-native-label':           'nativeLabel',
+  '--accent-2':                     'accent2',
   '--color-accent':                 'accent',
   '--color-accent-dim':             'accentDim',
   '--color-in-tune':                'inTune',
@@ -52,16 +55,16 @@ export function refresh() {
 
 /* --- Bootstrap ---------------------------------------------------------- */
 
-// Auto-refresh when the data-theme attribute changes on <html>.
+// Auto-refresh when the skin attribute changes on <html>.
 const observer = new MutationObserver((mutations) => {
   for (const m of mutations) {
-    if (m.attributeName === 'data-theme') {
+    if (m.attributeName === 'data-skin') {
       refresh();
       return;
     }
   }
 });
-observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-skin'] });
 
 // Initial read — if DOM is already interactive, read now; otherwise wait.
 if (document.readyState === 'loading') {

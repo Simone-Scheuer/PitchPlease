@@ -1,0 +1,93 @@
+/* ==========================================================================
+   bends.css — Bend trainer: target picker + zoomed meter canvas.
+   ========================================================================== */
+
+.bends {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.bends__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px dashed var(--color-text-muted);
+}
+
+.bends__target {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.bends__target-token {
+  font-size: 1.5rem;
+  color: var(--color-native-label);
+  white-space: nowrap;
+}
+
+.bends__target-desc {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bends__nav {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  font-size: var(--text-body);
+}
+
+.bends__nav:active {
+  transform: translate(1px, 1px);
+}
+
+.bends__canvas-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+.bends__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.bends__lock-tag {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.bends__lock-tag.lit {
+  opacity: 1;
+}
+
+.bends__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-w) solid var(--color-text);
+}
+
+.bends__bar .select {
+  flex: 1;
+  min-width: 0;
+}
