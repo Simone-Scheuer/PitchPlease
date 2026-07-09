@@ -3,7 +3,7 @@ project: PitchPlease
 domain: personal
 status: active
 stakeholder: Simone (no external stakeholder)
-last_updated: 2026-06-15
+last_updated: 2026-07-09
 phase: active
 tags: [music, pwa, audio, ear-training]
 ---
@@ -14,41 +14,43 @@ tags: [music, pwa, audio, ear-training]
 > Conventions and archive policy live in `INSTRUCTIONS.md`. Decisions log lives in `context/DECISIONS_log.md`.
 
 ## North Star
-**What:** A browser-based practice environment for single-note musicians and vocalists — real-time pitch detection with visual feedback (tuner, scrolling graph, drone) plus guided practice sessions built from declarative exercise configs. Fully client-side PWA, no backend.
-**Why it matters:** Reduce "what should I practice today?" to a single tap. Practice room, not arcade: feedback is data, not judgment.
-**Success looks like:** The app is reliable enough that Simone actually wants to open it — and when she does, it makes her a better harmonica player: effortless hole-to-hole movement on a C diatonic, reading tabs fluently, nailing bends.
-**Out of scope:** Backend, accounts, server sync (no data leaves the device). Polyphonic/chord detection. Social features. Journal/progress tracking (built, cut, confirmed dead 2026-06-12).
+**What:** A pitch mirror that knows Simone's instruments. Real-time pitch detection on one flagship screen (the graph) that answers "which note am I playing, in my instrument's language" — harp hole numbers, whistle fingerings, harp position — plus a precision tuner and the bend trainer. Fully client-side PWA, no backend.
+**Why it matters:** Tuning, calibrating, and pitch practice are the daily need (harmonica, tin whistle, whistling, mouth trumpet). The app's edge is its ears; anything paper does better (reading tabs) stays on paper.
+**Success looks like:** It's the only thing Simone thinks to open when she wants to tune or practice pitch.
+**Out of scope:** Backend/accounts/sync. Polyphonic detection. Social. Journal (dead 2026-06-12). Guided sessions/skill profiles/curriculum (built in the v2 era, never validated, cut 2026-07-09). In-app tab reading (v1 shipped, didn't stick, retired 2026-07-09).
 
 **Stakeholder:** Simone (no external stakeholder)
 
 ## Current Focus
-**Harmonica tab trainer — v1 shipped** (2026-06-15, merged to main). A new "Tabs" view: searchable song library (9 hardcoded songs) + random run + paste-your-own, played on a breath-ribbon (blow above / draw below a fixed playhead, hold-ring per note). Advancement is **onset-gated** — a repeated note needs a release + re-attack, so one sustained breath can't swipe through repeats. Tunable note-length dial + arrow/button nav. Spec: `context/TAB_TRAINER_PRD.md`.
-**Next:** (1) Simone ear-checks the library tabs on a real harp — they're parser-valid but sourced from harptabs, not verified against recordings. (2) Convert more songs from `context/SONG_LIBRARY.md` into the library (needs whitespace cleanup + parse-check). (3) Smaller items (graph trace-preserve, drone redesign) in FIXES_running.
+**Full rebuild — "the pitch mirror" — built on `rebuild/pitch-mirror`, awaiting Simone's device check + merge** (2026-07-09). The graph is now the app: instrument-native edge rails (harp tab tokens incl. bends, whistle fingering dots), corner HUD (note + native token + cents + hold stats + position chip), scale overlay with in-key %, drone as a layer, pause-holds-trace. Tuner and Bends are the other two tabs; guided-session machine, game cluster, drone tab, and tab trainer are gone (−18k lines net). New dithered-print design system (Departure Mono, bundled) with three whole-app skins: press / neon / riso. A4 reference exposed + tune-to-my-instrument calibration. Spec: `PRD.md` v3.
+**Next:** (1) Simone plays with it on a real device (branch `rebuild/pitch-mirror`, `python3 -m http.server` or Netlify preview) — mic feel, rail readability on phone, skin taste. (2) Merge + deploy on her go (bump SW cache if needed; it's at v30). (3) React to real-use feedback; candidates in "Open by design" in PRD v3.
 
 ## Active Work
 *(🎯 in progress · 🅿️ parked · 🟡 blocked)*
-- 🎯 Tab trainer: ear-check the 9 library tabs on a real harp; convert more songs from SONG_LIBRARY.md
-- 🅿️ Graph: preserve trace across pause/resume (offered, awaiting go — see FIXES_running)
-- 🅿️ Build out the pitch viewer further (loved core; no concrete asks yet)
-- 🅿️ Drone screen redesign (Simone: "stupid and ugly") — no spec yet
+- 🟡 Rebuild device check + merge decision — blocked on Simone
+- 🅿️ Trace scrub-back after pause (data exists; build if asked)
+- 🅿️ Per-instrument calibration offsets (one global A4 today)
 
-> Verification caveat: tab trainer was verified in Chrome via synthetic pitch
-> events (no mic in automation) + node unit tests. The real mic happy-path
-> (click song → mic → play, dial feel, arrow keys live) wants a device check.
+> Verification caveat: rebuild verified in Chrome via an oscillator-backed
+> fake mic (real pipeline, synthetic tone): trail + skins + HUD + hold stats +
+> pause/resume trace + in-key % + position chip + tuner cents + bend lock +
+> calibration math. Hidden automation tabs suspend rAF — that cost an hour of
+> ghost-chasing; it is NOT an app bug. Real-mic feel wants a device check.
 
 ## Recent Wins
-- 2026-06-15 — Harmonica tab trainer v1 shipped & merged: notation parser, onset-gated `tab-runner`, breath-ribbon renderer, searchable 9-song library, length dial, arrow/button nav. 35 unit tests.
-- 2026-06-12 — P0 session-freeze fix (activation token, mic timeout, End-always-exits); graph tap-to-pause; dark-mode default; tuner sliding pitch strip. Org layer retrofitted.
-- 2026-04-21 — UI overhaul shipped: light theme, journal removed, scale settings, drone voices
+- 2026-07-09 — Full rebuild on `rebuild/pitch-mirror`: graph-first IA (Graph/Tuner/Bends), instrument-native rails + HUD + position math, A4 calibration flow, three print skins, Departure Mono design system, −18k lines net. Structural `[hidden] !important` fix retires the view-visibility bug class. 11 unit tests on instrument math.
+- 2026-06-15 — Harmonica tab trainer v1 shipped & merged (retired 2026-07-09; parser lessons live on in the hole-label rail).
+- 2026-06-12 — P0 session-freeze fix; graph tap-to-pause; dark-mode default; tuner sliding pitch strip. Org layer retrofitted.
 
 ## Open Questions
-- How does the all-screens-at-once bug reproduce? History of view-visibility fixes (hidden-attribute, z-index, display:none→flex) suggests the view-switching layer is fragile, not one-off. The tab trainer hit the same class (a `display:flex` defeating `[hidden]`) and fixed it with an ID-scoped `[hidden]` rule. → still no single structural fix; watch for recurrence.
-- Are the library tabs melodically correct? Parser-valid but sourced from harptabs, unverified against recordings. → resolve by ear on a real harp.
+- ~~How does the all-screens-at-once bug reproduce?~~ → **Structurally closed 2026-07-09**: `[hidden] { display:none !important }` in reset.css + a single registry-driven `.view.active` mechanism. The bug class cannot recur by construction; delete this line if a year passes without a sighting.
+- Do the new skins hold up on a real phone screen (glare, brightness, canvas DPI)? → Simone's device check.
+- Is one global A4 enough, or does she want per-instrument saved offsets (C harp sharp, D whistle flat)? → wait for real calibration use.
 
 ## Deferred on purpose
-- Timed/scrolling challenge modes stay opt-in, never the default (PRD design principle #1) — reinforced 2026-06-12: Simone finds the timed games clunky and annoying.
-- Tab *file import / scraping* — v1 ships a hardcoded library + a paste-your-own box; harptabs blocks bots (403) and bundling a scraped DB is a copyright gray area, so songs come in by hand. A real importer only if reading practice proves itself.
-- Double-stop / chord tabs — the trainer is monophonic by design; songs that lean on double-stops (e.g. some Piano Man tabs) need single-note versions or sit out.
+- Timed/scrolling challenge modes stay opt-in, never the default — reinforced 2026-06-12: Simone finds the timed games clunky and annoying.
+- Tab reading in-app — retired with the tab trainer. The graph's hole-number rail delivers the goal passively (read paper tabs, glance at the graph to see which hole you actually hit). A "tab as target layer" only if the rail proves insufficient.
+- Whistle half-holings, harp overblows, third-octave fingerings — the maps cover standard technique; extend when her playing does.
 
 ## Pointers — don't re-explain context, look here
 | Need | Look at |
@@ -71,4 +73,6 @@ tags: [music, pwa, audio, ear-training]
 
 **2026-06-12 (cont.) — Shipped the reliability P0 + three polish wins.** Fixed the session-freeze/all-screens bug; graph tap-to-pause, dark-mode default, tuner sliding pitch strip. Service-worker cache-first made browser testing painful — use fresh ports to bust stale modules.
 
-**2026-06-13→15 — Built & shipped the harmonica tab trainer (v1), merged to main.** Full arc via the spine: /build → parser (`harmonica-tab.js`, 17 tests) → built-ins + random gen → view shell + breath-ribbon renderer (reused exercise-runtime at first). Real-mic feedback then drove a redesign: the reference-tone bled into the mic and auto-advanced; repeated notes swiped through on one breath. Replaced the shared engine with a purpose-built **onset-gated `tab-runner`** (release is audio-defined, not tab-defined; 10 tests), added a length dial + arrow/button nav, and swapped notation-preview cards for a **searchable library**. Tabs sourced from harptabs (parser-validated, ear-check pending). 35 unit tests; verified in Chrome via synthetic pitch events. **Pick up by:** Simone ear-checks the 9 library tabs on a real harp + confirms the mic happy-path (click→mic→play, dial feel, arrow keys). Then convert more SONG_LIBRARY.md songs. Pushed — Netlify auto-deploys (bump SW cache version if modules went stale).
+**2026-06-13→15 — Built & shipped the harmonica tab trainer (v1), merged to main.** Parser → onset-gated `tab-runner` → searchable library. 35 unit tests; verified via synthetic pitch events. (Retired in the 07-09 rebuild — reading real tabs stayed nicer than reading in-app.)
+
+**2026-07-09 — Scoped, then rebuilt the entire site as "the pitch mirror" (branch `rebuild/pitch-mirror`, not merged).** Diagnosis first: ~40% of the 20k-line codebase served products Simone never bought (dead game cluster, never-validated session machine); each generation had added a sibling tab instead of enriching the graph she actually opens. She green-lit a full rebuild: graph-first, bend trainer kept, tab trainer cut, "incredibly attractive" with dithered-print aesthetics and toggleable skins. Shipped in two commits: demolition (−11.7k lines), then the rebuild — instrument profiles (`js/utils/instruments.js`: harp tokens, whistle fingerings, position math; 11 node tests), settings + A4 calibration flow, three skins (press/neon/riso) over a Departure Mono design system, pause-holds-trace, one view mechanism, `[hidden] !important`. Verified end-to-end in Chrome with an oscillator-backed fake `getUserMedia` (real detector, real canvas): melodies draw, skins render (neon glow, riso misregistration), tuner reads +12¢ exactly, bend −4' locks, calibration measured +15¢ → A4 443.8 → same tone reads 0¢. Gotchas for next time: hidden automation tabs suspend rAF (shim it, don't debug ghosts); `?dev` now skips the SW (the fresh-ports dance is dead). New instruments fact: Simone also plays **tin whistle** (profile shipped: C/D/Eb/F/G/Bb/Low D). **Pick up by:** Simone device-checks the branch (mic feel, phone readability, skin taste) → merge on her go → react to real use.

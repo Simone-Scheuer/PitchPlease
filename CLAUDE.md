@@ -1,23 +1,27 @@
 # PitchPlease
 
 ## Project Vision
-A web-based pitch detection and ear training app. Detects what note you're playing/singing in real time, visualizes pitch accuracy on a scrolling graph, and offers game-mode challenges where you match target notes. Fully client-side, no backend, works offline as a PWA.
+A pitch mirror that knows the player's instruments. Detects the note in real time and shows it on a scrolling graph in note names AND the instrument's own language (harmonica hole tokens, tin whistle fingerings), plus a precision tuner and a bend trainer. Fully client-side, no backend, works offline as a PWA. See `PRD.md` v3.
 
 ## Tech Stack
 - **Language**: Vanilla JavaScript (ES modules, no transpilation)
 - **Markup/Style**: HTML5, CSS3 (custom properties, clamp, dvh)
 - **Pitch Detection**: [pitchy](https://github.com/ianprime0509/pitchy) via esm.sh CDN
 - **Audio**: Web Audio API (getUserMedia → AnalyserNode → pitchy)
-- **Rendering**: Canvas 2D for needle and graph visualizations
-- **Persistence**: localStorage (namespaced with `pp:` prefix)
-- **PWA**: Service worker (cache-first local, network-first CDN), web manifest
+- **Rendering**: Canvas 2D for graph/strip/meter visualizations
+- **Type**: Departure Mono (OFL), self-hosted at `assets/fonts/`
+- **Persistence**: localStorage (namespaced with `pp:` prefix; app settings live in one `pp:settings` object via `js/utils/settings.js`)
+- **PWA**: Service worker (cache-first local, network-first CDN), web manifest. Append `?dev` to the URL to skip the SW during local iteration.
 - **Build**: None. No bundler, no transpiler. ES modules loaded natively by the browser.
 
 ## Architecture
 - **Event bus** (`js/utils/event-bus.js`) decouples audio pipeline from UI. All components subscribe to `pitch` / `silence` events — never poll or directly reference the audio layer.
 - **Views** (`js/views/`) are screen controllers that wire components to events and manage lifecycle.
 - **Components** (`js/components/`) are reusable UI units with `update(data)` / `clear()` / `destroy()` interface.
-- **Audio modules** (`js/audio/`) handle mic access, pitch detection, and music math. They emit events, never touch DOM.
+- **Audio modules** (`js/audio/`) handle mic access, pitch detection, and music math. They emit events, never touch DOM. `mic.start()` is idempotent; views release the mic on deactivate.
+- **Instrument profiles** (`js/utils/instruments.js`) are pure data/math: midi → native label maps (harp tokens, whistle fingerings), default ranges, harp position math. Unit-tested with `node --test js/utils/instruments.test.js`.
+- **Skins**: `data-skin` on `<html>` (`press` / `neon` / `riso`) restyles chrome and canvas together. Canvas reads colors via `js/utils/theme-colors.js`; per-skin render behavior (glow, misregistration) lives in `pitch-graph.js` SKIN_FX.
+- **View visibility**: exactly one mechanism — `.view.active`, switched by the registry in `app.js`. `[hidden]` carries `!important` in reset.css; never add per-ID display overrides.
 
 ## Developer Guidelines
 
