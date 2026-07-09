@@ -646,6 +646,17 @@ export class PitchGraph {
   // Rails
   // -------------------------------------------------------------------------
 
+  /** Chord-tone marker: a small triangle pointing into the graph. dir: 1 = right, -1 = left. */
+  #drawChordArrow(ctx, xTip, y, dir) {
+    ctx.fillStyle = themeColors.accent2;
+    ctx.beginPath();
+    ctx.moveTo(xTip, y);
+    ctx.lineTo(xTip - dir * 7, y - 5);
+    ctx.lineTo(xTip - dir * 7, y + 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   #rowHighlights(midi) {
     return {
       isCurrent: this.#currentMidi === midi,
@@ -702,10 +713,9 @@ export class PitchGraph {
       this.#drawRowBands(ctx, midi, areaLeft, areaW);
       const { isCurrent, isTapped } = this.#rowHighlights(midi);
 
-      // Droning chord tones get a pixel tick at the rail's inner edge
+      // Droning chord tones: arrow at the rail's inner edge pointing at the graph
       if (this.#chordNotes?.has(noteIndex)) {
-        ctx.fillStyle = themeColors.accent2;
-        ctx.fillRect(areaRight - 6, y - 2, 4, 4);
+        this.#drawChordArrow(ctx, areaRight - 2, y, 1);
       }
 
       if (!hasNative) {
@@ -802,8 +812,7 @@ export class PitchGraph {
       const noteIndex = ((midi % 12) + 12) % 12;
       const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
       if (this.#chordNotes?.has(noteIndex)) {
-        ctx.fillStyle = themeColors.accent2;
-        ctx.fillRect(areaLeft + 2, y - 2, 4, 4);
+        this.#drawChordArrow(ctx, areaLeft + 2, y, -1);
       }
       this.#drawNoteLabel(ctx, midi, areaRight - 8, y, 'right', isCurrent, isTapped, inScale);
     }

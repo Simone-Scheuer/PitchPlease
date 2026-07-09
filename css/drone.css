@@ -80,13 +80,25 @@
   min-height: 1.4em;
 }
 
-/* "KEY OF G" chip inside the PROGRESSION label */
+/* "KEY OF G" selector inside the PROGRESSION label */
 .sheet__key {
   color: var(--color-accent);
+  background: var(--color-bg);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
-  padding: 1px 6px;
+  padding: 2px 18px 2px 6px;
+  font: inherit;
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
   white-space: nowrap;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 49%, currentColor 50%),
+    linear-gradient(-45deg, transparent 49%, currentColor 50%);
+  background-position: calc(100% - 10px) 55%, calc(100% - 6px) 55%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  min-height: 24px;
 }
 
 .sheet__val {

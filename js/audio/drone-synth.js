@@ -20,15 +20,21 @@ import { NOTE_NAMES } from '../utils/constants.js';
 // Chord + progression definitions
 // ---------------------------------------------------------------------------
 
+/**
+ * `intervals` (semitones) drive display + rail marks; `ratios` drive the
+ * oscillators. Ratios are JUST INTONATION — pure 5/4 thirds and 3/2 fifths
+ * lock on sustained tones where tempered intervals beat audibly. A drone
+ * doesn't have to compromise with a piano, so it doesn't.
+ */
 export const CHORD_QUALITIES = Object.freeze({
-  maj:  { label: 'MAJ',  suffix: '',     intervals: [0, 4, 7] },
-  min:  { label: 'MIN',  suffix: 'm',    intervals: [0, 3, 7] },
-  dom7: { label: '7',    suffix: '7',    intervals: [0, 4, 7, 10] },
-  m7:   { label: 'm7',   suffix: 'm7',   intervals: [0, 3, 7, 10] },
-  maj7: { label: 'MAJ7', suffix: 'maj7', intervals: [0, 4, 7, 11] },
-  sus4: { label: 'SUS4', suffix: 'sus4', intervals: [0, 5, 7] },
-  p5:   { label: '5',    suffix: '5',    intervals: [0, 7] },
-  dim:  { label: 'DIM',  suffix: '°',    intervals: [0, 3, 6] },
+  maj:  { label: 'MAJ',  suffix: '',     intervals: [0, 4, 7],      ratios: [1, 5 / 4, 3 / 2] },
+  min:  { label: 'MIN',  suffix: 'm',    intervals: [0, 3, 7],      ratios: [1, 6 / 5, 3 / 2] },
+  dom7: { label: '7',    suffix: '7',    intervals: [0, 4, 7, 10],  ratios: [1, 5 / 4, 3 / 2, 7 / 4] },
+  m7:   { label: 'm7',   suffix: 'm7',   intervals: [0, 3, 7, 10],  ratios: [1, 6 / 5, 3 / 2, 9 / 5] },
+  maj7: { label: 'MAJ7', suffix: 'maj7', intervals: [0, 4, 7, 11],  ratios: [1, 5 / 4, 3 / 2, 15 / 8] },
+  sus4: { label: 'SUS4', suffix: 'sus4', intervals: [0, 5, 7],      ratios: [1, 4 / 3, 3 / 2] },
+  p5:   { label: '5',    suffix: '5',    intervals: [0, 7],         ratios: [1, 3 / 2] },
+  dim:  { label: 'DIM',  suffix: '°',    intervals: [0, 3, 6],      ratios: [1, 6 / 5, 7 / 5] },
 });
 
 /** Steps are semitone offsets from the home root + explicit qualities. */
@@ -127,8 +133,8 @@ const FADE_S = 0.45;
 const DETUNE_CENTS = 2.0;   // enough width to feel alive, no wub-wub beating
 const TONE_GAIN = 0.16;
 const SUB_GAIN = 0.16;
-const FILTER_LFO_HZ = 0.05;
-const FILTER_LFO_DEPTH = 110;
+const FILTER_LFO_HZ = 0.04;
+const FILTER_LFO_DEPTH = 55;
 const PROG_TICK_MS = 150;
 const REVERB_SECONDS = 2.4;
 
@@ -283,18 +289,18 @@ class DroneSynth {
     chainGain.connect(this.#master);
 
     const voice = settings.get('droneVoice');
-    const root = rootMidiFor(rootIndex);
-    const midis = [
-      root,
-      ...quality.intervals.slice(1).map(i => root + i),
-      root + 12,
+    const rootHz = midiToFrequency(rootMidiFor(rootIndex), settings.get('a4'));
+    // Just-intonation frequencies straight from the ratios + octave double
+    const tonesHz = [
+      ...quality.ratios.map(r => rootHz * r),
+      rootHz * 2,
     ];
 
     const oscs = [];
-    const addOsc = (midi, type, gainValue, detune) => {
+    const addOsc = (hz, type, gainValue, detune) => {
       const osc = ctx.createOscillator();
       osc.type = type;
-      osc.frequency.value = midiToFrequency(midi, settings.get('a4'));
+      osc.frequency.value = hz;
       osc.detune.value = detune;
       const g = ctx.createGain();
       g.gain.value = gainValue;
@@ -304,10 +310,15 @@ class DroneSynth {
       oscs.push(osc);
     };
 
-    addOsc(root - 12, 'sine', SUB_GAIN, 0); // sub always sine
-    for (const midi of midis) {
-      addOsc(midi, voice, TONE_GAIN, -DETUNE_CENTS);
-      addOsc(midi, voice, TONE_GAIN, DETUNE_CENTS);
+    addOsc(rootHz / 2, 'sine', SUB_GAIN, 0); // sub always sine
+    for (const hz of tonesHz) {
+      if (voice === 'sine') {
+        // Pure organ: one osc per tone. Detuned sine pairs just tremolo.
+        addOsc(hz, voice, TONE_GAIN * 1.6, 0);
+      } else {
+        addOsc(hz, voice, TONE_GAIN, -DETUNE_CENTS);
+        addOsc(hz, voice, TONE_GAIN, DETUNE_CENTS);
+      }
     }
 
     this.#chain = { gain: chainGain, filter, oscs };

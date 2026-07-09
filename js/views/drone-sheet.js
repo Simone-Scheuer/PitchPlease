@@ -41,6 +41,18 @@ class DroneSheet {
 
     qs('#drone-sheet-close').addEventListener('click', () => this.close());
 
+    // Key selector — the direct way to set the progression's home key.
+    // Ring taps still work; this one stays put while the highlight walks.
+    for (let i = 0; i < 12; i++) {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = `KEY OF ${NOTE_NAMES[i]}`;
+      this.#keyEl.appendChild(opt);
+    }
+    this.#keyEl.addEventListener('change', () => {
+      this.#select(Number(this.#keyEl.value), settings.get('droneChordQuality'));
+    });
+
     // Progression chips
     const chips = qs('#drone-prog-chips');
     const addChip = (key, label) => {
@@ -246,8 +258,7 @@ class DroneSheet {
   }
 
   #renderKey() {
-    const root = settings.get('droneChordRoot');
-    this.#keyEl.textContent = `KEY OF ${NOTE_NAMES[((root % 12) + 12) % 12]}`;
+    this.#keyEl.value = String(((settings.get('droneChordRoot') % 12) + 12) % 12);
   }
 
   #renderBarVal() {

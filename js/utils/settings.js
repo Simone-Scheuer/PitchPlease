@@ -23,7 +23,7 @@ const DEFAULTS = Object.freeze({
   droneBarMs: 4000,
   droneVolume: 0.6,
   droneCutoff: 1350,         // lowpass Hz ("warmth")
-  droneSpace: 0.25,          // reverb wet gain
+  droneSpace: 0.12,          // reverb wet gain
   droneRegister: 'low',      // 'low' | 'high' (+12)
   scaleRoot: '',             // '' = no scale overlay
   scaleType: 'major',
