@@ -1,28 +1,38 @@
 /**
- * drone-sheet.js — Chord drone panel: radial dial + progressions + voice.
+ * drone-sheet.js — Chord drone panel: radial dial + progressions + synth.
  *
- * Non-modal bottom sheet over the graph. The drone keeps sounding when the
- * sheet closes or the tab switches; state is announced on the bus as
- * `drone:state` so the graph can mark chord tones and label its button.
+ * Non-modal bottom sheet over the graph. Everything is live: tapping a
+ * root during a progression re-keys it from the NEXT bar (no restart),
+ * voice/register/warmth/space changes land on the sounding chord, and
+ * bar length applies from the next boundary. The home key stays visible
+ * ("KEY OF G" + a marked ring segment) while the progression's moving
+ * highlight walks the chords.
+ *
+ * State goes out on the bus as `drone:state`.
  */
 
 import { qs, qsa } from '../utils/dom.js';
 import { bus } from '../utils/event-bus.js';
 import { settings } from '../utils/settings.js';
 import {
-  droneSynth, PROGRESSIONS, CHORD_QUALITIES, chordLabel, chordNoteClasses,
+  droneSynth, PROGRESSIONS, chordLabel, chordNoteClasses,
 } from '../audio/drone-synth.js';
 import { ChordDial } from '../components/chord-dial.js';
 import { ROOT_NAMES } from '../utils/scales.js';
+import { NOTE_NAMES } from '../utils/constants.js';
 
 class DroneSheet {
   #sheet;
   #dial;
   #nextEl;
+  #keyEl;
+  #barValEl;
 
   init() {
     this.#sheet = qs('#drone-sheet');
     this.#nextEl = qs('#drone-next');
+    this.#keyEl = qs('#drone-key');
+    this.#barValEl = qs('#drone-bar-val');
 
     this.#dial = new ChordDial(qs('#chord-dial'), {
       onSelect: (rootIndex, quality) => this.#select(rootIndex, quality),
@@ -44,42 +54,60 @@ class DroneSheet {
     addChip('hold', 'HOLD');
     for (const [key, prog] of Object.entries(PROGRESSIONS)) addChip(key, prog.label);
 
-    // Bar length
-    const barSelect = qs('#drone-bar');
-    barSelect.value = String(settings.get('droneBarMs'));
-    barSelect.addEventListener('change', () => {
-      settings.set('droneBarMs', Number(barSelect.value));
-      if (droneSynth.progressionKey) this.#restartProgression();
+    // Bar length — continuous slider, live from the next boundary
+    const bar = qs('#drone-bar');
+    bar.value = String(settings.get('droneBarMs'));
+    bar.addEventListener('input', () => {
+      const ms = Number(bar.value);
+      settings.set('droneBarMs', ms);
+      droneSynth.setBarMs(ms);
+      this.#renderBarVal();
     });
 
-    // Voice
+    // Voice — revoices the sounding chord immediately
     for (const btn of qsa('#drone-voice-seg .seg__btn')) {
       btn.addEventListener('click', () => {
         settings.set('droneVoice', btn.dataset.voice);
         this.#renderControls();
-        // Re-voice a sounding held chord right away
-        if (droneSynth.isPlaying && !droneSynth.progressionKey) {
-          const { rootIndex, quality } = this.#dial.selection;
-          droneSynth.play(rootIndex, quality);
-        }
+        droneSynth.revoice();
       });
     }
 
-    // Volume
+    // Register — low/high octave, live
+    for (const btn of qsa('#drone-register-seg .seg__btn')) {
+      btn.addEventListener('click', () => {
+        settings.set('droneRegister', btn.dataset.register);
+        this.#renderControls();
+        droneSynth.revoice();
+      });
+    }
+
+    // Warmth (lowpass), space (reverb), volume — all live
+    const cutoff = qs('#drone-cutoff');
+    cutoff.value = String(settings.get('droneCutoff'));
+    cutoff.addEventListener('input', () => droneSynth.setCutoff(Number(cutoff.value)));
+
+    const space = qs('#drone-space');
+    space.value = String(settings.get('droneSpace'));
+    space.addEventListener('input', () => droneSynth.setSpace(Number(space.value)));
+
     const volume = qs('#drone-volume');
     volume.value = String(settings.get('droneVolume'));
     volume.addEventListener('input', () => droneSynth.setVolume(Number(volume.value)));
 
-    // Scale root marker follows the graph's key selection
     bus.on('settings:changed', ({ key }) => {
       if (key === 'scaleRoot') this.#syncScaleRoot();
-      if (key === 'droneVoice') this.#renderControls();
+      if (key === 'droneVoice' || key === 'droneRegister') this.#renderControls();
     });
 
-    this.#dial.setSelection(settings.get('droneChordRoot'), settings.get('droneChordQuality'));
-    this.#dial.setCenterLabel(chordLabel(settings.get('droneChordRoot'), settings.get('droneChordQuality')));
+    const home = settings.get('droneChordRoot');
+    this.#dial.setSelection(home, settings.get('droneChordQuality'));
+    this.#dial.setCenterLabel(chordLabel(home, settings.get('droneChordQuality')));
+    this.#dial.setHomeRoot(home);
     this.#syncScaleRoot();
     this.#renderControls();
+    this.#renderBarVal();
+    this.#renderKey();
   }
 
   // -------------------------------------------------------------------------
@@ -94,9 +122,9 @@ class DroneSheet {
     // First open with a key selected: meet the player at their scale root
     if (!droneSynth.isPlaying && settings.get('scaleRoot')) {
       const idx = ROOT_NAMES.indexOf(settings.get('scaleRoot'));
-      if (idx >= 0 && idx !== this.#dial.selection.rootIndex) {
+      if (idx >= 0 && idx !== settings.get('droneChordRoot')) {
+        this.#setHome(idx, this.#dial.selection.quality);
         this.#dial.setSelection(idx, this.#dial.selection.quality);
-        this.#persistSelection();
         this.#dial.setCenterLabel(chordLabel(idx, this.#dial.selection.quality));
       }
     }
@@ -108,27 +136,30 @@ class DroneSheet {
   }
 
   // -------------------------------------------------------------------------
-  // Selection + playback
+  // Selection — home key + live re-keying
   // -------------------------------------------------------------------------
 
-  #persistSelection() {
-    const { rootIndex, quality } = this.#dial.selection;
+  #setHome(rootIndex, quality) {
     settings.set('droneChordRoot', rootIndex);
     settings.set('droneChordQuality', quality);
+    this.#dial.setHomeRoot(rootIndex);
+    this.#renderKey();
   }
 
   async #select(rootIndex, quality) {
-    this.#dial.setSelection(rootIndex, quality);
-    this.#persistSelection();
-    this.#dial.setCenterLabel(chordLabel(rootIndex, quality));
+    this.#setHome(rootIndex, quality);
 
-    if (!droneSynth.isPlaying) return;
-    if (droneSynth.progressionKey) {
-      // New root re-keys the running progression
-      this.#restartProgression();
-    } else {
+    if (droneSynth.isPlaying && droneSynth.progressionKey) {
+      // Re-key the running progression from the NEXT bar — keep the groove
+      droneSynth.setProgressionRoot(rootIndex);
+      return;
+    }
+
+    this.#dial.setSelection(rootIndex, quality);
+    this.#dial.setCenterLabel(chordLabel(rootIndex, quality));
+    if (droneSynth.isPlaying) {
       await droneSynth.play(rootIndex, quality);
-      this.#announce();
+      this.#announceChord({ rootIndex, quality });
     }
   }
 
@@ -136,18 +167,21 @@ class DroneSheet {
     if (droneSynth.isPlaying) {
       droneSynth.stop();
       this.#dial.setPlaying(false);
-      const { rootIndex, quality } = this.#dial.selection;
-      this.#dial.setCenterLabel(chordLabel(rootIndex, quality));
+      const root = settings.get('droneChordRoot');
+      const quality = settings.get('droneChordQuality');
+      this.#dial.setSelection(root, quality);
+      this.#dial.setCenterLabel(chordLabel(root, quality));
       this.#nextEl.innerHTML = '&nbsp;';
-      this.#announce();
+      bus.emit('drone:state', { playing: false, label: null, noteClasses: null });
       return;
     }
 
     const prog = settings.get('droneProgression');
-    const { rootIndex, quality } = this.#dial.selection;
+    const root = settings.get('droneChordRoot');
+    const quality = settings.get('droneChordQuality');
     if (prog === 'hold') {
-      await droneSynth.play(rootIndex, quality);
-      this.#announce();
+      await droneSynth.play(root, quality);
+      this.#announceChord({ rootIndex: root, quality });
     } else {
       await this.#startProgression(prog);
     }
@@ -160,24 +194,23 @@ class DroneSheet {
     if (!droneSynth.isPlaying) return;
     if (key === 'hold') {
       droneSynth.stopProgression();
-      const { rootIndex, quality } = this.#dial.selection;
-      await droneSynth.play(rootIndex, quality);
+      const root = settings.get('droneChordRoot');
+      const quality = settings.get('droneChordQuality');
+      await droneSynth.play(root, quality);
+      this.#dial.setSelection(root, quality);
+      this.#dial.setCenterLabel(chordLabel(root, quality));
       this.#nextEl.innerHTML = '&nbsp;';
-      this.#announce();
+      this.#announceChord({ rootIndex: root, quality });
     } else {
       await this.#startProgression(key);
     }
   }
 
   async #startProgression(key) {
-    const home = settings.get('droneChordRoot');
-    await droneSynth.startProgression(key, home, settings.get('droneBarMs'),
-      (stepIndex, chord) => this.#onProgChord(key, stepIndex, chord));
-  }
-
-  #restartProgression() {
-    const key = droneSynth.progressionKey ?? settings.get('droneProgression');
-    if (key && key !== 'hold') this.#startProgression(key);
+    await droneSynth.startProgression(
+      key, settings.get('droneChordRoot'), settings.get('droneBarMs'),
+      (stepIndex, chord) => this.#onProgChord(key, stepIndex, chord),
+    );
   }
 
   #onProgChord(progKey, stepIndex, chord) {
@@ -185,13 +218,21 @@ class DroneSheet {
     this.#dial.setCenterLabel(chordLabel(chord.rootIndex, chord.quality));
     const steps = PROGRESSIONS[progKey]?.steps;
     if (steps) {
+      const numeral = steps[stepIndex]?.numeral ?? '';
       const next = steps[(stepIndex + 1) % steps.length];
       const home = settings.get('droneChordRoot');
       this.#nextEl.textContent =
-        `NEXT: ${chordLabel((home + next.offset) % 12, next.quality)}`;
+        `${numeral} · NEXT: ${chordLabel((home + next.offset) % 12, next.quality)}`;
     }
-    // Announce from the scheduler's chord, not droneSynth.current — play()
-    // is async and current lags a beat behind the boundary.
+    this.#announceChord(chord);
+  }
+
+  // -------------------------------------------------------------------------
+  // State out + rendering
+  // -------------------------------------------------------------------------
+
+  /** Announce from the given chord (droneSynth.current lags async play). */
+  #announceChord(chord) {
     bus.emit('drone:state', {
       playing: true,
       label: chordLabel(chord.rootIndex, chord.quality),
@@ -199,22 +240,18 @@ class DroneSheet {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // State out
-  // -------------------------------------------------------------------------
-
-  #announce() {
-    const current = droneSynth.current;
-    bus.emit('drone:state', {
-      playing: droneSynth.isPlaying,
-      label: current ? chordLabel(current.rootIndex, current.quality) : null,
-      noteClasses: current ? chordNoteClasses(current.rootIndex, current.quality) : null,
-    });
-  }
-
   #syncScaleRoot() {
     const root = settings.get('scaleRoot');
     this.#dial.setScaleRoot(root ? ROOT_NAMES.indexOf(root) : null);
+  }
+
+  #renderKey() {
+    const root = settings.get('droneChordRoot');
+    this.#keyEl.textContent = `KEY OF ${NOTE_NAMES[((root % 12) + 12) % 12]}`;
+  }
+
+  #renderBarVal() {
+    this.#barValEl.textContent = `${(settings.get('droneBarMs') / 1000).toFixed(2).replace(/\.?0+$/, '')}s`;
   }
 
   #renderControls() {
@@ -224,6 +261,9 @@ class DroneSheet {
     }
     for (const btn of qsa('#drone-voice-seg .seg__btn')) {
       btn.classList.toggle('active', btn.dataset.voice === settings.get('droneVoice'));
+    }
+    for (const btn of qsa('#drone-register-seg .seg__btn')) {
+      btn.classList.toggle('active', btn.dataset.register === settings.get('droneRegister'));
     }
   }
 }

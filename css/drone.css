@@ -80,6 +80,19 @@
   min-height: 1.4em;
 }
 
+/* "KEY OF G" chip inside the PROGRESSION label */
+.sheet__key {
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.sheet__val {
+  color: var(--color-text);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -184,6 +197,20 @@
 
 .dial__marker {
   fill: var(--color-accent);
+}
+
+/* Home key of the progression — persistent even as the highlight walks */
+.dial__seg.home path {
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+}
+
+.dial__seg.home text {
+  fill: var(--color-accent);
+}
+
+.dial__seg.home.selected text {
+  fill: var(--chip-text);
 }
 
 .dial__center circle {

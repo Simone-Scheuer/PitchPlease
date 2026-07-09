@@ -59,6 +59,7 @@ export class ChordDial {
   #rootIndex = 0;
   #quality = 'maj';
   #scaleRoot = null;
+  #homeRoot = null;
   #scaleMarkers = new Map(); // rootIndex -> marker circle
 
   constructor(svg, { onSelect, onCenterTap } = {}) {
@@ -150,6 +151,14 @@ export class ChordDial {
     this.#scaleRoot = rootIndex;
     for (const [idx, marker] of this.#scaleMarkers) {
       marker.setAttribute('opacity', idx === rootIndex ? 1 : 0);
+    }
+  }
+
+  /** Mark the progression's home key on the ring (null clears). */
+  setHomeRoot(rootIndex) {
+    this.#homeRoot = rootIndex;
+    for (const [idx, g] of this.#rootGroups) {
+      g.classList.toggle('home', idx === rootIndex);
     }
   }
 

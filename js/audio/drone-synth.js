@@ -31,32 +31,78 @@ export const CHORD_QUALITIES = Object.freeze({
   dim:  { label: 'DIM',  suffix: '°',    intervals: [0, 3, 6] },
 });
 
-/** Steps are semitone offsets from the dial's root + explicit qualities. */
+/** Steps are semitone offsets from the home root + explicit qualities. */
 export const PROGRESSIONS = Object.freeze({
   'i-iv-v': {
     label: 'I·IV·V',
     steps: [
-      { offset: 0, quality: 'maj' }, { offset: 5, quality: 'maj' },
-      { offset: 7, quality: 'dom7' }, { offset: 0, quality: 'maj' },
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 5, quality: 'maj', numeral: 'IV' },
+      { offset: 7, quality: 'dom7', numeral: 'V7' }, { offset: 0, quality: 'maj', numeral: 'I' },
     ],
   },
   'blues12': {
     label: '12-BAR',
-    steps: [0, 0, 0, 0, 5, 5, 0, 0, 7, 5, 0, 7]
-      .map(offset => ({ offset, quality: 'dom7' })),
+    steps: [
+      ['I7', 0], ['I7', 0], ['I7', 0], ['I7', 0],
+      ['IV7', 5], ['IV7', 5], ['I7', 0], ['I7', 0],
+      ['V7', 7], ['IV7', 5], ['I7', 0], ['V7', 7],
+    ].map(([numeral, offset]) => ({ offset, quality: 'dom7', numeral })),
+  },
+  'minor12': {
+    label: '12-BAR MIN',
+    steps: [
+      ['i7', 0, 'm7'], ['i7', 0, 'm7'], ['i7', 0, 'm7'], ['i7', 0, 'm7'],
+      ['iv7', 5, 'm7'], ['iv7', 5, 'm7'], ['i7', 0, 'm7'], ['i7', 0, 'm7'],
+      ['♭VI', 8, 'maj'], ['V7', 7, 'dom7'], ['i7', 0, 'm7'], ['V7', 7, 'dom7'],
+    ].map(([numeral, offset, quality]) => ({ offset, quality, numeral })),
   },
   'i-v-vi-iv': {
     label: 'I·V·vi·IV',
     steps: [
-      { offset: 0, quality: 'maj' }, { offset: 7, quality: 'maj' },
-      { offset: 9, quality: 'min' }, { offset: 5, quality: 'maj' },
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 7, quality: 'maj', numeral: 'V' },
+      { offset: 9, quality: 'min', numeral: 'vi' }, { offset: 5, quality: 'maj', numeral: 'IV' },
+    ],
+  },
+  'doowop': {
+    label: 'I·vi·IV·V',
+    steps: [
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 9, quality: 'min', numeral: 'vi' },
+      { offset: 5, quality: 'maj', numeral: 'IV' }, { offset: 7, quality: 'dom7', numeral: 'V7' },
+    ],
+  },
+  'axis': {
+    label: 'vi·IV·I·V',
+    steps: [
+      { offset: 9, quality: 'min', numeral: 'vi' }, { offset: 5, quality: 'maj', numeral: 'IV' },
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 7, quality: 'maj', numeral: 'V' },
     ],
   },
   'ii-v-i': {
     label: 'ii·V·I',
     steps: [
-      { offset: 2, quality: 'm7' }, { offset: 7, quality: 'dom7' },
-      { offset: 0, quality: 'maj7' }, { offset: 0, quality: 'maj7' },
+      { offset: 2, quality: 'm7', numeral: 'ii7' }, { offset: 7, quality: 'dom7', numeral: 'V7' },
+      { offset: 0, quality: 'maj7', numeral: 'IΔ' }, { offset: 0, quality: 'maj7', numeral: 'IΔ' },
+    ],
+  },
+  'andalusian': {
+    label: 'ANDALUSIAN',
+    steps: [
+      { offset: 0, quality: 'min', numeral: 'i' }, { offset: 10, quality: 'maj', numeral: '♭VII' },
+      { offset: 8, quality: 'maj', numeral: '♭VI' }, { offset: 7, quality: 'dom7', numeral: 'V7' },
+    ],
+  },
+  'mixovamp': {
+    label: 'I·♭VII VAMP',
+    steps: [
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 10, quality: 'maj', numeral: '♭VII' },
+      { offset: 0, quality: 'maj', numeral: 'I' }, { offset: 10, quality: 'maj', numeral: '♭VII' },
+    ],
+  },
+  'minorvamp': {
+    label: 'i·♭VII·♭VI',
+    steps: [
+      { offset: 0, quality: 'min', numeral: 'i' }, { offset: 10, quality: 'maj', numeral: '♭VII' },
+      { offset: 8, quality: 'maj', numeral: '♭VI' }, { offset: 10, quality: 'maj', numeral: '♭VII' },
     ],
   },
 });
@@ -78,18 +124,33 @@ export function chordNoteClasses(rootIndex, qualityKey) {
 // ---------------------------------------------------------------------------
 
 const FADE_S = 0.45;
-const DETUNE_CENTS = 3.5;
+const DETUNE_CENTS = 2.0;   // enough width to feel alive, no wub-wub beating
 const TONE_GAIN = 0.16;
-const SUB_GAIN = 0.22;
-const FILTER_BASE_HZ = 1350;
-const FILTER_LFO_HZ = 0.07;
-const FILTER_LFO_DEPTH = 220;
+const SUB_GAIN = 0.16;
+const FILTER_LFO_HZ = 0.05;
+const FILTER_LFO_DEPTH = 110;
 const PROG_TICK_MS = 150;
+const REVERB_SECONDS = 2.4;
 
-/** Root lands in octave 2–3 so the drone sits under the melody. */
+/** Root lands in octave 2–3 (LOW) or 3–4 (HIGH register). */
 function rootMidiFor(rootIndex) {
   const midi = 48 + rootIndex; // C3..B3
-  return rootIndex > 7 ? midi - 12 : midi;
+  const low = rootIndex > 7 ? midi - 12 : midi;
+  return settings.get('droneRegister') === 'high' ? low + 12 : low;
+}
+
+/** Synthetic impulse response: decaying noise burst = a soft, cheap room. */
+function makeImpulse(ctx) {
+  const rate = ctx.sampleRate;
+  const length = Math.floor(rate * REVERB_SECONDS);
+  const impulse = ctx.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.8);
+    }
+  }
+  return impulse;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,15 +187,24 @@ class DroneSynth {
     return this.#progKey;
   }
 
+  #wet = null;
+
   async #ensure() {
     await mic.ensureAudioContext();
     const ctx = mic.audioContext;
     if (this.#ctx !== ctx) {
-      // Fresh context (mic stop closes the old one) — rebuild master chain
+      // Fresh context — rebuild master chain: master → dry + reverb-wet → out
       this.#ctx = ctx;
       this.#master = ctx.createGain();
       this.#master.gain.value = settings.get('droneVolume');
-      this.#master.connect(ctx.destination);
+      this.#master.connect(ctx.destination); // dry
+      const convolver = ctx.createConvolver();
+      convolver.buffer = makeImpulse(ctx);
+      this.#wet = ctx.createGain();
+      this.#wet.gain.value = settings.get('droneSpace');
+      this.#master.connect(convolver);
+      convolver.connect(this.#wet);
+      this.#wet.connect(ctx.destination);
       this.#lfo = ctx.createOscillator();
       this.#lfo.frequency.value = FILTER_LFO_HZ;
       this.#lfoGain = ctx.createGain();
@@ -155,6 +225,41 @@ class DroneSynth {
     }
   }
 
+  /** Reverb amount, 0–0.6. Live. */
+  setSpace(v) {
+    settings.set('droneSpace', v);
+    if (this.#wet && this.#ctx) {
+      const t = this.#ctx.currentTime;
+      this.#wet.gain.setValueAtTime(this.#wet.gain.value, t);
+      this.#wet.gain.linearRampToValueAtTime(v, t + 0.05);
+    }
+  }
+
+  /** Lowpass cutoff in Hz. Live — glides on the sounding chord too. */
+  setCutoff(hz) {
+    settings.set('droneCutoff', hz);
+    if (this.#chain && this.#ctx) {
+      const t = this.#ctx.currentTime;
+      this.#chain.filter.frequency.setValueAtTime(this.#chain.filter.frequency.value, t);
+      this.#chain.filter.frequency.linearRampToValueAtTime(hz, t + 0.1);
+    }
+  }
+
+  /** Rebuild the sounding chord with current voice/register (crossfade). */
+  revoice() {
+    if (this.#current) this.play(this.#current.rootIndex, this.#current.quality);
+  }
+
+  /** Bar length changes apply from the next chord boundary — no restart. */
+  setBarMs(ms) {
+    this.#progBarMs = ms;
+  }
+
+  /** Re-key a running progression from the next bar — no restart, no jump. */
+  setProgressionRoot(rootIndex) {
+    this.#progRoot = rootIndex;
+  }
+
   /** Start (or crossfade to) a chord. */
   async play(rootIndex, qualityKey) {
     const ctx = await this.#ensure();
@@ -171,7 +276,7 @@ class DroneSynth {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = FILTER_BASE_HZ;
+    filter.frequency.value = settings.get('droneCutoff');
     filter.Q.value = 0.4;
     this.#lfoGain.connect(filter.frequency);
     filter.connect(chainGain);

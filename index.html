@@ -250,26 +250,39 @@
       <svg id="chord-dial" aria-label="Chord selector: outer ring roots, inner ring qualities, center plays"></svg>
       <div class="sheet__controls">
         <div>
-          <div class="drawer__label">PROGRESSION</div>
+          <div class="drawer__label">PROGRESSION <span class="sheet__key" id="drone-key">KEY OF G</span></div>
           <div class="chips" id="drone-prog-chips"></div>
         </div>
         <div class="sheet__row">
-          <div class="sheet__field">
-            <div class="drawer__label">BAR</div>
-            <select class="select" id="drone-bar" aria-label="Seconds per chord">
-              <option value="2000">2s</option>
-              <option value="4000">4s</option>
-              <option value="8000">8s</option>
-            </select>
+          <div class="sheet__field" style="flex: 1.4;">
+            <div class="drawer__label">BAR <span class="sheet__val" id="drone-bar-val">4s</span></div>
+            <input type="range" class="range" id="drone-bar" min="1000" max="10000" step="250" aria-label="Seconds per chord">
           </div>
           <div class="sheet__field">
-            <div class="drawer__label">VOICE</div>
-            <div class="seg" id="drone-voice-seg">
-              <button class="seg__btn" data-voice="sine">SIN</button>
-              <button class="seg__btn" data-voice="triangle">TRI</button>
-              <button class="seg__btn" data-voice="square">SQR</button>
-              <button class="seg__btn" data-voice="sawtooth">SAW</button>
+            <div class="drawer__label">REGISTER</div>
+            <div class="seg" id="drone-register-seg">
+              <button class="seg__btn" data-register="low">LOW</button>
+              <button class="seg__btn" data-register="high">HIGH</button>
             </div>
+          </div>
+        </div>
+        <div>
+          <div class="drawer__label">VOICE</div>
+          <div class="seg" id="drone-voice-seg">
+            <button class="seg__btn" data-voice="sine">SIN</button>
+            <button class="seg__btn" data-voice="triangle">TRI</button>
+            <button class="seg__btn" data-voice="square">SQR</button>
+            <button class="seg__btn" data-voice="sawtooth">SAW</button>
+          </div>
+        </div>
+        <div class="sheet__row">
+          <div class="sheet__field">
+            <div class="drawer__label">WARMTH</div>
+            <input type="range" class="range" id="drone-cutoff" min="450" max="4000" step="50" aria-label="Filter cutoff">
+          </div>
+          <div class="sheet__field">
+            <div class="drawer__label">SPACE</div>
+            <input type="range" class="range" id="drone-space" min="0" max="0.6" step="0.05" aria-label="Reverb amount">
           </div>
         </div>
         <div>

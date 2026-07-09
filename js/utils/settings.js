@@ -22,6 +22,9 @@ const DEFAULTS = Object.freeze({
   droneProgression: 'hold',  // 'hold' | key of PROGRESSIONS
   droneBarMs: 4000,
   droneVolume: 0.6,
+  droneCutoff: 1350,         // lowpass Hz ("warmth")
+  droneSpace: 0.25,          // reverb wet gain
+  droneRegister: 'low',      // 'low' | 'high' (+12)
   scaleRoot: '',             // '' = no scale overlay
   scaleType: 'major',
 });
