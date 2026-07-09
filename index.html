@@ -255,12 +255,13 @@
       <svg id="chord-dial" aria-label="Chord selector: outer ring roots, inner ring qualities, center plays"></svg>
       <div class="sheet__controls">
         <div>
-          <div class="drawer__label">PROGRESSION
+          <div class="drawer__label" style="position: relative;">PROGRESSION
             <span class="keyctl">
               <button class="keyctl__btn" id="drone-key-prev" aria-label="Key down a fifth">&#9664;</button>
-              <b class="keyctl__value" id="drone-key">KEY OF G</b>
+              <button class="keyctl__value" id="drone-key" aria-label="Pick key" aria-haspopup="true">KEY OF G</button>
               <button class="keyctl__btn" id="drone-key-next" aria-label="Key up a fifth">&#9654;</button>
             </span>
+            <div class="keypop" id="drone-key-pop" hidden></div>
           </div>
           <div class="chips" id="drone-prog-chips"></div>
         </div>

@@ -26,6 +26,7 @@ class DroneSheet {
   #dial;
   #nextEl;
   #keyEl;
+  #keyPop;
   #barValEl;
 
   init() {
@@ -41,14 +42,35 @@ class DroneSheet {
 
     qs('#drone-sheet-close').addEventListener('click', () => this.close());
 
-    // Key stepper — steps by fifths (musical neighbors), no native picker.
-    // Ring taps still work; this one stays put while the highlight walks.
+    // Key control — arrows step by fifths; tapping the value opens a
+    // 12-key popover grid (custom, no native picker modal).
     const stepKey = (fifths) => {
       const next = ((settings.get('droneChordRoot') + fifths * 7) % 12 + 12) % 12;
       this.#select(next, settings.get('droneChordQuality'));
     };
     qs('#drone-key-prev').addEventListener('click', () => stepKey(-1));
     qs('#drone-key-next').addEventListener('click', () => stepKey(1));
+
+    this.#keyPop = qs('#drone-key-pop');
+    const FIFTHS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
+    for (const rootIndex of FIFTHS) {
+      const btn = document.createElement('button');
+      btn.className = 'keypop__btn';
+      btn.dataset.root = String(rootIndex);
+      btn.textContent = NOTE_NAMES[rootIndex];
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.#select(rootIndex, settings.get('droneChordQuality'));
+        this.#keyPop.hidden = true;
+      });
+      this.#keyPop.appendChild(btn);
+    }
+    this.#keyEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.#keyPop.hidden = !this.#keyPop.hidden;
+      this.#renderKey();
+    });
+    document.addEventListener('click', () => { this.#keyPop.hidden = true; });
 
     // Progression chips
     const chips = qs('#drone-prog-chips');
@@ -261,7 +283,10 @@ class DroneSheet {
   #renderKey() {
     const root = ((settings.get('droneChordRoot') % 12) + 12) % 12;
     this.#keyEl.textContent = `KEY OF ${NOTE_NAMES[root]}`;
-    // Progression chips speak in actual chords for this key
+    for (const btn of qsa('#drone-key-pop .keypop__btn')) {
+      btn.classList.toggle('active', Number(btn.dataset.root) === root);
+    }
+    // Progression chips speak in actual chords for this key, named on-chip
     for (const btn of qsa('#drone-prog-chips .btn')) {
       const prog = PROGRESSIONS[btn.dataset.prog];
       if (!prog) continue; // HOLD
@@ -271,7 +296,7 @@ class DroneSheet {
         const label = chordLabel((root + step.offset) % 12, step.quality);
         if (!seen.has(label)) { seen.add(label); chords.push(label); }
       }
-      btn.textContent = chords.join('·');
+      btn.innerHTML = `<span class="chips__name">${prog.label}</span><span>${chords.join('·')}</span>`;
       btn.title = `${prog.label} — ${prog.steps.map(s => s.numeral).join(' ')}`;
     }
   }

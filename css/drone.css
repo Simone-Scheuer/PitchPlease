@@ -103,12 +103,51 @@
 .keyctl__value {
   color: var(--color-accent);
   font-weight: 400;
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
   padding: 2px 8px;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
   border-left: 1px solid var(--color-accent);
   border-right: 1px solid var(--color-accent);
+  cursor: pointer;
+}
+
+.keyctl__value:active {
+  background: var(--color-accent-dim);
+}
+
+/* Key picker popover — a grid of the 12 keys in fifths order */
+.keypop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 3;
+  background: var(--color-bg-elevated);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-press);
+  padding: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+  width: 200px;
+}
+
+.keypop__btn {
+  min-height: 38px;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius);
+  font-size: var(--text-small);
+  letter-spacing: var(--track-wide);
+  color: var(--color-text);
+}
+
+.keypop__btn:active,
+.keypop__btn.active {
+  background: var(--chip-bg);
+  color: var(--chip-text);
 }
 
 .sheet__val {
@@ -122,8 +161,21 @@
 }
 
 .chips .btn {
-  min-height: 38px;
+  min-height: 44px;
   padding: var(--space-1) var(--space-3);
+  flex-direction: column;
+  gap: 1px;
+}
+
+.chips__name {
+  font-size: 8px;
+  letter-spacing: var(--track-wider);
+  color: var(--color-text-muted);
+}
+
+.chips .btn.active .chips__name {
+  color: var(--chip-text);
+  opacity: 0.75;
 }
 
 /* ---- Volume range ---- */
