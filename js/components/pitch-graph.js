@@ -23,8 +23,8 @@ import { themeColors } from '../utils/theme-colors.js';
 import { settings } from '../utils/settings.js';
 import { getNativeMap, getDefaultRange } from '../utils/instruments.js';
 
-const LEFT_RAIL = 64;    // native tokens
-const RIGHT_RAIL = 56;   // note names
+const LEFT_RAIL = 84;    // native tokens
+const RIGHT_RAIL = 60;   // note names
 const MIN_MIDI = 36;     // C2
 const MAX_MIDI = 100;
 const SCROLL_SPEEDS = [0.5, 1, 1.5, 2, 3];
@@ -63,12 +63,12 @@ export class PitchGraph {
   #midiHigh = 84;
   #semitoneRange = 36;
 
-  // Scroll clock
-  #scrollTimeMs = 0;
+  // Scroll: the clock IS real elapsed time (pause-aware, see #now()).
+  // Speed only scales pixels-per-ms at render, so the newest point always
+  // sits on the playhead and stalled frames can never compress the trail.
   #basePixelsPerMs = 0.08;
   #speedMultiplier = 1;
   #speedIndex = DEFAULT_SPEED_INDEX;
-  #lastFrameTime = 0;
 
   // Auto-range
   #detectedMidiMin = 60;
@@ -181,7 +181,6 @@ export class PitchGraph {
     this.#data = [];
     this.#pendingPoint = null;
     this.#confirmCount = 0;
-    this.#scrollTimeMs = 0;
     this.#pauseOffset = 0;
     this.#startTime = performance.now();
     this.#paused = false;
@@ -238,7 +237,6 @@ export class PitchGraph {
   #startLoop() {
     if (this.#running) return;
     this.#running = true;
-    this.#lastFrameTime = performance.now();
     this.#animate();
   }
 
@@ -440,10 +438,6 @@ export class PitchGraph {
 
   #animate() {
     if (!this.#running) return;
-    const now = performance.now();
-    const dt = now - this.#lastFrameTime;
-    this.#lastFrameTime = now;
-    this.#scrollTimeMs += dt * this.#speedMultiplier;
     this.#updateAutoRange();
     this.#draw();
     this.#rafId = requestAnimationFrame(() => this.#animate());
@@ -550,7 +544,8 @@ export class PitchGraph {
     if (count === 0) return;
 
     const fx = this.#skinFx();
-    const currentTimeMs = this.#scrollTimeMs;
+    const currentTimeMs = this.#now();
+    const pxPerMs = this.#basePixelsPerMs * this.#speedMultiplier;
 
     const passes = fx.misregister ? 2 : 1;
     for (let pass = 0; pass < passes; pass++) {
@@ -569,7 +564,7 @@ export class PitchGraph {
         }
 
         const age = currentTimeMs - point.time;
-        const x = playheadX - age * this.#basePixelsPerMs + off.dx;
+        const x = playheadX - age * pxPerMs + off.dx;
         if (x < graphLeft - 10 || x > playheadX + 10) continue;
 
         const y = this.#midiToY(point.exactMidi) + off.dy;
@@ -650,14 +645,26 @@ export class PitchGraph {
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
 
+    // Reserve a minus column so blow "4" and draw "-4" digits align vertically
+    ctx.font = FONT(14);
+    const minusW = ctx.measureText('-').width;
+
     for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
       const y = this.#midiToY(midi);
       this.#labelHitTargets.push({ midi, y, areaLeft, areaRight });
-      this.#drawRowBands(ctx, midi, areaLeft, areaW);
 
-      const { isCurrent, isTapped } = this.#rowHighlights(midi);
+      // Key-selection highlight extends into the rail
       const noteIndex = ((midi % 12) + 12) % 12;
       const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
+      if (this.#scaleNotes && inScale) {
+        const yTop = this.#midiToY(midi + 0.5);
+        const yBot = this.#midiToY(midi - 0.5);
+        ctx.fillStyle = themeColors.canvasScaleHighlight;
+        ctx.fillRect(areaLeft, yTop, areaW, yBot - yTop);
+      }
+
+      this.#drawRowBands(ctx, midi, areaLeft, areaW);
+      const { isCurrent, isTapped } = this.#rowHighlights(midi);
 
       if (!hasNative) {
         // Voice: mirror the note rail on the left too
@@ -681,18 +688,21 @@ export class PitchGraph {
       else if (entry.kind === 'draw') fill = themeColors.textDim;
       else fill = themeColors.canvasLabelActive;
 
-      ctx.font = isCurrent ? FONT(13) : isBend ? FONT(9) : FONT(11);
-      ctx.globalAlpha = inScale ? 1 : 0.38;
+      // One size for every token — a bend matters as much as its parent note.
+      // The current note gets big; out-of-key rows fade but don't shrink.
+      ctx.font = isCurrent ? FONT(19) : FONT(14);
+      const indent = entry.token.startsWith('-') ? 0 : minusW;
+      ctx.globalAlpha = inScale ? 1 : 0.35;
       ctx.fillStyle = fill;
-      ctx.fillText(entry.token, areaLeft + 8, y);
+      ctx.fillText(entry.token, areaLeft + 8 + indent, y);
       ctx.globalAlpha = 1;
     }
   }
 
   /** Whistle fingering: six pixel-square holes, filled = closed. */
   #drawFingering(ctx, holes, x, y, isCurrent, inScale) {
-    const size = isCurrent ? 5 : 4;
-    const gap = 3;
+    const size = isCurrent ? 7 : 6;
+    const gap = 4;
     ctx.globalAlpha = inScale ? 1 : 0.38;
     for (let i = 0; i < holes.length; i++) {
       const hx = x + i * (size + gap);
@@ -719,11 +729,11 @@ export class PitchGraph {
 
     let fill;
     let font;
-    if (isTapped) { fill = themeColors.accent; font = FONT(12); }
-    else if (isCurrent) { fill = themeColors.canvasLabelActive; font = FONT(12); }
-    else if (isC) { fill = themeColors.textMuted; font = FONT(11); }
-    else if (isSharp) { fill = themeColors.canvasLabel; font = FONT(8); }
-    else { fill = themeColors.canvasLabel; font = FONT(10); }
+    if (isTapped) { fill = themeColors.accent; font = FONT(15); }
+    else if (isCurrent) { fill = themeColors.canvasLabelActive; font = FONT(15); }
+    else if (isC) { fill = themeColors.textMuted; font = FONT(12); }
+    else if (isSharp) { fill = themeColors.canvasLabel; font = FONT(9); }
+    else { fill = themeColors.canvasLabel; font = FONT(11); }
 
     ctx.font = font;
     ctx.fillStyle = fill;

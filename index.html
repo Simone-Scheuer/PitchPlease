@@ -54,6 +54,9 @@
         </div>
 
         <div class="graph__scale-settings" id="graph-scale-settings" hidden>
+          <button class="btn" id="graph-play-scale-btn" aria-label="Play the scale as a guide">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>PLAY SCALE
+          </button>
           <div class="graph__setting">
             <label for="scale-note-dur">Note</label>
             <select class="select" id="scale-note-dur" aria-label="Note duration">
@@ -94,12 +97,9 @@
             <span class="graph__in-key-value" id="graph-in-key-value">--</span>
             <span class="graph__in-key-label">in key</span>
           </div>
-          <button class="btn" id="graph-play-scale-btn" aria-label="Play scale" hidden>
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7z"/></svg>
-          </button>
           <select class="select" id="scale-root" aria-label="Scale root"></select>
           <select class="select" id="scale-type" aria-label="Scale type"></select>
-          <button class="btn" id="drone-btn" aria-label="Toggle drone" disabled>DRONE</button>
+          <button class="btn" id="drone-btn" aria-label="Toggle root drone" title="Drones the scale root. Press-hold any note label on the side rails to drone that note." disabled>DRONE</button>
         </div>
       </section>
 

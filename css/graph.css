@@ -18,7 +18,7 @@
 .hud {
   position: absolute;
   top: var(--space-3);
-  left: calc(64px + var(--space-3)); /* clear of the left label rail */
+  left: calc(84px + var(--space-3)); /* clear of the left label rail */
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -49,11 +49,23 @@
   transition: opacity 0.15s;
 }
 
-/* Whistle fingering tokens are six glyphs wide — keep them readable, not huge */
+/* Whistle fingering in the HUD: same square language as the rail */
 .hud__native--dots {
-  font-size: clamp(1.1rem, 4vw, 1.6rem);
-  letter-spacing: 0.06em;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
   align-self: center;
+}
+
+.fdot {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-native-label);
+  display: inline-block;
+}
+
+.fdot--on {
+  background: var(--color-native-label);
 }
 
 .hud.lit .hud__note { opacity: 1; }

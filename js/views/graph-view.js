@@ -13,6 +13,7 @@ import { bus } from '../utils/event-bus.js';
 import { qs, showToast, setStatus } from '../utils/dom.js';
 import { PitchGraph } from '../components/pitch-graph.js';
 import { SCALE_LABELS, ROOT_NAMES, isInScale } from '../utils/scales.js';
+import { NOTE_NAMES } from '../utils/constants.js';
 import { scalePlayer } from '../audio/scale-player.js';
 import { startDrone } from '../audio/synth.js';
 import { settings } from '../utils/settings.js';
@@ -129,7 +130,8 @@ class GraphView {
     bus.on('settings:changed', ({ key }) => this.#onSettingsChanged(key));
 
     this.#speedBtn.textContent = this.#graph.speedLabel;
-    this.#playScaleBtn.innerHTML = PLAY_ICON;
+    this.#playScaleBtn.innerHTML = `${PLAY_ICON}PLAY SCALE`;
+    this.#updateDroneLabel();
   }
 
   /** Dev/test introspection. */
@@ -189,10 +191,10 @@ class GraphView {
 
     this.#graph.setScale(hasScale ? root : null, hasScale ? type : null);
     this.#inKeyEl.hidden = !hasScale;
-    this.#playScaleBtn.hidden = !hasScale;
     this.#scaleSettingsEl.hidden = !hasScale;
     this.#droneBtn.disabled = !hasScale;
     this.#updatePosChip();
+    this.#updateDroneLabel();
     this.#resetInKey();
     this.#stopPlayScale();
     if (!hasScale) this.#stopDrone();
@@ -215,6 +217,7 @@ class GraphView {
       this.#graph.setInstrument(settings.get('instrument'), settings.instrumentKey);
       this.#updatePosChip();
       this.#stopDrone();
+      this.#updateDroneLabel();
     }
     if (key === 'skin' && !this.#active) {
       // themeColors refreshes on the attribute flip; repaint the held frame
@@ -278,7 +281,7 @@ class GraphView {
     }
 
     this.#playScaleBtn.classList.add('active');
-    this.#playScaleBtn.innerHTML = STOP_ICON;
+    this.#playScaleBtn.innerHTML = `${STOP_ICON}STOP`;
 
     const range = getDefaultRange(settings.get('instrument'), settings.instrumentKey);
     await scalePlayer.start({
@@ -303,27 +306,45 @@ class GraphView {
   #handlePlayScaleFinish() {
     this.#graph.setGuideMidi(null);
     this.#playScaleBtn.classList.remove('active');
-    this.#playScaleBtn.innerHTML = PLAY_ICON;
+    this.#playScaleBtn.innerHTML = `${PLAY_ICON}PLAY SCALE`;
   }
 
   // -------------------------------------------------------------------------
   // Drone
   // -------------------------------------------------------------------------
 
+  /** Scale root droned near the bottom of the instrument's range. */
+  #droneRootMidi() {
+    const root = this.#scaleRootSelect.value;
+    if (!root) return null;
+    const range = getDefaultRange(settings.get('instrument'), settings.instrumentKey);
+    const rootIndex = ROOT_NAMES.indexOf(root);
+    let midi = Math.floor((range.low + 2) / 12) * 12 + rootIndex;
+    if (midi < range.low) midi += 12;
+    return midi;
+  }
+
+  /** The button says what it will do: "DRONE G3", not just "DRONE". */
+  #updateDroneLabel() {
+    const midi = this.#droneRootMidi();
+    if (midi === null) {
+      this.#droneBtn.textContent = 'DRONE';
+      return;
+    }
+    const name = NOTE_NAMES[((midi % 12) + 12) % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    this.#droneBtn.textContent = `DRONE ${name}${octave}`;
+  }
+
   async #toggleDrone() {
     if (this.#droneHandle) {
       this.#stopDrone();
       return;
     }
-    const root = this.#scaleRootSelect.value;
-    if (!root) return;
+    const midi = this.#droneRootMidi();
+    if (midi === null) return;
 
     await mic.ensureAudioContext();
-    // Drone the scale root near the bottom of the instrument's range
-    const range = getDefaultRange(settings.get('instrument'), settings.instrumentKey);
-    const rootIndex = ROOT_NAMES.indexOf(root);
-    let midi = Math.floor((range.low + 2) / 12) * 12 + rootIndex;
-    if (midi < range.low) midi += 12;
     this.#droneHandle = startDrone(midi, { voice: settings.get('droneVoice'), gain: 0.55 });
     this.#droneBtn.classList.add('active');
   }
@@ -421,7 +442,13 @@ class GraphView {
 
     const inst = settings.get('instrument');
     const native = describePitch(inst, settings.instrumentKey, data.midi);
-    this.#hudNativeEl.textContent = native ? native.token : '';
+    if (native?.kind === 'fingering' && native.holes) {
+      // Same square language as the rail, not text circles
+      this.#hudNativeEl.innerHTML = native.holes
+        .map(hole => `<i class="fdot${hole ? ' fdot--on' : ''}"></i>`).join('');
+    } else {
+      this.#hudNativeEl.textContent = native ? native.token : '';
+    }
     this.#hudNativeEl.classList.toggle('hud__native--dots', native?.kind === 'fingering');
 
     // Sub line: signed cents + native description
