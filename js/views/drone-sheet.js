@@ -113,6 +113,15 @@ class DroneSheet {
       });
     }
 
+    // Style — strike vs flow (looming pad + long crossfades), live
+    for (const btn of qsa('#drone-style-seg .seg__btn')) {
+      btn.addEventListener('click', () => {
+        settings.set('droneStyle', btn.dataset.style);
+        this.#renderControls();
+        droneSynth.revoice();
+      });
+    }
+
     // Warmth (lowpass), space (reverb), volume — all live
     const cutoff = qs('#drone-cutoff');
     cutoff.value = String(settings.get('droneCutoff'));
@@ -315,6 +324,9 @@ class DroneSheet {
     }
     for (const btn of qsa('#drone-register-seg .seg__btn')) {
       btn.classList.toggle('active', btn.dataset.register === settings.get('droneRegister'));
+    }
+    for (const btn of qsa('#drone-style-seg .seg__btn')) {
+      btn.classList.toggle('active', btn.dataset.style === settings.get('droneStyle'));
     }
   }
 }

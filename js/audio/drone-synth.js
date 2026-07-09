@@ -140,8 +140,15 @@ export function chordNoteClasses(rootIndex, qualityKey) {
 // Voicing constants
 // ---------------------------------------------------------------------------
 
-const FADE_S = 0.45;
+const FADE_STRIKE_S = 0.45;
+const FADE_FLOW_S = 1.4;    // chords bloom into each other in FLOW style
+const STAGGER_S = 0.055;    // FLOW strikes roll gently instead of hitting as a block
+const PAD_GAIN = 0.09;      // FLOW's sustained layer under the sample strikes
 const DETUNE_CENTS = 2.0;   // enough width to feel alive, no wub-wub beating
+
+function fadeS() {
+  return settings.get('droneStyle') === 'flow' ? FADE_FLOW_S : FADE_STRIKE_S;
+}
 const TONE_GAIN = 0.16;
 const SUB_GAIN = 0.16;
 const FILTER_LFO_HZ = 0.04;
@@ -336,7 +343,7 @@ class DroneSynth {
     // Build the new chord chain
     const chainGain = ctx.createGain();
     chainGain.gain.setValueAtTime(0, t);
-    chainGain.gain.linearRampToValueAtTime(1, t + FADE_S);
+    chainGain.gain.linearRampToValueAtTime(1, t + fadeS());
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -356,7 +363,25 @@ class DroneSynth {
 
     if (isSampleVoice(voice)) {
       const bank = await loadBank(voice, ctx);
-      this.#chain = { gain: chainGain, filter, oscs: [], sources: [], bank, tonesHz };
+      const oscs = [];
+      // FLOW: a quiet sustained sine pad under the strikes carries the
+      // chord between hits and blooms through the long crossfade.
+      if (settings.get('droneStyle') === 'flow') {
+        const addPad = (hz, gainValue) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = hz;
+          const g = ctx.createGain();
+          g.gain.value = gainValue;
+          osc.connect(g);
+          g.connect(filter);
+          osc.start(t);
+          oscs.push(osc);
+        };
+        addPad(rootHz / 2, PAD_GAIN * 1.4);
+        for (const hz of tonesHz) addPad(hz, PAD_GAIN);
+      }
+      this.#chain = { gain: chainGain, filter, oscs, sources: [], bank, tonesHz };
       this.#strikeInto(this.#chain, ctx.currentTime);
       this.#armStrikes();
     } else {
@@ -396,10 +421,11 @@ class DroneSynth {
 
   /** One strike of the current chord's samples into a chain. */
   #strikeInto(chain, when) {
-    for (const hz of chain.tonesHz) {
+    const stagger = settings.get('droneStyle') === 'flow' ? STAGGER_S : 0;
+    chain.tonesHz.forEach((hz, i) => {
       const sampleMidi = nearestSample(chain.bank, hz);
       const buf = chain.bank.get(sampleMidi);
-      if (!buf) continue;
+      if (!buf) return;
       const src = this.#ctx.createBufferSource();
       src.buffer = buf;
       src.playbackRate.value = hz / midiToFrequency(sampleMidi);
@@ -407,10 +433,10 @@ class DroneSynth {
       g.gain.value = 0.55;
       src.connect(g);
       g.connect(chain.filter);
-      src.start(when);
+      src.start(when + i * stagger); // FLOW rolls the chord gently
       chain.sources.push(src);
-      if (chain.sources.length > 48) chain.sources.splice(0, chain.sources.length - 48);
-    }
+    });
+    if (chain.sources.length > 48) chain.sources.splice(0, chain.sources.length - 48);
   }
 
   /** HOLD mode: re-strike sampled voices every bar so the chord keeps ringing. */
@@ -435,12 +461,13 @@ class DroneSynth {
   }
 
   #dismantle(chain, t) {
+    const fade = fadeS();
     try {
       chain.gain.gain.setValueAtTime(chain.gain.gain.value, t);
-      chain.gain.gain.linearRampToValueAtTime(0, t + FADE_S);
-      for (const osc of chain.oscs) osc.stop(t + FADE_S + 0.05);
+      chain.gain.gain.linearRampToValueAtTime(0, t + fade);
+      for (const osc of chain.oscs) osc.stop(t + fade + 0.05);
       for (const src of chain.sources ?? []) {
-        try { src.stop(t + FADE_S + 0.05); } catch { /* already ended */ }
+        try { src.stop(t + fade + 0.05); } catch { /* already ended */ }
       }
       setTimeout(() => {
         try {
@@ -448,7 +475,7 @@ class DroneSynth {
           chain.filter.disconnect();
           chain.gain.disconnect();
         } catch { /* already gone */ }
-      }, (FADE_S + 0.15) * 1000);
+      }, (fade + 0.15) * 1000);
     } catch { /* context closed */ }
   }
 
