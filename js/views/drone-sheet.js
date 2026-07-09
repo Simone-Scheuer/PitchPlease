@@ -198,7 +198,7 @@ class DroneSheet {
     this.#dial.setSelection(rootIndex, quality);
     this.#dial.setCenterLabel(chordLabel(rootIndex, quality));
     if (droneSynth.isPlaying) {
-      await droneSynth.play(rootIndex, quality);
+      await droneSynth.play(rootIndex, quality, 0.1); // user tap = immediate
       this.#announceChord({ rootIndex, quality });
     }
   }

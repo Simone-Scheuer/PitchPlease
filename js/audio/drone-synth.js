@@ -140,10 +140,12 @@ export function chordNoteClasses(rootIndex, qualityKey) {
 // Voicing constants
 // ---------------------------------------------------------------------------
 
-const FADE_STRIKE_S = 0.45;
-const FADE_FLOW_S = 1.4;    // chords bloom into each other in FLOW style
+const FADE_STRIKE_S = 0.3;
+const FADE_FLOW_S = 0.9;    // chords bloom into each other in FLOW style
+const FADE_FAST_S = 0.1;    // user-triggered changes land immediately
 const STAGGER_S = 0.055;    // FLOW strikes roll gently instead of hitting as a block
-const PAD_GAIN = 0.09;      // FLOW's sustained layer under the sample strikes
+const PAD_GAIN = 0.05;      // FLOW's sustained layer under the sample strikes
+const STRIKE_RELEASE_S = 0.3; // strikes release INTO the bar boundary
 const DETUNE_CENTS = 2.0;   // enough width to feel alive, no wub-wub beating
 
 function fadeS() {
@@ -316,9 +318,9 @@ class DroneSynth {
     }
   }
 
-  /** Rebuild the sounding chord with current voice/register (crossfade). */
+  /** Rebuild the sounding chord with current voice/register — immediately. */
   revoice() {
-    if (this.#current) this.play(this.#current.rootIndex, this.#current.quality);
+    if (this.#current) this.play(this.#current.rootIndex, this.#current.quality, FADE_FAST_S);
   }
 
   /** Bar length changes apply from the next chord boundary — no restart. */
@@ -331,19 +333,24 @@ class DroneSynth {
     this.#progRoot = rootIndex;
   }
 
-  /** Start (or crossfade to) a chord. */
-  async play(rootIndex, qualityKey) {
+  /**
+   * Start (or crossfade to) a chord.
+   * @param {number|null} fade - crossfade seconds; defaults to a fast attack
+   *   when nothing sounds yet, or the style fade when replacing a chord.
+   */
+  async play(rootIndex, qualityKey, fade = null) {
     const ctx = await this.#ensure();
     const quality = CHORD_QUALITIES[qualityKey];
     if (!quality) return;
 
     const old = this.#chain;
     const t = ctx.currentTime;
+    const fadeIn = fade ?? (old ? fadeS() : FADE_FAST_S);
 
     // Build the new chord chain
     const chainGain = ctx.createGain();
     chainGain.gain.setValueAtTime(0, t);
-    chainGain.gain.linearRampToValueAtTime(1, t + fadeS());
+    chainGain.gain.linearRampToValueAtTime(1, t + fadeIn);
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -415,13 +422,19 @@ class DroneSynth {
 
     this.#current = { rootIndex: ((rootIndex % 12) + 12) % 12, quality: qualityKey };
 
-    // Fade out and dismantle the previous chord
-    if (old) this.#dismantle(old, t);
+    // Fade out and dismantle the previous chord at the same rate
+    if (old) this.#dismantle(old, t, fadeIn);
   }
 
-  /** One strike of the current chord's samples into a chain. */
+  /**
+   * One strike of the current chord's samples into a chain.
+   * The note length IS the bar length: each strike's gain releases into
+   * the bar boundary (pedal up on the change), so tails never stack.
+   */
   #strikeInto(chain, when) {
     const stagger = settings.get('droneStyle') === 'flow' ? STAGGER_S : 0;
+    const barS = Math.max(0.5, settings.get('droneBarMs') / 1000);
+    const release = Math.min(STRIKE_RELEASE_S, barS * 0.4);
     chain.tonesHz.forEach((hz, i) => {
       const sampleMidi = nearestSample(chain.bank, hz);
       const buf = chain.bank.get(sampleMidi);
@@ -430,10 +443,14 @@ class DroneSynth {
       src.buffer = buf;
       src.playbackRate.value = hz / midiToFrequency(sampleMidi);
       const g = this.#ctx.createGain();
-      g.gain.value = 0.55;
+      const t0 = when + i * stagger; // FLOW rolls the chord gently
+      g.gain.setValueAtTime(0.55, t0);
+      g.gain.setValueAtTime(0.55, t0 + barS - release);
+      g.gain.linearRampToValueAtTime(0.0001, t0 + barS);
       src.connect(g);
       g.connect(chain.filter);
-      src.start(when + i * stagger); // FLOW rolls the chord gently
+      src.start(t0);
+      src.stop(t0 + barS + 0.05);
       chain.sources.push(src);
     });
     if (chain.sources.length > 48) chain.sources.splice(0, chain.sources.length - 48);
@@ -460,8 +477,8 @@ class DroneSynth {
     }
   }
 
-  #dismantle(chain, t) {
-    const fade = fadeS();
+  #dismantle(chain, t, fade = null) {
+    fade = fade ?? fadeS();
     try {
       chain.gain.gain.setValueAtTime(chain.gain.gain.value, t);
       chain.gain.gain.linearRampToValueAtTime(0, t + fade);
