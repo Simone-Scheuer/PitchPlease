@@ -236,6 +236,12 @@ class DroneSynth {
   #lfoGain = null;
   #chain = null;       // { gain, filter, oscs: [] } for the sounding chord
   #current = null;     // { rootIndex, quality }
+  // Every chain that has ever started and not yet been dismantled. play()
+  // has awaits (sample bank loads) — two overlapping plays used to orphan
+  // a chain that no stop() could reach: the "ghost drone". The registry
+  // makes install-time sweep-out and stop() exhaustive.
+  #liveChains = new Set();
+  #generation = 0;     // bumped by play() and stop(); stale plays abort
 
   // Progression state
   #progTimer = null;
@@ -350,15 +356,22 @@ class DroneSynth {
    *   when nothing sounds yet, or the style fade when replacing a chord.
    */
   async play(rootIndex, qualityKey, fade = null) {
+    const gen = ++this.#generation;
     const ctx = await this.#ensure();
     const quality = CHORD_QUALITIES[qualityKey];
     if (!quality) return;
+
+    // All awaits happen BEFORE any node is created. If a newer play() or a
+    // stop() arrived while we were loading, this call is stale: bail out.
+    const voice = settings.get('droneVoice');
+    const bank = isSampleVoice(voice) ? await loadBank(voice, ctx) : null;
+    if (gen !== this.#generation) return;
 
     const old = this.#chain;
     const t = ctx.currentTime;
     const fadeIn = fade ?? (old ? fadeS() : FADE_FAST_S);
 
-    // Build the new chord chain
+    // Build the new chord chain (synchronous from here — no interleaving)
     const chainGain = ctx.createGain();
     chainGain.gain.setValueAtTime(0, t);
     chainGain.gain.linearRampToValueAtTime(1, t + fadeIn);
@@ -371,7 +384,6 @@ class DroneSynth {
     filter.connect(chainGain);
     chainGain.connect(this.#master);
 
-    const voice = settings.get('droneVoice');
     const rootHz = midiToFrequency(rootMidiFor(rootIndex), settings.get('a4'));
     // Just-intonation frequencies straight from the ratios + octave double
     const tonesHz = [
@@ -379,8 +391,7 @@ class DroneSynth {
       rootHz * 2,
     ];
 
-    if (isSampleVoice(voice)) {
-      const bank = await loadBank(voice, ctx);
+    if (bank) {
       const oscs = [];
       // FLOW: a quiet sustained sine pad under the strikes carries the
       // chord between hits and blooms through the long crossfade.
@@ -432,9 +443,13 @@ class DroneSynth {
     }
 
     this.#current = { rootIndex: ((rootIndex % 12) + 12) % 12, quality: qualityKey };
+    this.#liveChains.add(this.#chain);
 
-    // Fade out and dismantle the previous chord at the same rate
-    if (old) this.#dismantle(old, t, fadeIn);
+    // Sweep out EVERY other live chain, not just the last-known one —
+    // this is what makes an orphaned ghost drone impossible.
+    for (const other of this.#liveChains) {
+      if (other !== this.#chain) this.#dismantle(other, t, fadeIn);
+    }
   }
 
   /**
@@ -495,6 +510,7 @@ class DroneSynth {
 
   #dismantle(chain, t, fade = null) {
     fade = fade ?? fadeS();
+    this.#liveChains.delete(chain);
     try {
       chain.gain.gain.setValueAtTime(chain.gain.gain.value, t);
       chain.gain.gain.linearRampToValueAtTime(0, t + fade);
@@ -513,11 +529,14 @@ class DroneSynth {
   }
 
   stop() {
+    ++this.#generation; // any play() still awaiting its sample bank aborts
     this.stopProgression();
     this.#disarmStrikes();
-    if (this.#chain && this.#ctx) {
-      this.#dismantle(this.#chain, this.#ctx.currentTime);
+    if (this.#ctx) {
+      const t = this.#ctx.currentTime;
+      for (const chain of [...this.#liveChains]) this.#dismantle(chain, t, FADE_STRIKE_S);
     }
+    this.#liveChains.clear();
     this.#chain = null;
     this.#current = null;
   }

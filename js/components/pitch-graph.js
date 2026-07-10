@@ -357,7 +357,8 @@ export class PitchGraph {
   }
 
   #startLabelDrone(midi) {
-    this.#droneHandle = playNote(midi, 120000, { voice: settings.get('droneVoice'), gain: 0.7 });
+    // 30s cap: if a pointerup is ever missed, the note can't haunt for long
+    this.#droneHandle = playNote(midi, 30000, { voice: settings.get('droneVoice'), gain: 0.7 });
     if (this.#tapFlashTimer) clearTimeout(this.#tapFlashTimer);
     this.#tappedMidi = midi;
     if (!this.#running) this.drawStatic();
