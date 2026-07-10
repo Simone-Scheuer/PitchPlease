@@ -374,14 +374,17 @@ class BendsView {
         : themeColors.off;
 
       ctx.save();
-      if (isNeon) {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = this.#locked ? 24 : 12;
-      }
       ctx.fillStyle = color;
       // Square "pixel" ball — print aesthetic
       const r = this.#locked ? 13 : 11;
       const cx = left + (right - left) / 2;
+      if (isNeon) {
+        // Atomized bloom: corner satellite pixels instead of a blur glow
+        const spread = this.#locked ? 7 : 5;
+        for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+          ctx.fillRect(cx + dx * (r + spread) - 1.5, y + dy * (r + spread) - 1.5, 3, 3);
+        }
+      }
       ctx.fillRect(cx - r, y - r, r * 2, r * 2);
       ctx.restore();
 

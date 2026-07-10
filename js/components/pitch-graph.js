@@ -43,9 +43,10 @@ const FONT = (px, weight = '') => `${weight ? weight + ' ' : ''}${px}px "Departu
 
 /** Per-skin canvas behavior. Colors come from CSS tokens via themeColors. */
 const SKIN_FX = {
-  press: { glow: 0, misregister: null, dotBase: 2.6 },
-  neon:  { glow: 14, misregister: null, dotBase: 2.4 },
-  riso:  { glow: 0, misregister: { dx: 1.6, dy: -1.2 }, dotBase: 2.6 },
+  press: { phosphor: false, misregister: null, dotBase: 2.6 },
+  // neon blooms like a real scope: satellite dots, never shadowBlur
+  neon:  { phosphor: true, misregister: null, dotBase: 2.4 },
+  riso:  { phosphor: false, misregister: { dx: 1.6, dy: -1.2 }, dotBase: 2.6 },
 };
 
 export class PitchGraph {
@@ -508,7 +509,7 @@ export class PitchGraph {
     // Ghost instrument, deep in the paper (under everything else)
     const wm = this.#ensureWatermark(graphRight - graphLeft, h);
     if (wm) {
-      ctx.globalAlpha = document.documentElement.dataset.skin === 'neon' ? 0.085 : 0.06;
+      ctx.globalAlpha = document.documentElement.dataset.skin === 'neon' ? 0.1 : 0.075;
       ctx.drawImage(wm, graphLeft, 0, graphRight - graphLeft, h);
       ctx.globalAlpha = 1;
     }
@@ -628,18 +629,27 @@ export class PitchGraph {
 
         ctx.save();
         if (isGhost) ctx.globalAlpha = 0.45;
-        if (fx.glow > 0 && !isGhost) {
-          ctx.shadowColor = themeColors.canvasGlow;
-          ctx.shadowBlur = fx.glow;
-        }
 
         if (prevX !== null && prevY !== null && Math.abs(x - prevX) < 50) {
           ctx.strokeStyle = isGhost ? themeColors.accent2 : themeColors.canvasPitchLine;
-          ctx.lineWidth = fx.glow > 0 ? 2 : 1.25;
+          ctx.lineWidth = fx.phosphor ? 1.75 : 1.25;
           ctx.beginPath();
           ctx.moveTo(prevX, prevY);
           ctx.lineTo(x, y);
           ctx.stroke();
+        }
+
+        if (fx.phosphor && !isGhost) {
+          // Atomized bloom: sparse satellite dots seeded per point, so the
+          // halo is stable frame-to-frame and built of atoms, not blur.
+          const seed = ((point.time * 37.3) | 0) * 2654435761 >>> 0;
+          const count = 3 + (seed % 3);
+          ctx.fillStyle = themeColors.canvasGlow;
+          for (let k = 0; k < count; k++) {
+            const ang = ((seed >> (k * 4)) % 628) / 100;
+            const dist = 3.5 + ((seed >> (k * 3)) % 4);
+            ctx.fillRect(x + Math.cos(ang) * dist - 0.75, y + Math.sin(ang) * dist - 0.75, 1.5, 1.5);
+          }
         }
 
         const dotSize = absCents <= 10 ? fx.dotBase + 0.4 : fx.dotBase - 0.4;
@@ -684,7 +694,7 @@ export class PitchGraph {
     const wc = wm.getContext('2d');
     wc.fillStyle = themeColors.text;
     const data = sc.getImageData(0, 0, shape.width, shape.height).data;
-    const pitch = 8;
+    const pitch = 5; // tight atomization — the shape should be recognizable
     const maxR = Math.hypot(gw, gh) / 2;
     for (let y = pitch / 2; y < gh; y += pitch) {
       for (let x = pitch / 2; x < gw; x += pitch) {
@@ -694,9 +704,9 @@ export class PitchGraph {
         const gy = Math.floor(y / pitch);
         const noise = ((((gx * 73856093) ^ (gy * 19349663)) >>> 0) % 1000) / 1000;
         const dist = Math.hypot(x - gw / 2, y - gh / 2) / maxR;
-        if (noise > 1.15 - dist * 1.1) continue; // dots thin out, never fade
+        if (noise > 1.2 - dist * 1.05) continue; // dots thin out, never fade
         wc.beginPath();
-        wc.arc(x, y, 2.4, 0, Math.PI * 2);
+        wc.arc(x, y, 1.55, 0, Math.PI * 2);
         wc.fill();
       }
     }
