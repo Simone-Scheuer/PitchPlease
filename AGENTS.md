@@ -22,6 +22,8 @@ tags: [music, pwa, audio, ear-training]
 **Stakeholder:** Simone (no external stakeholder)
 
 ## Current Focus
+**Prod round 1 shipped (0b7aaf5):** dual-notation rails (both notations both sides on desktop), key bands across both rails, live accuracy color on the current row, riso red made data-only, and a global chrome kill-chip for the drone — her "persistent drone" was the survives-tab-switch design with no visible off switch; now legible everywhere. If she reports drone sound with NO chip visible, that's a real leak — investigate. Still open: her "not set on the little resource things" remark (unclarified).
+
 **Rebuild MERGED to main + pushed 2026-07-10** — Netlify auto-deploys; Simone is prod-testing. Watch for: (1) the ghost-drone report from her stale tab — fixed in ba4ad41, should vanish on prod after two refreshes (SW handoff); if it recurs on prod it's real, reopen. (2) Sound taste calls on the drone (strike/pad balance, flow bloom) — use tools/analyze-audio.mjs before shipping changes. (3) She's "not set on the little resource things" (likely the watermark or samples) — unresolved, ask next session.
 
 **Original rebuild summary (2026-07-09):** The graph is now the app: instrument-native edge rails (harp tab tokens incl. bends, whistle fingering dots), corner HUD (note + native token + cents + hold stats + position chip), scale overlay with in-key %, drone as a layer, pause-holds-trace. Tuner and Bends are the other two tabs; guided-session machine, game cluster, drone tab, and tab trainer are gone (−18k lines net). New dithered-print design system (Departure Mono, bundled) with three whole-app skins: press / neon / riso. A4 reference exposed + tune-to-my-instrument calibration. Spec: `PRD.md` v3.
