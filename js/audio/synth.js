@@ -8,12 +8,19 @@
 
 import { mic } from './mic.js';
 import { midiToFrequency } from './note-math.js';
+import { settings } from '../utils/settings.js';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const DEFAULT_GAIN = 0.5;
+const OSC_TYPES = ['sine', 'triangle', 'square', 'sawtooth'];
+
+/** Settings may name a sampled drone voice — oscillators can't play those. */
+function oscType(voice) {
+  return OSC_TYPES.includes(voice) ? voice : 'triangle';
+}
 const ATTACK_MS = 20;
 const RELEASE_MS = 80;
 const DRONE_FADE_IN_MS = 400;
@@ -56,14 +63,14 @@ export function playNote(midi, durationMs, options = {}) {
   if (!ctx) return null;
 
   const { voice = 'sine', gain = 1 } = options;
-  const freq = midiToFrequency(midi);
+  const freq = midiToFrequency(midi, settings.get('a4'));
   const now = ctx.currentTime;
   const attackSec = ATTACK_MS / 1000;
   const releaseSec = RELEASE_MS / 1000;
   const durationSec = durationMs / 1000;
 
   const osc = ctx.createOscillator();
-  osc.type = voice;
+  osc.type = oscType(voice);
   osc.frequency.value = freq;
 
   const env = ctx.createGain();
@@ -124,13 +131,13 @@ export function startDrone(midi, options = {}) {
   if (!ctx) return null;
 
   const { voice = 'triangle', gain = 0.8 } = options;
-  const freq = midiToFrequency(midi);
+  const freq = midiToFrequency(midi, settings.get('a4'));
   const now = ctx.currentTime;
   const fadeInSec = DRONE_FADE_IN_MS / 1000;
   const fadeOutSec = DRONE_FADE_OUT_MS / 1000;
 
   const osc = ctx.createOscillator();
-  osc.type = voice;
+  osc.type = oscType(voice);
   osc.frequency.value = freq;
 
   const env = ctx.createGain();

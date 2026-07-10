@@ -1,138 +1,71 @@
-import { tunerView } from './views/tuner-view.js';
+/**
+ * app.js — Boot: skin, view registry, dock nav, settings drawer, SW.
+ *
+ * Exactly ONE view visibility mechanism: `.view.active` (display flip in
+ * layout.css). Every view is a controller with init/activate/deactivate;
+ * switching always deactivates the old view before activating the new one.
+ */
+
 import { graphView } from './views/graph-view.js';
-import { droneView } from './views/drone-view.js';
-import { libraryView } from './views/library-view.js';
-import { practiceView } from './views/practice-view.js';
-import { gameView } from './views/game-view.js';
-import { sessionView } from './views/session-view.js';
-import { tabTrainerView } from './views/tab-trainer-view.js';
-import { bus } from './utils/event-bus.js';
+import { tunerView } from './views/tuner-view.js';
+import { bendsView } from './views/bends-view.js';
+import { droneSheet } from './views/drone-sheet.js';
+import { settingsDrawer, applySkin } from './views/settings-drawer.js';
+import { settings } from './utils/settings.js';
+import { refresh as refreshThemeColors } from './utils/theme-colors.js';
 import { qs, qsa } from './utils/dom.js';
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+// ?dev skips the service worker so local edits aren't served cache-first
+const DEV_MODE = new URLSearchParams(location.search).has('dev');
+if ('serviceWorker' in navigator && !DEV_MODE) {
   navigator.serviceWorker.register('./sw.js').catch(err => {
     console.warn('Service worker registration failed:', err);
   });
+} else if ('serviceWorker' in navigator && DEV_MODE) {
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+  if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
 }
 
-// Theme management
-function initTheme() {
-  const saved = localStorage.getItem('pp:theme');
-  // Dark is the default; only an explicit 'light' choice opts out
-  if (saved !== 'light') {
-    document.documentElement.dataset.theme = 'dark';
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = '#0a0a0b';
-  }
-}
+// Apply the persisted skin before first paint
+applySkin(settings.get('skin'));
 
-function toggleTheme() {
-  const isDark = document.documentElement.dataset.theme === 'dark';
-  if (isDark) {
-    delete document.documentElement.dataset.theme;
-    localStorage.setItem('pp:theme', 'light');
-  } else {
-    document.documentElement.dataset.theme = 'dark';
-    localStorage.setItem('pp:theme', 'dark');
-  }
-  // Update meta theme-color
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    meta.content = document.documentElement.dataset.theme === 'dark' ? '#0a0a0b' : '#FDF6EE';
-  }
-}
+const VIEWS = {
+  'graph-view': graphView,
+  'tuner-view': tunerView,
+  'bends-view': bendsView,
+};
 
-// Apply theme before DOM renders to avoid flash
-initTheme();
-
-// View management
 let activeViewId = 'graph-view';
 
-function switchView(viewId, sessionConfig) {
-  // Map play-view tab to practice-view
-  const resolvedId = viewId === 'play-view' ? 'practice-view' : viewId;
+function switchView(viewId) {
+  if (!(viewId in VIEWS) || viewId === activeViewId) return;
 
-  // Session re-entry (start a new session while one is running) must fall
-  // through so the running session gets deactivated first
-  if (resolvedId === activeViewId && resolvedId !== 'session-view') return;
-  if (resolvedId === 'session-view' && !sessionConfig) return;
+  VIEWS[activeViewId].deactivate?.();
+  qs(`#${activeViewId}`)?.classList.remove('active');
 
-  // Deactivate old view
-  const oldEl = qs(`#${activeViewId}`);
-  if (oldEl) oldEl.classList.remove('active');
-  if (activeViewId === 'tuner-view') tunerView.deactivate();
-  if (activeViewId === 'graph-view') graphView.deactivate();
-  if (activeViewId === 'drone-view') droneView.deactivate();
-  if (activeViewId === 'practice-view') practiceView.deactivate();
-  if (activeViewId === 'game-view') gameView.deactivate();
-  if (activeViewId === 'session-view') sessionView.deactivate();
-  if (activeViewId === 'tab-trainer-view') tabTrainerView.deactivate();
+  qs(`#${viewId}`)?.classList.add('active');
+  VIEWS[viewId].activate?.();
+  activeViewId = viewId;
 
-  // Activate new view
-  if (resolvedId === 'practice-view') {
-    practiceView.activate();
-  } else if (resolvedId === 'drone-view') {
-    droneView.activate();
-  } else if (resolvedId === 'session-view') {
-    sessionView.activate(sessionConfig);
-  } else if (resolvedId === 'tab-trainer-view') {
-    tabTrainerView.activate();
-  } else {
-    const newEl = qs(`#${resolvedId}`);
-    if (newEl) newEl.classList.add('active');
-  }
-  if (resolvedId === 'graph-view') graphView.activate();
-  if (resolvedId === 'game-view') gameView.activate();
-
-  activeViewId = resolvedId;
-
-  // Update tab active state (play-view tab maps to practice-view).
-  // Session keeps the previous tab highlight — it isn't a tab destination.
-  if (resolvedId !== 'session-view') {
-    for (const tab of qsa('.view-switcher__tab')) {
-      const tabTarget = tab.dataset.view === 'play-view' ? 'practice-view' : tab.dataset.view;
-      tab.classList.toggle('active', tabTarget === resolvedId);
-    }
+  for (const tab of qsa('.dock__tab')) {
+    tab.classList.toggle('active', tab.dataset.view === viewId);
   }
 }
 
-// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-  tunerView.init();
+  refreshThemeColors();
+
   graphView.init();
-  droneView.init();
-  libraryView.init();
-  practiceView.init();
-  gameView.init();
-  sessionView.init();
-  tabTrainerView.init();
+  tunerView.init();
+  bendsView.init();
+  droneSheet.init();
+  settingsDrawer.init();
 
-  // Activate the default view (graph)
-  graphView.activate();
-
-  // View switcher tabs
-  for (const tab of qsa('.view-switcher__tab')) {
+  for (const tab of qsa('.dock__tab')) {
     tab.addEventListener('click', () => switchView(tab.dataset.view));
   }
 
-  // Theme toggle
-  const themeBtn = qs('#theme-toggle');
-  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+  graphView.activate();
 
-  // Song selection → load into game and switch view
-  bus.on('song:select', ({ song }) => {
-    gameView.loadSong(song);
-    switchView('game-view');
-  });
-
-  // Navigate event (e.g., back to library from results)
-  bus.on('navigate', ({ view }) => {
-    switchView(view);
-  });
-
-  // Session activation (from practice configurator)
-  bus.on('session:activate', ({ config }) => {
-    switchView('session-view', config);
-  });
+  if (DEV_MODE) window.__views = VIEWS;
 });

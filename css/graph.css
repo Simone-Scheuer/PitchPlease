@@ -1,472 +1,242 @@
-/* Graph View Layout */
-.graph {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  user-select: none;
-}
+/* ==========================================================================
+   graph.css — The pitch mirror: canvas, corner HUD, control bar.
+   ========================================================================== */
 
 .graph__canvas-wrap {
-  flex: 1;
-  position: relative;
+  flex: 1 1 auto;
   min-height: 0;
+  position: relative;
 }
 
 .graph__canvas {
   width: 100%;
   height: 100%;
-  display: block;
+  touch-action: none; /* the canvas owns drag (Y-pan) and tap (pause) itself */
 }
 
-/* Tap-to-pause flash — ⏸ / ▶ that pulses in the canvas center on toggle */
+/* ---- Corner HUD — "which note am I, in my instrument's words" ---- */
+
+.hud {
+  position: absolute;
+  top: var(--space-3);
+  left: calc(84px + var(--space-3)); /* clear of the left label rail */
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 70%;
+}
+
+.hud__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.hud__note {
+  font-size: clamp(2.2rem, 8vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  opacity: 0.25;
+  transition: opacity 0.15s;
+}
+
+.hud__native {
+  font-size: clamp(2.2rem, 8vw, 3.4rem);
+  line-height: 1;
+  color: var(--color-native-label);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Whistle fingering in the HUD: same square language as the rail */
+.hud__native--dots {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  align-self: center;
+}
+
+.fdot {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-native-label);
+  display: inline-block;
+}
+
+.fdot--on {
+  background: var(--color-native-label);
+}
+
+.hud.lit .hud__note { opacity: 1; }
+.hud.lit .hud__native { opacity: 1; }
+
+.hud__sub {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wider);
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  min-height: 1.2em;
+}
+
+.hud__sub .in-tune { color: var(--color-in-tune); }
+.hud__sub .close   { color: var(--color-close); }
+.hud__sub .off     { color: var(--color-off); }
+.hud__sub .on-chord { color: var(--accent-2); }
+
+.hud__hold {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
+  color: var(--color-text-muted);
+  min-height: 1.2em;
+}
+
+/* ---- Pause flash (kept behavior from the old graph) ---- */
+
 .graph__pause-flash {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 88px;
-  height: 88px;
-  margin: -44px 0 0 -44px;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
-  color: var(--color-text);
   pointer-events: none;
   opacity: 0;
 }
 
 .graph__pause-flash svg {
-  width: 44px;
-  height: 44px;
-  fill: currentColor;
+  width: 72px;
+  height: 72px;
+  fill: var(--color-text);
 }
 
 .graph__pause-flash.flash {
-  animation: graph-pause-flash 0.5s ease-out;
+  animation: pause-flash 0.55s var(--ease-snap);
 }
 
-@keyframes graph-pause-flash {
-  0% { opacity: 0; transform: scale(0.7); }
-  30% { opacity: 1; transform: scale(1); }
+@keyframes pause-flash {
+  0% { opacity: 0; transform: scale(0.8); }
+  25% { opacity: 0.85; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.15); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .graph__pause-flash.flash { animation-duration: 0.01s; }
-}
+/* ---- Paused banner ---- */
 
-/* -------------------------------------------------------------------
-   Idle overlay — centered play button over the graph
-   ------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------
-   Mic toggle button — prominent play/pause in controls bar
-   ------------------------------------------------------------------- */
-
-.graph__btn--mic {
-  min-width: 48px;
-  min-height: 44px;
-  background: var(--color-bg-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-muted);
-}
-
-.graph__btn--mic.active {
-  background: var(--color-accent-dim);
-  border-color: var(--color-border-accent);
-  color: var(--color-accent);
-  box-shadow: var(--shadow-sm), 0 0 12px rgba(78, 205, 196, 0.1);
-}
-
-.graph__btn--mic.active:hover {
-  background: rgba(78, 205, 196, 0.18);
-  color: var(--color-accent-hover);
-}
-
-/* -------------------------------------------------------------------
-   Controls bar at bottom
-   ------------------------------------------------------------------- */
-
-.graph__controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--color-bg-elevated);
-  border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.2);
-}
-
-.graph__controls-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Control buttons */
-.graph__btn {
-  min-width: 40px;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background var(--transition-fast),
-    color var(--transition-fast),
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
-  padding: 0 var(--space-sm);
-  box-shadow: var(--shadow-sm), var(--shadow-inset);
-}
-
-.graph__btn:hover {
-  background: var(--color-bg-surface-hover);
-  color: var(--color-text);
-  border-color: var(--color-border-accent);
-}
-
-.graph__btn:active {
-  transform: scale(0.95);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.graph__btn--stop {
-  background: rgba(255, 107, 107, 0.1);
-  border-color: rgba(255, 107, 107, 0.25);
-  color: #ff6b6b;
-}
-
-.graph__btn--stop:hover {
-  background: rgba(255, 107, 107, 0.18);
-  border-color: rgba(255, 107, 107, 0.4);
-  color: #ff8080;
-}
-
-.graph__btn svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
-/* Scale selector */
-.graph__select {
-  min-height: 40px;
-  min-width: 44px;
-  padding: 0 var(--space-md) 0 var(--space-sm);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-family);
-  font-weight: 500;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  box-shadow: var(--shadow-sm), var(--shadow-inset);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a66'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  transition:
-    border-color var(--transition-fast),
-    color var(--transition-fast);
-}
-
-.graph__select:hover {
-  border-color: var(--color-border-accent);
-  color: var(--color-text);
-}
-
-.graph__select:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-sm), 0 0 0 2px rgba(78, 205, 196, 0.15);
-}
-
-/* -------------------------------------------------------------------
-   View switcher tab bar
-   ------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------
-   Tab bar
-   ------------------------------------------------------------------- */
-
-.view-switcher {
-  display: flex;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: var(--z-elevated);
-  background: var(--tab-bg);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border-top: 1px solid var(--color-border);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.view-switcher__tab {
-  flex: 1;
-  min-height: 54px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  color: var(--color-text-dim);
-  font-size: var(--font-size-2xs);
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  transition: color var(--transition-base);
-}
-
-.view-switcher__tab svg {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
-  transition: transform var(--transition-base);
-}
-
-.view-switcher__tab.active {
-  color: var(--color-accent);
-  position: relative;
-}
-
-.view-switcher__tab.active svg {
-  transform: scale(1.1);
-}
-
-.view-switcher__tab.active::after {
-  content: '';
+.graph__paused-tag {
   position: absolute;
-  top: 0;
-  left: 30%;
-  right: 30%;
-  height: 2px;
-  background: var(--color-accent);
-  border-radius: 0 0 var(--radius-full) var(--radius-full);
-  box-shadow: 0 0 8px rgba(78, 205, 196, 0.4);
+  top: var(--space-3);
+  right: var(--space-3);
+  pointer-events: none;
 }
 
-.view-switcher__tab:hover:not(.active) {
-  color: var(--color-text-muted);
-}
+/* ---- Now-playing strip: current chord → next, with bar progress ---- */
 
-/* Theme toggle button */
-.view-switcher__theme-btn {
+.graph__now {
+  position: absolute;
+  top: calc(var(--space-3) + 34px); /* below the paused tag's row */
+  right: calc(60px + var(--space-3)); /* clear of the note rail */
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  min-height: 54px;
+  gap: var(--space-2);
+  pointer-events: none;
+  background: var(--color-bg-elevated);
+  border: var(--border-w) solid var(--color-text);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+
+.graph__now-chord {
+  font-size: var(--text-big);
+  color: var(--color-text);
+}
+
+.graph__now-bar {
+  width: 54px;
+  height: 6px;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.graph__now-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--color-accent);
+}
+
+.graph__now-next {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
   color: var(--color-text-dim);
-  cursor: pointer;
-  border: none;
-  background: none;
-  transition: color var(--transition-base);
-  flex-shrink: 0;
 }
 
-.view-switcher__theme-btn:hover {
-  color: var(--color-text-muted);
+/* ---- Control bar ---- */
+
+.graph__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-w) solid var(--color-text);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.view-switcher__theme-btn svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
+.graph__bar::-webkit-scrollbar { display: none; }
 
-/* Show moon icon in light mode, sun icon in dark mode */
-.theme-icon--dark { display: none; }
-.theme-icon--light { display: block; }
-
-[data-theme="dark"] .theme-icon--dark { display: block; }
-[data-theme="dark"] .theme-icon--light { display: none; }
-
-/* Adjust views for tab bar height */
-.view {
-  bottom: calc(54px + env(safe-area-inset-bottom));
-}
-
-/* -------------------------------------------------------------------
-   Current note display in controls
-   ------------------------------------------------------------------- */
-
-.graph__current-note {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--color-text-dim);
-  min-width: 64px;
-  text-align: center;
-  transition: color var(--transition-base), text-shadow var(--transition-base);
-  letter-spacing: -0.01em;
-  padding: 0 var(--space-sm);
-}
-
-.graph__current-note.detected {
-  color: var(--color-in-tune);
-  text-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
-}
-
-.graph__current-note .octave {
-  font-size: var(--font-size-sm);
-  font-weight: 400;
-  color: var(--color-text-muted);
-}
-
-/* -------------------------------------------------------------------
-   In-key percentage pill
-   ------------------------------------------------------------------- */
+.graph__bar-spacer { flex: 1; }
 
 .graph__in-key {
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  background: rgba(78, 205, 196, 0.06);
-  border: 1px solid rgba(78, 205, 196, 0.2);
-  min-height: 32px;
-  font-family: var(--font-mono);
-  box-shadow: 0 0 12px rgba(78, 205, 196, 0.06);
-}
-
-.graph__in-key[hidden] {
-  display: none;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  padding: 0 var(--space-2);
 }
 
 .graph__in-key-value {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: var(--text-big);
   color: var(--color-accent);
-  line-height: 1;
 }
 
 .graph__in-key-label {
-  font-size: 9px;
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1;
 }
 
-/* On narrow screens keep the row from overflowing — show just the % */
-@media (max-width: 480px) {
-  .graph__in-key-label {
-    display: none;
-  }
-  .graph__in-key {
-    padding: 6px 8px;
-  }
-}
-
-/* -------------------------------------------------------------------
-   Play-scale button
-   ------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------
-   Scale playback settings row
-   ------------------------------------------------------------------- */
+/* ---- Scale playback settings strip ---- */
 
 .graph__scale-settings {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: 6px var(--space-md);
-  background: var(--tab-bg);
-  border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px dashed var(--color-text-muted);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.graph__scale-settings[hidden] {
-  display: none;
-}
+.graph__scale-settings::-webkit-scrollbar { display: none; }
 
 .graph__setting {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.graph__setting-label {
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
+  gap: var(--space-1);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-wide);
   color: var(--color-text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
   white-space: nowrap;
 }
 
-.graph__setting-select {
-  min-height: 32px;
-  padding: 0 var(--space-md) 0 6px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-2xs);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  box-shadow: var(--shadow-sm);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%235a5a66'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 5px center;
-  transition: border-color var(--transition-fast), color var(--transition-fast);
-}
-
-.graph__setting-select:hover {
-  border-color: var(--color-border-accent);
-  color: var(--color-text);
-}
-
-.graph__setting-select:focus {
-  outline: none;
-  border-color: var(--color-accent);
-}
-
-.graph__btn--loop {
-  min-width: 32px;
-  min-height: 32px;
-  margin-left: auto;
-  padding: 0;
-  color: var(--color-text-dim);
-}
-
-.graph__btn--loop.active {
-  background: var(--color-accent-dim);
-  border-color: var(--color-border-accent);
-  color: var(--color-accent);
-}
-
-.graph__btn--loop svg {
-  width: 16px;
-  height: 16px;
-}
-
-.graph__btn--play-scale[hidden] {
-  display: none;
-}
-
-.graph__btn--play-scale.playing {
-  background: rgba(255, 230, 109, 0.12);
-  border-color: rgba(255, 230, 109, 0.4);
-  color: #ffe66d;
-  box-shadow: var(--shadow-sm), 0 0 12px rgba(255, 230, 109, 0.08);
+.graph__setting .select {
+  min-height: 36px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
 }

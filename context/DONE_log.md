@@ -6,6 +6,7 @@
 
 ---
 
+- **2026-07-09** — Full "pitch mirror" rebuild (branch `rebuild/pitch-mirror`, pending device check + merge): graph-first 3-tab IA, instrument-native rails + HUD + harp-position math, tin whistle profile, A4 calibration flow, three print skins over a Departure Mono design system, structural `[hidden]` fix, −18k lines net. Retired: game cluster, session machine, drone tab, tab trainer.
 - **2026-06-15** — Harmonica tab trainer v1 (merged to main): tab-notation parser, onset-gated `tab-runner` controller, breath-ribbon renderer, searchable 9-song library + random + paste, note-length dial, arrow/button nav. 35 unit tests. Reliability P0 + tuner/graph polish from 06-12 also shipped this stretch.
 - **2026-04-21** — UI overhaul: light theme, journal removed, scale settings, drone voices
 - **2026-04-08** — Netlify deploy live; drone UI polish; practice overlay + DPR fixes; guitar bends exercise; "made by mona" credit

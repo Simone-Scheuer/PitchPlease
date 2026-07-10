@@ -1,16 +1,20 @@
+/**
+ * tuner-view.js — Precision tuner: median-steadied note readout, sliding
+ * chromatic strip, cents/Hz, and the instrument's own name for the pitch.
+ */
+
 import { mic } from '../audio/mic.js';
 import { detector } from '../audio/detector.js';
 import { bus } from '../utils/event-bus.js';
-import { qs, showToast } from '../utils/dom.js';
+import { qs, showToast, setStatus } from '../utils/dom.js';
 import { PitchStrip } from '../components/pitch-strip.js';
-import { NoteDisplay } from '../components/note-display.js';
-import { FrequencyDisplay } from '../components/frequency-display.js';
-import { CENTS_IN_TUNE, CENTS_CLOSE, NOTE_NAMES } from '../utils/constants.js';
+import { CENTS_IN_TUNE, NOTE_NAMES } from '../utils/constants.js';
 import { midiToFrequency } from '../audio/note-math.js';
+import { settings } from '../utils/settings.js';
+import { describePitch } from '../utils/instruments.js';
 
-// Median window (frames) for steadying the raw per-frame pitch. At ~60fps this
-// is ~80ms: long enough to reject jitter and 1-2 frame octave spikes, short
-// enough that a real note change still registers almost immediately.
+// Median window (frames): ~80ms at 60fps — rejects jitter and octave spikes
+// without making real note changes feel laggy.
 const PITCH_WINDOW = 5;
 
 function median(values) {
@@ -20,20 +24,24 @@ function median(values) {
 
 class TunerView {
   #strip;
-  #noteDisplay;
-  #freqDisplay;
+  #noteEl;
+  #nativeEl;
   #centsEl;
+  #freqEl;
+  #descEl;
   #micBtn;
   #hintEl;
   #active = false;
   #silenceTimeout = null;
-  #pitchWindow = [];   // recent continuous-MIDI readings for median steadying
+  #pitchWindow = [];
 
   init() {
     this.#strip = new PitchStrip(qs('#tuner-strip'));
-    this.#noteDisplay = new NoteDisplay(qs('#note-name'));
-    this.#freqDisplay = new FrequencyDisplay(qs('#tuner-frequency'));
+    this.#noteEl = qs('#note-name');
+    this.#nativeEl = qs('#tuner-native');
     this.#centsEl = qs('#tuner-cents');
+    this.#freqEl = qs('#tuner-frequency');
+    this.#descEl = qs('#tuner-desc');
     this.#micBtn = qs('#mic-btn');
     this.#hintEl = qs('#mic-hint');
 
@@ -44,11 +52,8 @@ class TunerView {
   }
 
   async #toggleMic() {
-    if (this.#active) {
-      this.#stop();
-    } else {
-      await this.#start();
-    }
+    if (this.#active) this.#stop();
+    else await this.#start();
   }
 
   async #start() {
@@ -60,15 +65,13 @@ class TunerView {
       this.#active = true;
       this.#micBtn.classList.add('active');
       this.#hintEl.classList.add('hidden');
+      setStatus('LIVE', true);
     } catch (err) {
       this.#micBtn.classList.add('error');
-      if (err.name === 'NotAllowedError') {
-        showToast('Microphone access denied. Please allow mic access in your browser settings.');
-      } else if (err.name === 'NotFoundError') {
-        showToast('No microphone found. Please connect a microphone.');
-      } else {
-        showToast('Could not access microphone.');
-      }
+      setStatus('MIC ERR', false);
+      if (err.name === 'NotAllowedError') showToast('Microphone access denied. Allow mic access in your browser settings.');
+      else if (err.name === 'NotFoundError') showToast('No microphone found.');
+      else showToast('Could not access microphone.');
     }
   }
 
@@ -84,73 +87,72 @@ class TunerView {
     this.#active = false;
     this.#micBtn.classList.remove('active');
     this.#hintEl.classList.remove('hidden');
-    this.#noteDisplay.clear();
-    this.#freqDisplay.clear();
-    this.#updateCents(null);
+    setStatus('STANDBY', false);
+    this.#clearReadouts();
   }
 
   #onPitch(data) {
-    // Clear silence timeout
+    if (!this.#active) return;
     if (this.#silenceTimeout) {
       clearTimeout(this.#silenceTimeout);
       this.#silenceTimeout = null;
     }
 
-    // Steady the raw per-frame pitch with a short median window before it drives
-    // anything — this is what stops the readout flashing between notes.
+    // Steady the raw per-frame pitch before it drives anything
     this.#pitchWindow.push(data.midi + data.cents / 100);
     if (this.#pitchWindow.length > PITCH_WINDOW) this.#pitchWindow.shift();
     const steadyMidi = median(this.#pitchWindow);
 
     const rounded = Math.round(steadyMidi);
     const cents = Math.round((steadyMidi - rounded) * 100);
-    const reading = {
-      note: NOTE_NAMES[((rounded % 12) + 12) % 12],
-      octave: Math.floor(rounded / 12) - 1,
-      cents,
-      midi: rounded,
-      frequency: midiToFrequency(steadyMidi),
-    };
+    const note = NOTE_NAMES[((rounded % 12) + 12) % 12];
+    const octave = Math.floor(rounded / 12) - 1;
+    const frequency = midiToFrequency(steadyMidi, settings.get('a4'));
 
-    this.#noteDisplay.update(reading);
-    this.#strip.update(reading);
-    this.#freqDisplay.update(reading);
+    this.#noteEl.classList.remove('idle');
+    this.#noteEl.innerHTML = `${note}<span class="octave">${octave}</span>`;
+
+    const native = describePitch(settings.get('instrument'), settings.instrumentKey, rounded);
+    this.#nativeEl.textContent = native ? native.token : '';
+    this.#descEl.textContent = native?.desc ? native.desc.toUpperCase() : ' ';
+
+    this.#strip.update({ midi: rounded, cents });
+    this.#freqEl.textContent = `${frequency.toFixed(1)} Hz`;
     this.#updateCents(cents);
   }
 
   #onSilence() {
-    // Delay clearing to avoid flicker during brief silences
-    if (!this.#silenceTimeout) {
-      this.#silenceTimeout = setTimeout(() => {
-        this.#pitchWindow = [];
-        this.#noteDisplay.clear();
-        this.#freqDisplay.clear();
-        this.#strip.update(null);
-        this.#updateCents(null);
-        this.#silenceTimeout = null;
-      }, 300);
-    }
+    if (!this.#active || this.#silenceTimeout) return;
+    this.#silenceTimeout = setTimeout(() => {
+      this.#pitchWindow = [];
+      this.#strip.update(null);
+      this.#clearReadouts();
+      this.#silenceTimeout = null;
+    }, 300);
+  }
+
+  #clearReadouts() {
+    this.#noteEl.classList.add('idle');
+    this.#noteEl.innerHTML = '--<span class="octave"></span>';
+    this.#nativeEl.textContent = '';
+    this.#descEl.textContent = ' ';
+    this.#freqEl.textContent = ' ';
+    this.#updateCents(null);
   }
 
   #updateCents(cents) {
     if (cents === null || cents === undefined) {
-      this.#centsEl.textContent = '\u00A0';
+      this.#centsEl.textContent = ' ';
       this.#centsEl.classList.remove('sharp', 'flat', 'in-tune');
       return;
     }
-
     const abs = Math.abs(cents);
-    const sign = cents > 0 ? '+' : cents < 0 ? '' : '';
-    this.#centsEl.textContent = `${sign}${cents} cents`;
-
+    const sign = cents > 0 ? '+' : '';
+    this.#centsEl.textContent = `${sign}${cents} CENTS`;
     this.#centsEl.classList.remove('sharp', 'flat', 'in-tune');
-    if (abs <= CENTS_IN_TUNE) {
-      this.#centsEl.classList.add('in-tune');
-    } else if (cents > 0) {
-      this.#centsEl.classList.add('sharp');
-    } else {
-      this.#centsEl.classList.add('flat');
-    }
+    if (abs <= CENTS_IN_TUNE) this.#centsEl.classList.add('in-tune');
+    else if (cents > 0) this.#centsEl.classList.add('sharp');
+    else this.#centsEl.classList.add('flat');
   }
 }
 

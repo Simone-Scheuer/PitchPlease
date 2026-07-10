@@ -1,5 +1,4 @@
 import { FFT_SIZE } from '../utils/constants.js';
-import { destroySynth } from './synth.js';
 
 class Mic {
   #audioCtx = null;
@@ -42,6 +41,7 @@ class Mic {
   }
 
   async start() {
+    if (this.#stream) return; // already listening — never double-acquire
     this.#stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -88,14 +88,10 @@ class Mic {
       }
       this.#stream = null;
     }
-    // Clean up synth before closing audio context
-    destroySynth();
-    if (this.#audioCtx) {
-      this.#audioCtx.close();
-      this.#audioCtx = null;
-    }
     this.#analyser = null;
     this.#buffer = null;
+    // The AudioContext stays open on purpose: drones and reference tones
+    // keep sounding while the mic is paused, and iOS prefers one context.
   }
 }
 

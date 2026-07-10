@@ -1,0 +1,6 @@
+Instrument samples (piano.json, epiano.json, guitar.json) are note
+recordings from the FluidR3_GM SoundFont by Frank Wen, distributed in
+mp3 form by the midi-js-soundfonts project (github.com/gleitz/midi-js-soundfonts),
+MIT license. FluidR3_GM itself is released under the MIT license.
+
+Each JSON maps MIDI note number -> base64 mp3 (C2..C6, every 2 semitones).

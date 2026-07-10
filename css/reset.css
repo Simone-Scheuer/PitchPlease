@@ -5,6 +5,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The hidden attribute ALWAYS wins, no matter what display a class sets.
+   This app hit "display:flex defeats [hidden]" bugs three separate times;
+   this rule retires the whole class of them. */
+[hidden] {
+  display: none !important;
+}
+
 /* Prevent text selection and callout on long-press (PWA) */
 canvas, .view {
   -webkit-touch-callout: none;

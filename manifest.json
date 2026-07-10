@@ -1,12 +1,12 @@
 {
   "name": "PitchPlease",
   "short_name": "PitchPlease",
-  "description": "Real-time pitch detection, guided ear training, and progress tracking",
+  "description": "Real-time pitch mirror for harmonica, whistle, and voice — tuner, scrolling graph, bend trainer",
   "start_url": ".",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#0d0d0d",
-  "background_color": "#0d0d0d",
+  "theme_color": "#e9e5d8",
+  "background_color": "#e9e5d8",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
