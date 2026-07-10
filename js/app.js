@@ -13,6 +13,7 @@ import { droneSheet } from './views/drone-sheet.js';
 import { settingsDrawer, applySkin } from './views/settings-drawer.js';
 import { settings } from './utils/settings.js';
 import { refresh as refreshThemeColors } from './utils/theme-colors.js';
+import { bus } from './utils/event-bus.js';
 import { qs, qsa } from './utils/dom.js';
 
 // ?dev skips the service worker so local edits aren't served cache-first
@@ -64,6 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
   for (const tab of qsa('.dock__tab')) {
     tab.addEventListener('click', () => switchView(tab.dataset.view));
   }
+
+  // The drone survives tab switches by design — so its state and its OFF
+  // switch live in the chrome bar, visible from every tab.
+  const droneChip = qs('#chrome-drone');
+  bus.on('drone:state', ({ playing, label }) => {
+    droneChip.hidden = !playing;
+    if (playing) droneChip.textContent = `▪ ${label} ✕`;
+  });
+  droneChip.addEventListener('click', () => droneSheet.stop());
 
   graphView.activate();
 

@@ -27,6 +27,12 @@
   max-width: 70%;
 }
 
+@media (min-width: 700px) {
+  .hud {
+    left: calc(122px + var(--space-3)); /* wide rails carry both notations */
+  }
+}
+
 .hud__row {
   display: flex;
   align-items: baseline;

@@ -203,16 +203,21 @@ class DroneSheet {
     }
   }
 
+  /** Stop from anywhere (center tap, chrome chip). Safe when silent. */
+  stop() {
+    droneSynth.stop();
+    this.#dial.setPlaying(false);
+    const root = settings.get('droneChordRoot');
+    const quality = settings.get('droneChordQuality');
+    this.#dial.setSelection(root, quality);
+    this.#dial.setCenterLabel(chordLabel(root, quality));
+    this.#nextEl.innerHTML = '&nbsp;';
+    bus.emit('drone:state', { playing: false, label: null, noteClasses: null });
+  }
+
   async #togglePlay() {
     if (droneSynth.isPlaying) {
-      droneSynth.stop();
-      this.#dial.setPlaying(false);
-      const root = settings.get('droneChordRoot');
-      const quality = settings.get('droneChordQuality');
-      this.#dial.setSelection(root, quality);
-      this.#dial.setCenterLabel(chordLabel(root, quality));
-      this.#nextEl.innerHTML = '&nbsp;';
-      bus.emit('drone:state', { playing: false, label: null, noteClasses: null });
+      this.stop();
       return;
     }
 

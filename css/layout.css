@@ -127,6 +127,11 @@ body::before {
   display: none;
 }
 
+.chrome__drone {
+  min-height: 32px;
+  cursor: pointer;
+}
+
 .chrome__btn {
   min-width: var(--tap-min);
   min-height: 32px;

@@ -23,8 +23,11 @@ import { themeColors } from '../utils/theme-colors.js';
 import { settings } from '../utils/settings.js';
 import { getNativeMap, getDefaultRange } from '../utils/instruments.js';
 
-const LEFT_RAIL = 84;    // native tokens
-const RIGHT_RAIL = 60;   // note names
+// Rail widths: wide screens carry BOTH notations on BOTH rails
+// ("wherever you look you're served"); narrow screens split them.
+const RAIL_WIDE = 122;
+const RAIL_NARROW = 84;
+const DUAL_MIN_WIDTH = 700;
 const MIN_MIDI = 36;     // C2
 const MAX_MIDI = 100;
 const SCROLL_SPEEDS = [0.5, 1, 1.5, 2, 3];
@@ -110,6 +113,7 @@ export class PitchGraph {
   #pauseOffset = 0;
   #pausedAt = 0;
   #currentMidi = null;
+  #currentCents = null;
 
   constructor(canvas) {
     this.#canvas = canvas;
@@ -152,7 +156,8 @@ export class PitchGraph {
     this._mousemoveHandler = (e) => {
       const rect = this.#canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const inRail = x < LEFT_RAIL || x > (this.#width - RIGHT_RAIL);
+      const railW = this.#width >= DUAL_MIN_WIDTH ? RAIL_WIDE : RAIL_NARROW;
+      const inRail = x < railW || x > (this.#width - railW);
       this.#canvas.style.cursor = inRail ? 'pointer' : '';
     };
     this.#canvas.addEventListener('mousemove', this._mousemoveHandler);
@@ -298,6 +303,7 @@ export class PitchGraph {
 
     const exactMidi = frequencyToMidi(data.frequency, settings.get('a4'));
     this.#currentMidi = data.midi;
+    this.#currentCents = data.cents;
 
     if (this.#pendingPoint && Math.abs(exactMidi - this.#pendingPoint.exactMidi) < SIMILAR_THRESHOLD) {
       this.#confirmCount++;
@@ -318,6 +324,7 @@ export class PitchGraph {
     this.#pendingPoint = null;
     this.#confirmCount = 0;
     this.#currentMidi = null;
+    this.#currentCents = null;
     const last = this.#data[this.#data.length - 1];
     if (last && last.silent) return;
     this.#data.push({ time: this.#now(), silent: true });
@@ -502,8 +509,9 @@ export class PitchGraph {
     ctx.fillStyle = themeColors.canvasBg;
     ctx.fillRect(0, 0, w, h);
 
-    const graphLeft = LEFT_RAIL;
-    const graphRight = w - RIGHT_RAIL;
+    const railW = w >= DUAL_MIN_WIDTH ? RAIL_WIDE : RAIL_NARROW;
+    const graphLeft = railW;
+    const graphRight = w - railW;
     const playheadX = graphRight - 48;
 
     // Ghost instrument, deep in the paper (under everything else)
@@ -524,8 +532,8 @@ export class PitchGraph {
     this.#drawTrail(ctx, graphLeft, playheadX, h);
     ctx.restore();
 
-    this.#drawNativeRail(ctx, 0, LEFT_RAIL, h);
-    this.#drawNoteRail(ctx, graphRight, w, h);
+    this.#drawRail(ctx, 0, railW, h, 'left');
+    this.#drawRail(ctx, graphRight, w, h, 'right');
 
     // Playhead — dotted ink line, pixel-print style
     ctx.strokeStyle = themeColors.canvasPlayhead;
@@ -625,13 +633,15 @@ export class PitchGraph {
         }
 
         const absCents = Math.abs(point.cents);
-        const color = isGhost ? themeColors.accent2 : this.#trailColor(absCents);
+        // Riso misregistration ghost prints in soft ink, not red — red is
+        // reserved for "off pitch" so the color language stays clean.
+        const color = isGhost ? themeColors.textDim : this.#trailColor(absCents);
 
         ctx.save();
-        if (isGhost) ctx.globalAlpha = 0.45;
+        if (isGhost) ctx.globalAlpha = 0.4;
 
         if (prevX !== null && prevY !== null && Math.abs(x - prevX) < 50) {
-          ctx.strokeStyle = isGhost ? themeColors.accent2 : themeColors.canvasPitchLine;
+          ctx.strokeStyle = isGhost ? themeColors.textDim : themeColors.canvasPitchLine;
           ctx.lineWidth = fx.phosphor ? 1.75 : 1.25;
           ctx.beginPath();
           ctx.moveTo(prevX, prevY);
@@ -829,25 +839,31 @@ export class PitchGraph {
     }
   }
 
-  /** Left rail: harp tokens / whistle fingerings, in-scale tokens emphasized. */
-  #drawNativeRail(ctx, areaLeft, areaRight, h) {
+  /**
+   * One rail. Wide screens carry BOTH notations: the note name hugs the
+   * graph edge, the native token sits toward the outer edge — wherever you
+   * look, you're served. Narrow screens split: tokens left, notes right.
+   */
+  #drawRail(ctx, areaLeft, areaRight, h, side) {
     const areaW = areaRight - areaLeft;
     ctx.fillStyle = themeColors.canvasBg;
     ctx.fillRect(areaLeft, 0, areaW, h);
 
+    const dual = this.#width >= DUAL_MIN_WIDTH;
     const hasNative = this.#nativeMap.size > 0;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
+    const showToken = hasNative && (dual || side === 'left');
+    const showNote = !showToken || dual || side === 'right';
 
+    ctx.textBaseline = 'middle';
     // Reserve a minus column so blow "4" and draw "-4" digits align vertically
-    ctx.font = FONT(14);
+    ctx.font = FONT(16);
     const minusW = ctx.measureText('-').width;
 
     for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
       const y = this.#midiToY(midi);
       this.#labelHitTargets.push({ midi, y, areaLeft, areaRight });
 
-      // Key-selection highlight extends into the rail
+      // Key-selection highlight extends across BOTH rails
       const noteIndex = ((midi % 12) + 12) % 12;
       const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
       if (this.#scaleNotes && inScale) {
@@ -862,20 +878,23 @@ export class PitchGraph {
 
       // Droning chord tones: arrow at the rail's inner edge pointing at the graph
       if (this.#chordNotes?.has(noteIndex)) {
-        this.#drawChordArrow(ctx, areaRight - 2, y, 1);
+        if (side === 'left') this.#drawChordArrow(ctx, areaRight - 2, y, 1);
+        else this.#drawChordArrow(ctx, areaLeft + 2, y, -1);
       }
 
-      if (!hasNative) {
-        // Voice: mirror the note rail on the left too
-        this.#drawNoteLabel(ctx, midi, areaLeft + 8, y, 'left', isCurrent, isTapped, inScale);
-        continue;
+      if (showNote) {
+        const x = side === 'left' ? areaRight - 12 : areaLeft + 12;
+        this.#drawNoteLabel(ctx, midi, x, y, side === 'left' ? 'right' : 'left', isCurrent, isTapped, inScale);
       }
 
+      if (!showToken) continue;
       const entry = this.#nativeMap.get(midi);
       if (!entry) continue;
 
       if (entry.kind === 'fingering') {
-        this.#drawFingering(ctx, entry.holes, areaLeft + 8, y, isCurrent, inScale);
+        const fw = 6 * (7 + 4);
+        const fx = side === 'left' ? areaLeft + 10 : areaRight - 10 - fw;
+        this.#drawFingering(ctx, entry.holes, fx, y, isCurrent, inScale);
         continue;
       }
 
@@ -883,7 +902,7 @@ export class PitchGraph {
       const isChordTone = this.#chordNotes?.has(noteIndex) ?? false;
       let fill;
       if (isTapped) fill = themeColors.accent;
-      else if (isCurrent) fill = themeColors.canvasLabelActive;
+      else if (isCurrent) fill = this.#accuracyColor();
       else if (isChordTone) fill = themeColors.accent2;
       else if (isBend) fill = themeColors.nativeLabel;
       else if (entry.kind === 'draw') fill = themeColors.textDim;
@@ -891,23 +910,37 @@ export class PitchGraph {
 
       // One size for every token — a bend matters as much as its parent note.
       // The current note gets big; out-of-key rows fade but don't shrink.
-      ctx.font = isCurrent ? FONT(19) : FONT(14);
-      const indent = entry.token.startsWith('-') ? 0 : minusW;
+      ctx.font = isCurrent ? FONT(21) : FONT(16);
       ctx.globalAlpha = inScale ? 1 : 0.35;
       ctx.fillStyle = fill;
-      ctx.fillText(entry.token, areaLeft + 8 + indent, y);
+      if (side === 'left') {
+        ctx.textAlign = 'left';
+        ctx.fillText(entry.token, areaLeft + 10 + (entry.token.startsWith('-') ? 0 : minusW), y);
+      } else {
+        ctx.textAlign = 'right';
+        ctx.fillText(entry.token, areaRight - 10, y);
+      }
       ctx.globalAlpha = 1;
+      ctx.textAlign = 'left';
     }
+  }
+
+  /** Live accuracy color for the row you're on: green in tune, amber close, red off. */
+  #accuracyColor() {
+    const c = this.#currentCents;
+    if (c === null || c === undefined) return themeColors.canvasLabelActive;
+    const a = Math.abs(c);
+    return a <= 10 ? themeColors.inTune : a <= 25 ? themeColors.close : themeColors.off;
   }
 
   /** Whistle fingering: six pixel-square holes, filled = closed. */
   #drawFingering(ctx, holes, x, y, isCurrent, inScale) {
-    const size = isCurrent ? 7 : 6;
+    const size = isCurrent ? 8 : 7;
     const gap = 4;
     ctx.globalAlpha = inScale ? 1 : 0.38;
     for (let i = 0; i < holes.length; i++) {
       const hx = x + i * (size + gap);
-      const color = isCurrent ? themeColors.canvasLabelActive : themeColors.nativeLabel;
+      const color = isCurrent ? this.#accuracyColor() : themeColors.nativeLabel;
       if (holes[i]) {
         ctx.fillStyle = color;
         ctx.fillRect(hx, y - size / 2, size, size);
@@ -930,11 +963,11 @@ export class PitchGraph {
 
     let fill;
     let font;
-    if (isTapped) { fill = themeColors.accent; font = FONT(15); }
-    else if (isCurrent) { fill = themeColors.canvasLabelActive; font = FONT(15); }
-    else if (isC) { fill = themeColors.textMuted; font = FONT(12); }
-    else if (isSharp) { fill = themeColors.canvasLabel; font = FONT(9); }
-    else { fill = themeColors.canvasLabel; font = FONT(11); }
+    if (isTapped) { fill = themeColors.accent; font = FONT(16); }
+    else if (isCurrent) { fill = this.#accuracyColor(); font = FONT(16); }
+    else if (isC) { fill = themeColors.textMuted; font = FONT(13); }
+    else if (isSharp) { fill = themeColors.canvasLabel; font = FONT(10); }
+    else { fill = themeColors.canvasLabel; font = FONT(12); }
 
     ctx.font = font;
     ctx.fillStyle = fill;
@@ -943,28 +976,6 @@ export class PitchGraph {
     ctx.fillText(label, x, y);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
-  }
-
-  /** Right rail: note names. */
-  #drawNoteRail(ctx, areaLeft, areaRight, h) {
-    const areaW = areaRight - areaLeft;
-    ctx.fillStyle = themeColors.canvasBg;
-    ctx.fillRect(areaLeft, 0, areaW, h);
-    ctx.textBaseline = 'middle';
-
-    for (let midi = this.#midiLow; midi <= this.#midiHigh; midi++) {
-      const y = this.#midiToY(midi);
-      this.#labelHitTargets.push({ midi, y, areaLeft, areaRight });
-      this.#drawRowBands(ctx, midi, areaLeft, areaW);
-
-      const { isCurrent, isTapped } = this.#rowHighlights(midi);
-      const noteIndex = ((midi % 12) + 12) % 12;
-      const inScale = this.#scaleNotes ? this.#scaleNotes.has(noteIndex) : true;
-      if (this.#chordNotes?.has(noteIndex)) {
-        this.#drawChordArrow(ctx, areaLeft + 2, y, -1);
-      }
-      this.#drawNoteLabel(ctx, midi, areaRight - 8, y, 'right', isCurrent, isTapped, inScale);
-    }
   }
 
   // -------------------------------------------------------------------------

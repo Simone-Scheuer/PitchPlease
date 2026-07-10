@@ -183,7 +183,8 @@
   --color-canvas-current-note-bg: rgba(110, 99, 232, 0.20);
   --color-canvas-playhead: rgba(52, 48, 155, 0.5);
   --color-canvas-glow: transparent;
-  --color-native-label: var(--accent-2);
+  /* bends in the violet family — red is data-only (off pitch) */
+  --color-native-label: var(--accent-bright);
 
   --chip-bg: var(--ink);
   --chip-text: var(--paper);
