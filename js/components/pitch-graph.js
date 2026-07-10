@@ -97,6 +97,10 @@ export class PitchGraph {
   // Guide (scale player)
   #guideMidi = null;
 
+  // Ghost watermark: the selected instrument, halftoned into the paper
+  #wmCanvas = null;
+  #wmKey = '';
+
   // Noise filter + trace data
   #pendingPoint = null;
   #confirmCount = 0;
@@ -501,6 +505,14 @@ export class PitchGraph {
     const graphRight = w - RIGHT_RAIL;
     const playheadX = graphRight - 48;
 
+    // Ghost instrument, deep in the paper (under everything else)
+    const wm = this.#ensureWatermark(graphRight - graphLeft, h);
+    if (wm) {
+      ctx.globalAlpha = document.documentElement.dataset.skin === 'neon' ? 0.085 : 0.06;
+      ctx.drawImage(wm, graphLeft, 0, graphRight - graphLeft, h);
+      ctx.globalAlpha = 1;
+    }
+
     this.#labelHitTargets = [];
 
     ctx.save();
@@ -640,6 +652,130 @@ export class PitchGraph {
         prevX = x;
         prevY = y;
       }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Ghost watermark — the selected instrument, halftoned into the paper
+  // -------------------------------------------------------------------------
+
+  /** Build (lazily, cached) the faded halftone instrument for the graph bg. */
+  #ensureWatermark(gw, gh) {
+    if (gw < 140 || gh < 140) return null;
+    const key = `${this.#instrument}:${this.#instrumentKey}:${Math.round(gw)}x${Math.round(gh)}:${themeColors.text}`;
+    if (this.#wmKey === key) return this.#wmCanvas;
+
+    // Pass 1: the instrument as a solid shape, tilted like a print block
+    const shape = document.createElement('canvas');
+    shape.width = Math.round(gw);
+    shape.height = Math.round(gh);
+    const sc = shape.getContext('2d');
+    sc.translate(gw / 2, gh / 2);
+    sc.rotate((this.#instrument === 'whistle' ? -28 : -7) * Math.PI / 180);
+    sc.fillStyle = '#000';
+    if (this.#instrument === 'harmonica') this.#drawHarmonicaShape(sc, gw, gh);
+    else if (this.#instrument === 'whistle') this.#drawWhistleShape(sc, gw, gh);
+    else this.#drawVoiceShape(sc, gw, gh);
+
+    // Pass 2: halftone it — 1-bit dots, noise-ordered dissolve toward edges
+    const wm = document.createElement('canvas');
+    wm.width = shape.width;
+    wm.height = shape.height;
+    const wc = wm.getContext('2d');
+    wc.fillStyle = themeColors.text;
+    const data = sc.getImageData(0, 0, shape.width, shape.height).data;
+    const pitch = 8;
+    const maxR = Math.hypot(gw, gh) / 2;
+    for (let y = pitch / 2; y < gh; y += pitch) {
+      for (let x = pitch / 2; x < gw; x += pitch) {
+        const a = data[(Math.round(y) * shape.width + Math.round(x)) * 4 + 3];
+        if (a < 128) continue;
+        const gx = Math.floor(x / pitch);
+        const gy = Math.floor(y / pitch);
+        const noise = ((((gx * 73856093) ^ (gy * 19349663)) >>> 0) % 1000) / 1000;
+        const dist = Math.hypot(x - gw / 2, y - gh / 2) / maxR;
+        if (noise > 1.15 - dist * 1.1) continue; // dots thin out, never fade
+        wc.beginPath();
+        wc.arc(x, y, 2.4, 0, Math.PI * 2);
+        wc.fill();
+      }
+    }
+    this.#wmCanvas = wm;
+    this.#wmKey = key;
+    return wm;
+  }
+
+  /** 10-hole diatonic, front elevation, centered at origin. */
+  #drawHarmonicaShape(sc, gw, gh) {
+    const W = Math.min(gw * 0.82, 1250);
+    const H = Math.min(W * 0.26, gh * 0.6);
+    sc.beginPath();
+    if (sc.roundRect) sc.roundRect(-W / 2, -H / 2, W, H, H * 0.16);
+    else sc.rect(-W / 2, -H / 2, W, H);
+    sc.fill();
+
+    sc.globalCompositeOperation = 'destination-out';
+    // cover-plate seams
+    sc.fillRect(-W * 0.46, -H * 0.30, W * 0.92, H * 0.05);
+    sc.fillRect(-W * 0.46, H * 0.25, W * 0.92, H * 0.05);
+    // 10 holes across the comb
+    const span = W * 0.78;
+    const holeW = span / 10 * 0.62;
+    const holeH = H * 0.26;
+    for (let i = 0; i < 10; i++) {
+      const cx = -span / 2 + (i + 0.5) * (span / 10);
+      sc.fillRect(cx - holeW / 2, -holeH / 2, holeW, holeH);
+    }
+    // end screws
+    for (const sx of [-1, 1]) {
+      sc.beginPath();
+      sc.arc(sx * (W / 2 - W * 0.04), 0, H * 0.07, 0, Math.PI * 2);
+      sc.fill();
+    }
+    sc.globalCompositeOperation = 'source-over';
+  }
+
+  /** Six-hole whistle with fipple window, laid diagonally. */
+  #drawWhistleShape(sc, gw, gh) {
+    const L = Math.min(Math.hypot(gw, gh) * 0.6, 1100);
+    const T = Math.min(L * 0.07, 54);
+    // body tube
+    sc.beginPath();
+    if (sc.roundRect) sc.roundRect(-L / 2, -T / 2, L, T, T * 0.5);
+    else sc.rect(-L / 2, -T / 2, L, T);
+    sc.fill();
+    // mouthpiece block
+    sc.beginPath();
+    if (sc.roundRect) sc.roundRect(-L / 2 - L * 0.01, -T * 0.75, L * 0.14, T * 1.5, T * 0.3);
+    else sc.rect(-L / 2 - L * 0.01, -T * 0.75, L * 0.14, T * 1.5);
+    sc.fill();
+
+    sc.globalCompositeOperation = 'destination-out';
+    // fipple window
+    sc.fillRect(-L / 2 + L * 0.155, -T * 0.32, L * 0.035, T * 0.64);
+    // 6 finger holes
+    for (let i = 0; i < 6; i++) {
+      const cx = -L * 0.02 + i * (L * 0.085);
+      sc.beginPath();
+      sc.arc(cx, 0, T * 0.27, 0, Math.PI * 2);
+      sc.fill();
+    }
+    sc.globalCompositeOperation = 'source-over';
+  }
+
+  /** Voice / whistling: a source and its sound wavefronts. */
+  #drawVoiceShape(sc, gw, gh) {
+    const R = Math.min(gw, gh) * 0.34;
+    sc.beginPath();
+    sc.arc(-R * 0.7, 0, R * 0.13, 0, Math.PI * 2);
+    sc.fill();
+    sc.strokeStyle = '#000';
+    sc.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      sc.lineWidth = R * 0.1;
+      sc.beginPath();
+      sc.arc(-R * 0.7, 0, R * (0.42 + i * 0.34), -0.9, 0.9);
+      sc.stroke();
     }
   }
 
